@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetApp NFS Parameters – SVM Configuration Guide</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,600;1,300&display=swap');
+
+  :root {
+    --bg:        #0d1117;
+    --surface:   #161b22;
+    --surface2:  #1f2733;
+    --border:    #2a3a4a;
+    --accent:    #00c7b7;
+    --accent2:   #3b82f6;
+    --warn:      #f59e0b;
+    --text:      #e6edf3;
+    --muted:     #8b949e;
+    --enabled:   #22c55e;
+    --disabled:  #ef4444;
+    --tag-bg:    #1a2e3a;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    padding: 80px 40px 60px;
+    max-width: 900px;
+    margin: 0 auto;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .hero-eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .hero h1 {
+    font-size: clamp(28px, 5vw, 46px);
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 18px;
+  }
+
+  .hero h1 span { color: var(--accent); }
+
+  .hero-desc {
+    font-size: 16px;
+    color: var(--muted);
+    font-weight: 300;
+    max-width: 620px;
+    margin-bottom: 32px;
+  }
+
+  .vserver-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 18px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+  }
+
+  .vserver-badge .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--enabled);
+    box-shadow: 0 0 6px var(--enabled);
+    flex-shrink: 0;
+  }
+
+  /* ── NAV PILLS ── */
+  .toc {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 28px 40px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .toc-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    align-self: center;
+    margin-right: 6px;
+  }
+
+  .toc a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    transition: all 0.18s;
+  }
+
+  .toc a:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: rgba(0,199,183,0.06);
+  }
+
+  /* ── MAIN CONTENT ── */
+  main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 40px 80px;
+  }
+
+  /* ── SECTION ── */
+  .section {
+    margin-top: 60px;
+    padding-top: 12px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 28px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    background: var(--tag-bg);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px;
+    flex-shrink: 0;
+  }
+
+  .section-header h2 {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .section-header h2 span {
+    color: var(--accent);
+  }
+
+  /* ── PARAM CARD ── */
+  .param-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 16px;
+    overflow: hidden;
+    transition: border-color 0.18s;
+  }
+
+  .param-card:hover {
+    border-color: var(--accent2);
+  }
+
+  .param-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 20px;
+    background: var(--surface2);
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .param-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    word-break: break-all;
+  }
+
+  .param-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
+  .param-value.on  { background: rgba(34,197,94,0.12);  color: var(--enabled);  border: 1px solid rgba(34,197,94,0.25); }
+  .param-value.off { background: rgba(239,68,68,0.12);  color: var(--disabled); border: 1px solid rgba(239,68,68,0.25); }
+  .param-value.num { background: rgba(59,130,246,0.12); color: #7dd3fc;         border: 1px solid rgba(59,130,246,0.25); }
+  .param-value.str { background: rgba(245,158,11,0.12); color: var(--warn);     border: 1px solid rgba(245,158,11,0.25); }
+
+  .param-body {
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .param-desc {
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.65;
+  }
+
+  .param-tip {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    background: rgba(0,199,183,0.05);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  .param-tip::before { content: "💡"; flex-shrink: 0; }
+
+  /* ── CALLOUT BOX ── */
+  .callout {
+    background: rgba(59,130,246,0.07);
+    border: 1px solid rgba(59,130,246,0.25);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-top: 24px;
+    font-size: 13.5px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  .callout strong { color: #7dd3fc; }
+
+  /* ── FOOTER ── */
+  footer {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 28px 40px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  footer span {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+  }
+
+  @media (max-width: 600px) {
+    .hero, main, .toc, footer { padding-left: 20px; padding-right: 20px; }
+    .hero { padding-top: 48px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<header class="hero">
+  <p class="hero-eyebrow">NetApp ONTAP · SVM Configuration</p>
+  <h1>NFS Parameter<br><span>Reference Guide</span></h1>
+  <p class="hero-desc">A practical walkthrough of every parameter shown by <code style="font-family:'IBM Plex Mono',monospace;color:var(--accent);font-size:13px;">vserver nfs show -ins</code> — what each setting controls, its current value, and when to adjust it.</p>
+  <div class="vserver-badge">
+    <span class="dot"></span>
+    vserver: svm1 &nbsp;·&nbsp; cluster1 &nbsp;·&nbsp; ONTAP 9.18.1
+  </div>
+</header>
+
+<!-- TOC -->
+<nav class="toc">
+  <span class="toc-label">Jump to</span>
+  <a href="#core">Core Access</a>
+  <a href="#proto">Protocol Versions</a>
+  <a href="#nfsv4">NFSv4 Settings</a>
+  <a href="#nfsv41">NFSv4.1 / pNFS</a>
+  <a href="#nfsv42">NFSv4.2</a>
+  <a href="#security">Security &amp; Auth</a>
+  <a href="#perf">Performance &amp; I/O</a>
+  <a href="#ports">Ports &amp; Timers</a>
+  <a href="#misc">Misc &amp; Monitoring</a>
+</nav>
+
+<main>
+
+  <!-- ═══════════════════════════════════════════ CORE ACCESS -->
+  <section class="section" id="core">
+    <div class="section-header">
+      <div class="section-icon">🌐</div>
+      <h2>Core <span>NFS Access</span></h2>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">General NFS Access</span>
+        <span class="param-value on">true</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">The master on/off switch for NFS on this SVM. When <strong>true</strong>, the SVM can serve NFS to clients. Setting it to <strong>false</strong> immediately blocks all new NFS connections without removing any configuration — useful for emergency maintenance windows.</p>
+        <p class="param-tip">If clients suddenly lose access, this is the first parameter to check. A mis-set <code>false</code> here overrides every other NFS setting.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFS Mount Root Only</span>
+        <span class="param-value on">enabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Restricts the NFS MOUNT RPC call (used during <code>mount</code>) so it can only originate from a privileged source port (&lt;1024) on the client. Most Unix/Linux NFS clients naturally use privileged ports for mount, but some embedded or non-standard clients may not.</p>
+        <p class="param-tip">Keep enabled in production. Disable only when specific clients (e.g., older Windows NFS or certain NAS gateways) cannot use privileged ports.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFS Root Only</span>
+        <span class="param-value off">disabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">When enabled, restricts all NFS requests (not just MOUNT) to originate from privileged source ports. This is a stricter version of Mount Root Only and may break clients that use unprivileged ports for data I/O.</p>
+        <p class="param-tip">Generally left disabled unless your security policy explicitly mandates it, as it can cause compatibility issues with modern NFS clients.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Showmount Enabled</span>
+        <span class="param-value on">enabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Controls whether the SVM responds to <code>showmount -e</code> queries, which list the NFS exports available on the server. Useful for administrators and clients discovering available shares.</p>
+        <p class="param-tip">Can be disabled in high-security environments to prevent clients from enumerating exports. Export access is still enforced by export policies regardless of this setting.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Provide Root Path as Showmount State</span>
+        <span class="param-value off">disabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">When enabled, the showmount response always reports the root path ("/") as the exported path, regardless of actual export policy paths. Some older clients or NFS automounters expect this format.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Qtree Exports Enabled</span>
+        <span class="param-value off">disabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Enables or disables the ability to export individual qtrees as NFS mount points. When disabled, only volumes (not their qtrees) can be independently mounted by NFS clients.</p>
+        <p class="param-tip">Enable if workloads require per-qtree mount points with separate export policies. Keep disabled if qtree-level exports are not needed — it simplifies administration.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ PROTOCOL VERSIONS -->
+  <section class="section" id="proto">
+    <div class="section-header">
+      <div class="section-icon">📡</div>
+      <h2>Protocol <span>Versions &amp; Transport</span></h2>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFS v3</span>
+        <span class="param-value on">enabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">NFSv3 is the most widely supported NFS version. It is stateless (no persistent client–server state), uses separate MOUNT, NLM (locking), and NSM (status monitor) protocols, and supports both UDP and TCP. It remains common in legacy environments and is often the fallback for clients that do not support NFSv4.</p>
+        <p class="param-tip">If your workloads are exclusively NFSv4/4.1, consider disabling v3 to reduce attack surface and eliminate NLM/NSM port exposure.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFS v4.0</span>
+        <span class="param-value on">enabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">NFSv4.0 is a stateful protocol that runs exclusively over TCP. It eliminates the need for separate MOUNT, NLM, and NSM side-protocols, folding everything into a single port (2049). Introduces file-level locking, compound operations (multiple ops in one RPC), and ACL support.</p>
+        <p class="param-tip">NFSv4.0 requires correct ID mapping (see <a href="#nfsv4" style="color:var(--accent2)">NFSv4 ID Mapping Domain</a>). Mismatched domains between client and server cause all files to show as <code>nobody</code>.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">UDP Protocol</span>
+        <span class="param-value on">enabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Allows NFS traffic to use UDP as its transport. UDP has lower per-packet overhead than TCP but provides no reliability, ordering guarantees, or flow control. NFSv4 never uses UDP — this setting only affects NFSv3 (and NFSv2 if enabled).</p>
+        <p class="param-tip">In most modern environments, UDP NFS is unnecessary. Disable it to force all NFS over TCP, which is more reliable over congested or lossy networks.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">TCP Protocol</span>
+        <span class="param-value on">enabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Allows NFS traffic over TCP. TCP is required for NFSv4/4.1/4.2 and strongly recommended for NFSv3 in production environments. TCP provides error detection, retransmission, and flow control that UDP lacks.</p>
+        <p class="param-tip">This should almost never be disabled. Disabling TCP while keeping UDP means all NFSv4 clients will fail to connect.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">UDP Maximum Transfer Size (bytes)</span>
+        <span class="param-value num">32768</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">The largest single NFS read or write I/O size allowed over UDP. 32768 bytes (32 KB) is the traditional maximum for UDP NFS, as larger UDP datagrams risk fragmentation. Clients negotiate down to this value if they request larger transfers.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">TCP Maximum Transfer Size (bytes)</span>
+        <span class="param-value num">65536</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">The largest single NFS read or write I/O block over TCP. 65536 bytes (64 KB) is the default. Larger values (e.g., 1 MB = 1048576) can improve throughput for sequential large-file workloads on high-bandwidth networks by reducing the number of individual RPC calls needed.</p>
+        <p class="param-tip">For big data or HPC workloads on 10GbE+ networks, increasing this to 262144 (256 KB) or 1048576 (1 MB) often improves sequential throughput significantly.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ NFSv4 SETTINGS -->
+  <section class="section" id="nfsv4">
+    <div class="section-header">
+      <div class="section-icon">🔑</div>
+      <h2>NFSv4 <span>Core Settings</span></h2>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFSv4 ID Mapping Domain</span>
+        <span class="param-value str">defaultv4iddomain.com</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">In NFSv4, user and group identities are transmitted as <code>user@domain</code> strings (e.g., <code>alice@example.com</code>) rather than numeric UIDs/GIDs. The domain here must exactly match the <code>Domain =</code> setting in <code>/etc/idmapd.conf</code> on every client. A mismatch causes ownership to display as <code>nobody</code> or <code>4294967294</code>.</p>
+        <p class="param-tip">Always set this to your actual DNS domain (e.g., <code>company.com</code>). The default <code>defaultv4iddomain.com</code> is a placeholder — update it before putting NFSv4 clients into production.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFSv4 Lease Timeout Value (in secs)</span>
+        <span class="param-value num">30</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">The period (in seconds) for which a client's NFSv4 lease is valid. Clients must renew their lease within this window or the server may reclaim their locks and open file state. 30 seconds is the ONTAP default and is appropriate for most LAN environments.</p>
+        <p class="param-tip">In high-latency WAN environments, consider increasing this to 60–90 seconds to avoid spurious lease expirations. Decreasing it speeds up state recovery after a client crash but increases renewal traffic.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFSv4 Grace Timeout Value (in secs)</span>
+        <span class="param-value num">45</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">After a server restart or failover, NFSv4 enters a "grace period" during which it accepts only reclaim requests (clients re-establishing their previous lock/open state). New lock requests are queued until the grace period expires. The 45-second value is slightly longer than the 30-second lease, giving all clients time to reclaim.</p>
+        <p class="param-tip">Set the grace timeout to at least the lease timeout. Clients that do not reclaim within the grace period lose their locks and may receive <code>NFS4ERR_NO_GRACE</code> errors.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFSv4.0 ACL Support</span>
+        <span class="param-value off">disabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Controls whether NFSv4.0 GETATTR and SETATTR calls can read and write NFSv4 Access Control Lists on files. When disabled, ACL requests over NFSv4.0 are ignored or return errors. This does not affect POSIX permission mode bits.</p>
+        <p class="param-tip">Enable if applications running over NFSv4.0 require fine-grained ACL control (e.g., Solaris or AIX clients using NFSv4 ACLs).</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFSv4.0 Read Delegation Support</span>
+        <span class="param-value off">disabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Read delegations allow a client to cache a file read-locally, knowing the server will notify (recall) the delegation if another client modifies the file. This reduces round-trips for read-heavy workloads but adds complexity to recall handling.</p>
+        <p class="param-tip">Enable for read-intensive workloads where files are rarely modified by multiple clients simultaneously. Avoid on highly shared, frequently modified files.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFSv4.0 Write Delegation Support</span>
+        <span class="param-value off">disabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Write delegations grant a single client exclusive write access to a file, allowing it to buffer writes locally. Other clients' access to that file is blocked until the delegation is recalled. Can significantly improve write throughput for single-writer patterns.</p>
+        <p class="param-tip">Use with caution. Write delegations can delay I/O for other clients waiting for a recall. Best suited for workloads with clear single-writer patterns.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFSv4 Support for Numeric Owner IDs</span>
+        <span class="param-value on">enabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">When enabled, the server accepts and returns numeric UIDs/GIDs in NFSv4 owner strings (e.g., <code>1234@domain</code>) in addition to named users. This is useful when name-service lookups fail or when clients and server have different user databases.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFSv4 Validate UTF-8 Encoding of Symbolic Link Data</span>
+        <span class="param-value off">disabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">When enabled, the server validates that symbolic link targets contain valid UTF-8 characters, per the NFSv4 specification. Some legacy systems create symlinks with non-UTF-8 byte sequences.</p>
+        <p class="param-tip">Enable in strict standards-compliance environments. Disable if existing symlinks were created with non-UTF-8 names (e.g., Latin-1 encoded paths).</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Maximum Number of ACEs per ACL</span>
+        <span class="param-value num">400</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Sets the upper limit on how many Access Control Entries (ACEs) a single ACL can contain. The default of 400 is sufficient for virtually all workloads. Excessively large ACLs can impact performance during permission evaluation.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Show Change in FSID as NFSv4 Clients Traverse Filesystems</span>
+        <span class="param-value on">enabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Controls whether NFSv4 clients see a different Filesystem ID (FSID) when they cross a volume or qtree boundary (a filesystem junction). When enabled, FSID changes at junctions — which is spec-compliant behavior and helps clients detect they have crossed a mount point boundary.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ NFSv4.1 / pNFS -->
+  <section class="section" id="nfsv41">
+    <div class="section-header">
+      <div class="section-icon">⚡</div>
+      <h2>NFSv4.1 <span>&amp; pNFS</span></h2>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFSv4.1 Minor Version Support</span>
+        <span class="param-value on">enabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Enables the NFSv4.1 minor version, which introduces sessions (eliminating the need for separate connection-level state), improved security, and the foundation for pNFS (parallel NFS). NFSv4.1 is required for modern Linux clients (kernel 3.9+) using the default mount options.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFSv4.1 Parallel NFS Support (pNFS)</span>
+        <span class="param-value off">disabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">pNFS allows clients to access storage nodes directly in parallel, bypassing the metadata server for data I/O. ONTAP supports the "files" layout type, where pNFS clients can be directed to individual nodes in the cluster for data. Can dramatically improve throughput in large-scale parallel workloads.</p>
+        <p class="param-tip">Enable for HPC or large-scale analytics workloads where multiple clients access different files simultaneously. Requires clients that support the NFSv4.1 pNFS files layout.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Number of Slots in NFSv4.x Session Slot Tables</span>
+        <span class="param-value num">180</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">NFSv4.1 sessions use a slot table for request tracking and exactly-once semantics. Each slot can hold one in-flight RPC at a time. This value sets how many concurrent outstanding RPCs a single session can have. Higher values allow more parallelism per client session.</p>
+        <p class="param-tip">For workloads with high concurrency (e.g., databases with many threads), increasing this value can improve throughput. Reduce it on memory-constrained systems with many clients.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Size of Reply Cached in Each NFSv4.x Session Slot (bytes)</span>
+        <span class="param-value num">640</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Each slot in the session table can cache the server's reply to the most recent RPC in that slot, enabling exactly-once semantics (idempotent replay detection). This sets how many bytes of each reply are cached. 640 bytes is sufficient for most metadata operations but not for large data reads.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFSv4.1 ACL Support</span>
+        <span class="param-value off">disabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Enables ACL attribute support for NFSv4.1 sessions. Functionally equivalent to the NFSv4.0 ACL setting but applies specifically to NFSv4.1 connections. When disabled, ACL get/set operations over 4.1 return <code>NFS4ERR_ATTRNOTSUPP</code>.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFSv4.1 Read Delegation Support</span>
+        <span class="param-value off">disabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Same semantics as NFSv4.0 read delegations, but applies to clients connected via NFSv4.1. NFSv4.1 delegation handling is improved over 4.0 due to session-based state management.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFSv4.1 Write Delegation Support</span>
+        <span class="param-value off">disabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Same semantics as NFSv4.0 write delegations for NFSv4.1 clients. Session-based error recovery in NFSv4.1 makes delegation recall more reliable than in NFSv4.0.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFSv4.1 Implementation ID Domain</span>
+        <span class="param-value str">netapp.com</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">The domain portion of the server's NFSv4.1 implementation identifier, sent in the EXCHANGE_ID operation. Clients can use this to identify the vendor of the server implementation. This is informational and does not affect functionality.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFSv4.1 Implementation ID Name</span>
+        <span class="param-value str">NetApp Release 9.18.1</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">The human-readable name string in the NFSv4.1 implementation ID, identifying the server software version. Purely informational — returned to clients during session creation to identify the server.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFSv4.1 Trunking Support</span>
+        <span class="param-value off">disabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Session trunking allows a single NFSv4.1 session to use multiple network connections (trunks) simultaneously, increasing aggregate bandwidth and providing path redundancy. The client must also support trunking (RFC 5661).</p>
+        <p class="param-tip">Enable on systems with multiple network interfaces per node when clients support trunking. Particularly valuable for high-throughput workloads on multi-NIC configurations.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ NFSv4.2 -->
+  <section class="section" id="nfsv42">
+    <div class="section-header">
+      <div class="section-icon">🆕</div>
+      <h2>NFSv4.2 <span>Features</span></h2>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFSv4.2 Extended Attributes Support</span>
+        <span class="param-value on">enabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">NFSv4.2 (RFC 8276) adds support for user-defined extended attributes (xattrs) on files and directories — the same mechanism used by Linux <code>getfattr</code>/<code>setfattr</code>. These are separate from ACLs and allow applications to store arbitrary metadata alongside files.</p>
+        <p class="param-tip">Required for modern Linux workloads that use xattrs (e.g., SELinux labels, container image layers, some databases). Ensure clients mount with <code>vers=4.2</code> to use this feature.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFSV4.2 Sparse Files Operations Support</span>
+        <span class="param-value off">disabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Enables NFSv4.2 SEEK and ALLOCATE operations, which allow clients to create and manipulate sparse files (files with "holes" that do not consume physical storage). Applications like virtual machine disk images and databases commonly use sparse files.</p>
+        <p class="param-tip">Enable for VM workloads (e.g., QCOW2/VMDK images) or database applications that benefit from sparse file support to reduce storage consumption.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFSV4.2 Security Label Support</span>
+        <span class="param-value off">disabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Enables Labeled NFS (RFC 7204), allowing MAC (Mandatory Access Control) security labels (e.g., SELinux or Smack labels) to be stored and retrieved on files via NFSv4.2. Required for environments where SELinux-enforcing hosts need consistent labels on NFS-mounted files.</p>
+        <p class="param-tip">Enable in SELinux-enforcing environments where label consistency across NFS is required. Clients must also be running in enforcing mode with the labeled NFS feature enabled in the kernel.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ SECURITY & AUTH -->
+  <section class="section" id="security">
+    <div class="section-header">
+      <div class="section-icon">🔒</div>
+      <h2>Security <span>&amp; Authentication</span></h2>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Permitted Kerberos Encryption Types</span>
+        <span class="param-value str">aes-128, aes-256</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Specifies which Kerberos encryption algorithms are accepted for <code>krb5</code>, <code>krb5i</code> (integrity), and <code>krb5p</code> (privacy) NFS mounts. Only AES-128 and AES-256 are permitted here — older, weaker algorithms (DES, RC4/ARCFOUR) are not listed, reflecting a modern security posture.</p>
+        <p class="param-tip">AES-256 (<code>aes256-cts-hmac-sha1-96</code>) is the preferred type. Both entries here mean the server accepts either, negotiating the strongest the client offers. Ensure your KDC and clients are configured to match.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">AUTH_SYS Extended Groups Enabled</span>
+        <span class="param-value off">disabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">NFS AUTH_SYS credentials carry the user's UID, primary GID, and up to 16 supplementary groups in the RPC credential itself. When disabled, ONTAP only evaluates those credentials. When enabled, ONTAP performs an additional name-service lookup to expand group membership beyond 16 groups.</p>
+        <p class="param-tip">Enable if users belong to more than 16 groups and those group memberships need to be honored for export policy or permission checks. Requires a correctly configured LDAP/NIS name service.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">AUTH_SYS and RPCSEC_GSS Auxiliary Groups Limit</span>
+        <span class="param-value num">32</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Sets the maximum number of auxiliary (supplementary) groups evaluated per user when Extended Groups is enabled. The default of 32 is above the NFS wire limit of 16 but below the Linux kernel maximum of 65536.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Vserver NTFS Unix Security Options</span>
+        <span class="param-value str">use_export_policy</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Controls how UNIX-style permission operations (chmod, chown) are handled on volumes with NTFS security style. <code>use_export_policy</code> means the behavior is determined per-export by the export policy rules. Other options include <code>ignore</code> (silently ignore UNIX operations) or <code>fail</code> (return an error).</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Vserver Change Ownership Mode</span>
+        <span class="param-value str">use_export_policy</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Determines whether NFS clients can perform <code>chown</code> operations on files. <code>use_export_policy</code> defers the decision to the active export policy. Can also be set to <code>restricted</code> (only root may chown) or <code>unrestricted</code> (any owner may chown, POSIX default).</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Ignore the NT ACL Check for NFS User 'root'</span>
+        <span class="param-value off">disabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">On unified security style volumes, NFS root is normally subject to NT ACL permission checks. When enabled, NFS root bypasses NT ACL checks and has unrestricted access. This can be a significant security risk in mixed-protocol environments.</p>
+        <p class="param-tip">Keep disabled unless a specific application requires root-level NFS bypass of ACL checks. Audit access carefully if you enable this.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Skip Permission Check for NFS Write from Root/Owner</span>
+        <span class="param-value off">disabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">When enabled, NFS write calls from the file owner or root skip the normal permission check. This can allow writes to read-only files by their owner. Not recommended for most environments.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Map Unknown UID to Default Windows User</span>
+        <span class="param-value on">enable</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">When an NFS client presents a UID that cannot be mapped to a Windows user account (in mixed or unified security style), this setting controls whether the access falls back to a configured default Windows user account. Prevents access failures for unmapped users in mixed-protocol environments.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Enable or Disable Checksum for Replay-Cache</span>
+        <span class="param-value on">enabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">The NFS replay cache (duplicate request cache for NFSv3) stores checksums of recent requests to detect retransmitted duplicate RPCs. When enabled, checksums are verified before serving a cached reply, preventing stale cache entries from being incorrectly matched.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ PERFORMANCE -->
+  <section class="section" id="perf">
+    <div class="section-header">
+      <div class="section-icon">⚙️</div>
+      <h2>Performance <span>&amp; I/O</span></h2>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Time To Live – Positive Cached Credential (ms)</span>
+        <span class="param-value num">3,600,000</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">How long (in milliseconds) a successfully resolved credential (user/group mapping) is kept in the NFS credential cache. At 3,600,000 ms = 1 hour, group membership changes in LDAP/NIS will not be visible to NFS for up to an hour without a cache flush.</p>
+        <p class="param-tip">Reduce to 300,000 ms (5 min) in environments where user/group changes need to propagate quickly. Increase for read-heavy, stable environments to reduce name-service load.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Time To Live – Negative Cached Credential (ms)</span>
+        <span class="param-value num">3,600,000</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">How long a failed credential lookup (user not found) is cached before being retried. Caching negative results prevents repeatedly hammering a name service for non-existent users. However, if a user is added, they cannot connect for up to 1 hour.</p>
+        <p class="param-tip">Set lower than the positive TTL (e.g., 60,000 ms = 1 minute) so newly added users are recognized quickly after provisioning.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Time To Live – Cached Entry for Transient Error (ms)</span>
+        <span class="param-value num">30,000</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">How long a credential lookup that failed due to a transient error (e.g., name service temporarily unreachable) is cached before being retried. The 30-second value means NFS will retry the name service every 30 seconds during an outage.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Harvest Timeout for Cached Credential (ms)</span>
+        <span class="param-value num">86,400,000</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">The maximum time (24 hours) a cached credential can live in the cache before it is unconditionally evicted and must be re-resolved. This is an absolute upper bound regardless of the positive TTL.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">I/O Count to Be Grouped as a Session</span>
+        <span class="param-value num">5,000</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">The number of I/O operations that are grouped together for session-based analytics and monitoring. After 5,000 I/Os, the session is considered complete for reporting purposes. This parameter affects analytics aggregation, not data path behavior.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Duration for I/O to Be Grouped as a Session (secs)</span>
+        <span class="param-value num">120</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">The time window (2 minutes) after which an I/O session is closed for analytics purposes, even if the I/O count threshold has not been reached. Works alongside the I/O count threshold — whichever is hit first closes the session.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Idle Connection Timeout Value (seconds)</span>
+        <span class="param-value num">360</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">The number of seconds an NFS TCP connection can remain idle (no RPC traffic) before the server considers closing it. A value of 360 seconds (6 minutes) means idle connections are cleaned up after 6 minutes, freeing server resources.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Are Idle NFS Connections Supported</span>
+        <span class="param-value on">enabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">When enabled, the server actively manages and can close idle NFS TCP connections after the configured timeout. When disabled, connections persist indefinitely until the client closes them. Enabling this frees resources from dormant clients.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Enable Dropping a Connection When an NFSv3 Request is Dropped</span>
+        <span class="param-value on">enabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">When the server must drop an NFSv3 request (e.g., under extreme load), this setting causes the server to also drop the TCP connection, forcing the client to reconnect and reissue the request. This signals the overload condition clearly to the client rather than leaving it waiting indefinitely.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Use 64 Bits for NFSv3 FSIDs and File IDs</span>
+        <span class="param-value on">enabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Enables 64-bit filesystem IDs and inode numbers for NFSv3. Required for large filesystems or those with more than 2^32 inodes. Modern NFS clients support 64-bit file IDs; very old clients (pre-2.6 Linux kernels, older Solaris) may not.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Use 64 Bits for NFSv4.x FSIDs and File IDs</span>
+        <span class="param-value on">enabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Same as above but for NFSv4.x clients. All modern NFSv4 clients support 64-bit file IDs; this should always be enabled for production volumes.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ PORTS & TIMERS -->
+  <section class="section" id="ports">
+    <div class="section-header">
+      <div class="section-icon">🔌</div>
+      <h2>Ports <span>&amp; Service Timers</span></h2>
+    </div>
+
+    <div class="callout">
+      <strong>Note:</strong> The following ports are fixed by ONTAP and used by the SVM's NFS services. Ensure firewall rules between clients and the SVM's LIF addresses allow these ports. NFSv4 exclusively uses port 2049 and does not require the auxiliary ports below.
+    </div>
+
+    <div class="param-card" style="margin-top:20px;">
+      <div class="param-header">
+        <span class="param-name">NFS Mount Daemon Port</span>
+        <span class="param-value num">635</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">The port on which the MOUNT daemon listens. Clients use MOUNT to resolve an export path to a filehandle before performing NFS I/O (NFSv3 only). ONTAP uses port 635 rather than the traditional portmapper-assigned dynamic port, simplifying firewall rules.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Network Lock Manager Port</span>
+        <span class="param-value num">4045</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">The port for NLM (Network Lock Manager), which provides advisory file locking for NFSv3 clients (the <code>fcntl</code>/<code>flock</code> equivalent over NFS). NFSv4 and later have locking built into the protocol and do not use NLM.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Network Status Monitor Port</span>
+        <span class="param-value num">4046</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">The port for NSM (Network Status Monitor), which works alongside NLM to notify clients of server reboots so they can reclaim their locks. Used only with NFSv3.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFS Quota Daemon Port</span>
+        <span class="param-value num">4049</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">The port for the RQUOTAD service, which allows NFS clients to query disk quota information from the server using the <code>quota</code> command. This requires <a href="#misc" style="color:var(--accent2)">Rquota Enable</a> to be turned on.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Rquota Enable</span>
+        <span class="param-value off">disabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Enables the RQUOTAD service that exposes disk quota information to NFS clients. When disabled, <code>quota</code> commands on NFS clients will fail or return no data. Quotas on the volume still function — clients just cannot query them remotely.</p>
+        <p class="param-tip">Enable if NFS clients need to run <code>quota</code> or <code>repquota</code> commands against this server. Most environments do not require this.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFS Response Trace Enabled</span>
+        <span class="param-value off">false</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">When enabled, ONTAP logs details about NFS operations that exceed the response trigger threshold. Useful for diagnosing latency or hung NFS operations. Should normally be disabled in production to avoid log overhead.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFS Response Trigger (in secs)</span>
+        <span class="param-value num">60</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">The threshold in seconds at which an NFS operation is considered "slow" and logged when response tracing is enabled. Operations that take longer than 60 seconds will be traced.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ MISC -->
+  <section class="section" id="misc">
+    <div class="section-header">
+      <div class="section-icon">🗂️</div>
+      <h2>Miscellaneous <span>&amp; Monitoring</span></h2>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Require All NFSv3 Reads to Return Read Attributes</span>
+        <span class="param-value off">false</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">When enabled, every NFSv3 READ response includes updated file attributes (size, mtime, etc.) in the reply. This guarantees attribute consistency at the cost of extra processing per read. Disabled by default because most clients issue separate GETATTR calls when needed.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Show Change in FSID as NFSv3 Clients Traverse Filesystems</span>
+        <span class="param-value on">enabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Same behavior as the NFSv4 version but for NFSv3 clients. When traversing a FlexVol volume junction, NFSv3 clients see a change in the FSID, indicating a filesystem boundary. Required for correct <code>df</code> output on mounted sub-trees.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Enable NFSv3 EJUKEBOX Error</span>
+        <span class="param-value on">true</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Controls whether ONTAP returns the <code>EJUKEBOX</code> (NFS3ERR_JUKEBOX) error to NFSv3 clients when a request must be retried (e.g., waiting for a migrate or tiering operation). Clients that receive EJUKEBOX are expected to retry after a short delay. Some older clients may not handle this error gracefully.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Hide Snapshot Directory under NFSv3 Mount Point</span>
+        <span class="param-value off">disabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">When disabled, the <code>.snapshot</code> directory is visible at the root of each NFS-mounted volume, allowing clients to browse and restore previous snapshots directly from the filesystem. Enabling this hides the directory from NFS listings (though it can still be accessed if the path is known).</p>
+        <p class="param-tip">Keep disabled to allow self-service snapshot restores. Enable in regulated environments where snapshot visibility must be restricted.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Force Usage of SpinNp Readdir Requests</span>
+        <span class="param-value off">false</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">A legacy compatibility option for certain NFS clients that require a specific READDIR implementation. Disabled by default and rarely needed in modern deployments.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">RDMA Protocol</span>
+        <span class="param-value on">enabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Enables NFS over RDMA (Remote Direct Memory Access), also known as NFS/RDMA or RoCE. RDMA allows NFS data to be transferred directly between client and server memory, bypassing the CPU and OS networking stack for dramatically lower latency and CPU overhead.</p>
+        <p class="param-tip">Requires RDMA-capable NICs (RoCE or iWARP) on both client and server, and an RDMA-aware switch fabric. Delivers significant benefits for latency-sensitive HPC or analytics workloads.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Validation of Qtree IDs for Qtree File Operations</span>
+        <span class="param-value on">enabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">When enabled, ONTAP validates that NFS operations on files within a qtree use a filehandle whose embedded qtree ID matches the actual qtree containing the file. This prevents a class of filehandle-guessing attacks that could allow access across qtree boundaries.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Set Protocol Used for Name Services Lookups for Exports</span>
+        <span class="param-value str">udp</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Controls whether ONTAP uses UDP or TCP when communicating with NIS/LDAP name services during export policy client matching. UDP is the traditional NIS transport; TCP is preferred for LDAP and in environments where UDP traffic may be filtered.</p>
+        <p class="param-tip">Change to <code>tcp</code> if your name service infrastructure uses LDAP over TCP or if UDP is unreliable in your network.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">DNS Domain Search Enabled During Netgroup Lookup</span>
+        <span class="param-value on">enabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">When enabled, DNS domain search suffixes are appended to short hostnames during netgroup lookups. This allows netgroup entries with unqualified hostnames (e.g., <code>webserver1</code>) to match even if clients connect using fully qualified names.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Trust No-Match Result from Any Name Service During Netgroup Lookup</span>
+        <span class="param-value off">disabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">When enabled, a definitive "not found" response from any name service (NIS, LDAP, files) during netgroup lookup is treated as authoritative, stopping the lookup chain. When disabled (default), all name service sources are consulted before a final no-match is declared.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Display Maximum NT ACL Permissions to NFS Client</span>
+        <span class="param-value off">disabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">On NTFS or unified security style volumes, NFS clients see a POSIX permission mode derived from the NT ACL. When disabled, ONTAP shows the most conservative interpretation of the NT ACL as the mode bits. When enabled, it shows the most permissive interpretation.</p>
+        <p class="param-tip">Leave disabled. Showing maximum permissions can mislead NFS applications into attempting access that will ultimately be denied by the NT ACL.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFSv3 MS-DOS Client Support</span>
+        <span class="param-value off">disabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Enables compatibility features for very old MS-DOS based NFS clients. Not relevant to any modern deployment.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Allow Non-root User MOUNT Operations from Hadoop Connector</span>
+        <span class="param-value on">enabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Allows the Hadoop/HDFS connector to initiate NFS MOUNT operations from a non-privileged (non-root) user. The standard <em>NFS Mount Root Only</em> rule requires the MOUNT request to come from a privileged port, which the Hadoop connector may not use.</p>
+        <p class="param-tip">Leave enabled if using ONTAP with a Hadoop or Spark cluster via the NFS connector. Disable if no Hadoop integration is present.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Qtree QoS Enabled</span>
+        <span class="param-value off">disabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Enables Quality of Service (QoS) policy enforcement at the qtree level, in addition to the volume level. When enabled, QoS policy groups can be applied to individual qtrees for more granular I/O throttling.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Modebits and ACL Setting is Restricted</span>
+        <span class="param-value str">unrestricted</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">Controls whether changes to mode bits (chmod) or ACLs are restricted on this SVM. <code>unrestricted</code> means any client with appropriate permissions can change mode bits or ACLs, following standard POSIX rules. <code>restricted</code> would limit these operations.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Is Qtree Extended Performance Monitoring Enabled</span>
+        <span class="param-value off">disabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">When enabled, ONTAP collects detailed per-qtree I/O performance statistics. Useful for chargeback reporting or identifying hot qtrees. Carries a small overhead due to per-qtree counter tracking.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">NFSv4 Subnet Filter Support</span>
+        <span class="param-value off">disabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">When enabled, allows export policies to match clients by subnet in NFSv4, in addition to the standard IP/hostname matching already available. Provides finer-grained network-based access control for NFSv4 clients.</p>
+      </div>
+    </div>
+
+    <div class="param-card">
+      <div class="param-header">
+        <span class="param-name">Preserves and Modifies NFSv4 ACL (and NTFS File Permissions in Unified Security Style)</span>
+        <span class="param-value on">enabled</span>
+      </div>
+      <div class="param-body">
+        <p class="param-desc">When enabled, ONTAP preserves existing NFSv4 ACLs and NTFS ACLs when mode bit changes (<code>chmod</code>) are applied. The ACL is updated to reflect the new mode bits rather than being discarded entirely. When disabled, a <code>chmod</code> replaces the ACL with a minimal POSIX-equivalent ACL.</p>
+        <p class="param-tip">Keep enabled in mixed-protocol environments where SMB ACLs must not be wiped by NFS chmod operations.</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <span>NetApp ONTAP 9.18.1 · vserver nfs show -ins · svm1</span>
+  <span>NFS Parameter Reference</span>
+</footer>
+
+</body>
+</html>
