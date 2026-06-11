@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NetApp Export Policy Deep Dive — rorule, rwrule & Auth Methods</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg:       #0d1117;
+  --bg2:      #161b22;
+  --bg3:      #1c2333;
+  --bg4:      #21262d;
+  --border:   #30363d;
+  --teal:     #2dd4bf;
+  --teal-d:   #134e4a;
+  --purple:   #a78bfa;
+  --purple-d: #2e1065;
+  --amber:    #fbbf24;
+  --amber-d:  #78350f;
+  --coral:    #f87171;
+  --coral-d:  #450a0a;
+  --green:    #4ade80;
+  --green-d:  #052e16;
+  --blue:     #60a5fa;
+  --blue-d:   #0c1a3a;
+  --text:     #e6edf3;
+  --muted:    #7d8590;
+  --muted2:   #484f58;
+  --mono:     'JetBrains Mono', monospace;
+  --sans:     'Inter', system-ui, sans-serif;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.7}
+
+/* ── HEADER ── */
+header{
+  border-bottom:1px solid var(--border);
+  padding:0 clamp(1rem,5vw,4rem);
+  position:sticky;top:0;
+  background:rgba(13,17,23,0.93);
+  backdrop-filter:blur(12px);
+  z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  height:52px;
+}
+.logo{font-family:var(--mono);font-size:12px;color:var(--teal);text-decoration:none;letter-spacing:.05em}
+.logo span{color:var(--muted)}
+nav a{font-size:12px;color:var(--muted);text-decoration:none;margin-left:1.5rem;transition:color .2s}
+nav a:hover{color:var(--text)}
+
+/* ── SIDEBAR + MAIN LAYOUT ── */
+.layout{display:flex;max-width:1100px;margin:0 auto;padding:0 clamp(1rem,3vw,2.5rem)}
+aside{
+  width:220px;flex-shrink:0;
+  position:sticky;top:52px;
+  height:calc(100vh - 52px);
+  overflow-y:auto;
+  padding:2rem 1rem 2rem 0;
+  border-right:1px solid var(--border);
+  scrollbar-width:none;
+}
+aside::-webkit-scrollbar{display:none}
+.toc-group{margin-bottom:1.4rem}
+.toc-part{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted2);padding:0 .5rem;margin-bottom:.4rem}
+.toc-link{
+  display:block;font-size:12px;color:var(--muted);text-decoration:none;
+  padding:.28rem .5rem;border-radius:4px;transition:all .15s;
+  border-left:2px solid transparent;
+}
+.toc-link:hover{color:var(--text);background:var(--bg2)}
+.toc-link.active{color:var(--teal);border-left-color:var(--teal);background:rgba(45,212,191,.05)}
+.toc-sub{padding-left:1rem;font-size:11px;color:var(--muted2)}
+.toc-sub:hover{color:var(--muted)}
+
+main{flex:1;min-width:0;padding:2.5rem 0 4rem 2.5rem}
+
+/* ── HERO ── */
+.hero{margin-bottom:2.5rem}
+.eyebrow{
+  font-family:var(--mono);font-size:10px;letter-spacing:.15em;color:var(--teal);
+  text-transform:uppercase;margin-bottom:1rem;
+  display:flex;align-items:center;gap:.6rem;
+}
+.eyebrow::before{content:'';display:inline-block;width:24px;height:1px;background:var(--teal)}
+h1{font-size:clamp(1.7rem,4vw,2.6rem);font-weight:700;letter-spacing:-.02em;line-height:1.15;margin-bottom:1rem}
+h1 em{font-style:normal;color:var(--teal)}
+.hero-desc{font-size:15px;color:var(--muted);max-width:600px;line-height:1.75;margin-bottom:1.4rem}
+.badge-row{display:flex;flex-wrap:wrap;gap:.5rem}
+.badge{font-family:var(--mono);font-size:10px;padding:2px 9px;border-radius:20px;border:1px solid;letter-spacing:.04em}
+.b-teal  {border-color:var(--teal);  color:var(--teal);  background:rgba(45,212,191,.07)}
+.b-purple{border-color:var(--purple);color:var(--purple);background:rgba(167,139,250,.07)}
+.b-amber {border-color:var(--amber); color:var(--amber); background:rgba(251,191,36,.07)}
+.b-coral {border-color:var(--coral); color:var(--coral); background:rgba(248,113,113,.07)}
+
+/* ── SECTION HEADERS ── */
+.section{margin-bottom:3rem}
+.section-num{
+  font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--muted2);display:block;margin-bottom:.5rem
+}
+h2{font-size:1.35rem;font-weight:600;margin-bottom:.9rem;padding-bottom:.7rem;border-bottom:1px solid var(--border)}
+h3{font-size:1rem;font-weight:600;margin:1.6rem 0 .7rem;color:var(--text)}
+h4{font-size:.9rem;font-weight:600;margin:1.2rem 0 .5rem;color:var(--muted);font-family:var(--mono);letter-spacing:.03em}
+p{margin-bottom:.9rem;color:var(--text);line-height:1.75}
+p:last-child{margin-bottom:0}
+
+/* ── CODE BLOCKS ── */
+.code-block{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:10px;overflow:hidden;margin:1rem 0 1.4rem;
+}
+.code-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.55rem 1rem;background:var(--bg3);border-bottom:1px solid var(--border);
+}
+.code-label{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+.label-ontap{color:var(--teal)}
+.label-client{color:var(--amber)}
+.label-output{color:var(--muted)}
+.copy-btn{
+  font-family:var(--mono);font-size:10px;color:var(--muted);background:none;
+  border:1px solid var(--border);border-radius:4px;padding:2px 8px;
+  cursor:pointer;transition:all .15s;
+}
+.copy-btn:hover{color:var(--text);border-color:var(--muted)}
+.copy-btn.copied{color:var(--green);border-color:var(--green)}
+pre{padding:1.1rem 1.2rem;font-family:var(--mono);font-size:12.5px;line-height:1.7;overflow-x:auto;tab-size:4}
+pre code{color:var(--text)}
+.cm{color:var(--muted2)}
+.ck{color:var(--teal)}
+.cv{color:var(--amber)}
+.cs{color:var(--coral)}
+.cg{color:var(--green)}
+.cp{color:var(--purple)}
+.cb{color:var(--blue)}
+
+/* ── CALLOUT BOXES ── */
+.callout{
+  border-radius:10px;padding:1rem 1.1rem;margin:1.2rem 0;
+  border:1px solid;display:flex;gap:.75rem;align-items:flex-start;
+}
+.callout-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.callout-body{font-size:13.5px;line-height:1.65}
+.callout-body strong{display:block;font-size:12px;font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.3rem}
+.c-tip   {background:rgba(45,212,191,.06);border-color:var(--teal-d);color:var(--teal)}
+.c-tip .callout-body{color:#b2f5ea}
+.c-warn  {background:rgba(251,191,36,.06);border-color:var(--amber-d);color:var(--amber)}
+.c-warn .callout-body{color:#fde68a}
+.c-danger{background:rgba(248,113,113,.06);border-color:var(--coral-d);color:var(--coral)}
+.c-danger .callout-body{color:#fecaca}
+.c-info  {background:rgba(96,165,250,.06);border-color:var(--blue-d);color:var(--blue)}
+.c-info .callout-body{color:#bfdbfe}
+
+/* ── DECISION TABLE ── */
+.dtable{width:100%;border-collapse:collapse;margin:1.2rem 0;font-size:13px}
+.dtable th{
+  font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);padding:.55rem .8rem;border-bottom:2px solid var(--border);
+  text-align:left;background:var(--bg3);
+}
+.dtable td{padding:.55rem .8rem;border-bottom:1px solid var(--border);vertical-align:top}
+.dtable tr:hover td{background:var(--bg2)}
+.dtable code{font-family:var(--mono);font-size:11.5px;padding:1px 5px;background:var(--bg3);border-radius:3px;border:1px solid var(--border)}
+.tag-teal  {color:var(--teal);font-family:var(--mono);font-size:11px}
+.tag-amber {color:var(--amber);font-family:var(--mono);font-size:11px}
+.tag-coral {color:var(--coral);font-family:var(--mono);font-size:11px}
+.tag-green {color:var(--green);font-family:var(--mono);font-size:11px}
+.tag-purple{color:var(--purple);font-family:var(--mono);font-size:11px}
+
+/* ── AUTH METHOD CARDS ── */
+.auth-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:.85rem;margin:1rem 0 1.4rem}
+.auth-card{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:10px;padding:1.1rem 1.2rem;
+  border-left:3px solid;
+}
+.auth-card h4{font-size:1rem;font-family:var(--mono);letter-spacing:.04em;margin:0 0 .35rem;font-weight:600}
+.auth-card p{font-size:12.5px;color:var(--muted);margin:0;line-height:1.6}
+.auth-card .chip{
+  display:inline-block;font-family:var(--mono);font-size:9px;letter-spacing:.08em;
+  text-transform:uppercase;padding:1px 7px;border-radius:3px;margin-bottom:.4rem;
+}
+.ac-sys    {border-color:var(--amber)}
+.ac-sys h4 {color:var(--amber)}
+.ac-sys .chip{background:rgba(251,191,36,.12);color:var(--amber)}
+.ac-krb5   {border-color:var(--blue)}
+.ac-krb5 h4{color:var(--blue)}
+.ac-krb5 .chip{background:rgba(96,165,250,.12);color:var(--blue)}
+.ac-krb5i  {border-color:var(--purple)}
+.ac-krb5i h4{color:var(--purple)}
+.ac-krb5i .chip{background:rgba(167,139,250,.12);color:var(--purple)}
+.ac-krb5p  {border-color:var(--teal)}
+.ac-krb5p h4{color:var(--teal)}
+.ac-krb5p .chip{background:rgba(45,212,191,.12);color:var(--teal)}
+.ac-any    {border-color:var(--green)}
+.ac-any h4 {color:var(--green)}
+.ac-any .chip{background:rgba(74,222,128,.12);color:var(--green)}
+.ac-none   {border-color:var(--coral)}
+.ac-none h4{color:var(--coral)}
+.ac-none .chip{background:rgba(248,113,113,.12);color:var(--coral)}
+
+/* ── FLOW DIAGRAM (SVG wrapper) ── */
+.diagram-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:1.2rem;margin:1.2rem 0}
+.diagram-wrap svg{display:block;width:100%}
+
+/* ── COMBO TABLE ── */
+.combo-table{width:100%;border-collapse:collapse;font-size:13px;margin:1rem 0}
+.combo-table th{
+  background:var(--bg3);font-family:var(--mono);font-size:10px;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+  padding:.55rem .9rem;border-bottom:2px solid var(--border);text-align:left;
+}
+.combo-table td{padding:.55rem .9rem;border-bottom:1px solid var(--border);vertical-align:middle}
+.combo-table tr:hover td{background:rgba(45,212,191,.03)}
+.combo-table code{font-family:var(--mono);font-size:11.5px;color:var(--teal)}
+.result-rw   {color:var(--green);font-family:var(--mono);font-size:11px}
+.result-ro   {color:var(--amber);font-family:var(--mono);font-size:11px}
+.result-deny {color:var(--coral);font-family:var(--mono);font-size:11px}
+
+/* ── INTERVIEW Q&A ── */
+.qa-list{list-style:none}
+.qa-item{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:.8rem}
+.qa-q{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:.85rem 1.1rem;cursor:pointer;background:var(--bg2);
+  font-size:13.5px;font-weight:500;user-select:none;
+  transition:background .15s;
+}
+.qa-q:hover{background:var(--bg3)}
+.qa-q .q-num{font-family:var(--mono);font-size:10px;color:var(--teal);margin-right:.6rem}
+.qa-q .chevron{color:var(--muted);font-size:12px;transition:transform .25s}
+.qa-item.open .chevron{transform:rotate(180deg)}
+.qa-a{
+  display:none;padding:.9rem 1.1rem;background:var(--bg);
+  font-size:13px;color:var(--muted);line-height:1.7;
+  border-top:1px solid var(--border);
+}
+.qa-item.open .qa-a{display:block}
+
+/* ── ABOUT / FOOTER ── */
+.about-box{
+  border-top:1px solid var(--border);padding:2rem 0 0;
+  margin-top:3rem;display:flex;gap:1.2rem;align-items:flex-start;
+}
+.about-avatar{
+  width:44px;height:44px;border-radius:50%;
+  background:var(--teal-d);border:2px solid var(--teal);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:16px;color:var(--teal);flex-shrink:0;
+}
+.about-text h3{font-size:13px;font-weight:600;margin-bottom:.25rem}
+.about-text p{font-size:12.5px;color:var(--muted);line-height:1.6}
+footer{
+  border-top:1px solid var(--border);padding:1.1rem clamp(1rem,5vw,4rem);
+  text-align:center;font-family:var(--mono);font-size:10px;
+  color:var(--muted2);letter-spacing:.04em;
+}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  aside{display:none}
+  main{padding:1.5rem 0 3rem}
+  .layout{padding:0 1rem}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <a class="logo" href="index.html"><span>~/</span>NetAppKBs</a>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="#s1">Concepts</a>
+    <a href="#s4">CLI</a>
+    <a href="#s6">Troubleshoot</a>
+    <a href="https://github.com/rameshnelluri-netapp/NetAppKBs" target="_blank">GitHub ↗</a>
+  </nav>
+</header>
+
+<div class="layout">
+
+<!-- SIDEBAR TOC -->
+<aside>
+  <div class="toc-group">
+    <div class="toc-part">Part A — Concepts</div>
+    <a class="toc-link active" href="#s1">01 What is Export Policy?</a>
+    <a class="toc-link toc-sub" href="#s1-arch">Architecture</a>
+    <a class="toc-link" href="#s2">02 rorule &amp; rwrule</a>
+    <a class="toc-link toc-sub" href="#s2-flow">Decision Flow</a>
+    <a class="toc-link toc-sub" href="#s2-values">Auth Values</a>
+    <a class="toc-link" href="#s3">03 Common Combinations</a>
+  </div>
+  <div class="toc-group">
+    <div class="toc-part">Part B — CLI</div>
+    <a class="toc-link" href="#s4">04 ONTAP CLI</a>
+    <a class="toc-link toc-sub" href="#s4-create">Create Policy &amp; Rules</a>
+    <a class="toc-link toc-sub" href="#s4-assign">Assign to Volume</a>
+    <a class="toc-link toc-sub" href="#s4-verify">Verify &amp; Show</a>
+    <a class="toc-link" href="#s5">05 Client-Side Commands</a>
+    <a class="toc-link toc-sub" href="#s5-mount">Mount &amp; Test</a>
+    <a class="toc-link toc-sub" href="#s5-krb">Kerberos Client</a>
+  </div>
+  <div class="toc-group">
+    <div class="toc-part">Part C — Ops</div>
+    <a class="toc-link" href="#s6">06 Troubleshooting</a>
+    <a class="toc-link" href="#s7">07 Interview Q&amp;A</a>
+  </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main>
+
+<!-- HERO -->
+<div class="hero" id="top">
+  <div class="eyebrow">NFS · CIFS · Security</div>
+  <h1>ONTAP Export Policy<br/><em>Deep Dive</em></h1>
+  <p class="hero-desc">
+    A complete walkthrough of export policies — how rorule and rwrule control access,
+    what each auth method actually means on the wire, real ONTAP CLI examples,
+    client-side mount commands, and troubleshooting steps.
+  </p>
+  <div class="badge-row">
+    <span class="badge b-teal">ONTAP 9.x</span>
+    <span class="badge b-amber">NFSv3 / NFSv4</span>
+    <span class="badge b-purple">AUTH_SYS · Kerberos</span>
+    <span class="badge b-coral">Security</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 01 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s1">
+  <span class="section-num">Section 01 · Concepts</span>
+  <h2>What is an Export Policy?</h2>
+
+  <p>An <strong>export policy</strong> is a named container of one or more rules that controls which NFS (and CIFS) clients are allowed to access a FlexVol volume or qtree, and with what level of access. Every SVM volume must have an export policy assigned — ONTAP will not serve NFS data without one.</p>
+
+  <p>The policy itself is just a name. The work is done by the <strong>rules</strong> inside it. Each rule matches a client (by IP, subnet, hostname, or netgroup) and specifies three things: which protocol versions are allowed, which auth methods give read-only access (rorule), and which auth methods give read-write access (rwrule).</p>
+
+  <div id="s1-arch"></div>
+  <h3>Architecture — how the layers stack</h3>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 640 310" role="img">
+      <title>Export policy layered architecture</title>
+      <desc>Shows SVM containing an export policy with multiple rules, each rule applied to one or more volumes.</desc>
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+      <!-- SVM container -->
+      <rect x="20" y="16" width="600" height="278" rx="14" fill="none" stroke="#30363d" stroke-width="1"/>
+      <text font-family="JetBrains Mono,monospace" font-size="11" fill="#7d8590" x="36" y="34">SVM: svm-prod</text>
+
+      <!-- Export Policy box -->
+      <rect x="40" y="46" width="200" height="230" rx="10" fill="#1c2333" stroke="#30363d" stroke-width="0.5"/>
+      <text font-family="JetBrains Mono,monospace" font-size="10" fill="#2dd4bf" x="55" y="64" letter-spacing="1">EXPORT POLICY</text>
+      <text font-family="Inter,sans-serif" font-size="12" fill="#e6edf3" font-weight="500" x="55" y="80">nfs-prod-policy</text>
+
+      <!-- Rule 1 -->
+      <rect x="54" y="92" width="172" height="54" rx="6" fill="#161b22" stroke="#484f58" stroke-width="0.5"/>
+      <text font-family="JetBrains Mono,monospace" font-size="9" fill="#fbbf24" x="64" y="107">Rule 1 · index 1</text>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#7d8590" x="64" y="120">clientmatch: 10.10.10.0/24</text>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#7d8590" x="64" y="133">rorule: sys  rwrule: sys</text>
+
+      <!-- Rule 2 -->
+      <rect x="54" y="154" width="172" height="54" rx="6" fill="#161b22" stroke="#484f58" stroke-width="0.5"/>
+      <text font-family="JetBrains Mono,monospace" font-size="9" fill="#fbbf24" x="64" y="169">Rule 2 · index 2</text>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#7d8590" x="64" y="182">clientmatch: 10.20.0.0/16</text>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#7d8590" x="64" y="195">rorule: sys  rwrule: never</text>
+
+      <!-- Rule 3 -->
+      <rect x="54" y="216" width="172" height="40" rx="6" fill="#161b22" stroke="#484f58" stroke-width="0.5"/>
+      <text font-family="JetBrains Mono,monospace" font-size="9" fill="#fbbf24" x="64" y="231">Rule 3 · index 3</text>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#7d8590" x="64" y="244">clientmatch: 0.0.0.0/0 (default deny)</text>
+
+      <!-- Arrow from policy to volumes -->
+      <line x1="242" y1="161" x2="320" y2="100" stroke="#30363d" stroke-width="1" marker-end="url(#arr)"/>
+      <line x1="242" y1="161" x2="320" y2="175" stroke="#30363d" stroke-width="1" marker-end="url(#arr)"/>
+      <line x1="242" y1="161" x2="320" y2="248" stroke="#30363d" stroke-width="1" marker-end="url(#arr)"/>
+
+      <!-- Volumes -->
+      <rect x="322" y="72" width="148" height="52" rx="8" fill="#1c2333" stroke="#2dd4bf" stroke-width="0.5"/>
+      <text font-family="JetBrains Mono,monospace" font-size="10" fill="#2dd4bf" x="338" y="91">vol-app01</text>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#7d8590" x="338" y="107">junction: /vol-app01</text>
+
+      <rect x="322" y="148" width="148" height="52" rx="8" fill="#1c2333" stroke="#2dd4bf" stroke-width="0.5"/>
+      <text font-family="JetBrains Mono,monospace" font-size="10" fill="#2dd4bf" x="338" y="167">vol-app02</text>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#7d8590" x="338" y="183">junction: /vol-app02</text>
+
+      <rect x="322" y="222" width="148" height="52" rx="8" fill="#1c2333" stroke="#2dd4bf" stroke-width="0.5"/>
+      <text font-family="JetBrains Mono,monospace" font-size="10" fill="#2dd4bf" x="338" y="241">vol-logs</text>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#7d8590" x="338" y="257">junction: /vol-logs</text>
+
+      <!-- Clients -->
+      <rect x="506" y="148" width="110" height="52" rx="8" fill="#161b22" stroke="#484f58" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="12" fill="#e6edf3" font-weight="500" x="561" y="171" text-anchor="middle">NFS Clients</text>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#7d8590" x="561" y="188" text-anchor="middle">Linux / AIX / ESXi</text>
+      <line x1="470" y1="174" x2="504" y2="174" stroke="#30363d" stroke-width="1" marker-end="url(#arr)"/>
+    </svg>
+  </div>
+
+  <div class="callout c-tip">
+    <div class="callout-icon">💡</div>
+    <div class="callout-body">
+      <strong>Key Design Principle</strong>
+      One policy can be shared across many volumes. Changing a rule in the policy affects every volume it is assigned to instantly. Use this to manage access at scale — one policy per application tier, not per volume.
+    </div>
+  </div>
+
+  <h3>Rule evaluation order</h3>
+  <p>Rules are evaluated top-down by <strong>rule index</strong> (1, 2, 3 …). The first rule whose <code style="font-family:var(--mono);font-size:12px;color:var(--teal)">clientmatch</code> field matches the client's IP is the only rule applied — ONTAP stops evaluating. If no rule matches, access is denied. This means rule order matters significantly.</p>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 02 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s2">
+  <span class="section-num">Section 02 · Access Control</span>
+  <h2>rorule &amp; rwrule — exactly what they control</h2>
+
+  <p>This is the most misunderstood part of export policy. <strong>rorule and rwrule do not control filesystem permissions</strong>. They control which <em>authentication methods</em> are accepted before granting read-only or read-write access. Think of them as two security checkpoints that each ask: "what credential did you arrive with, and is that credential type on our approved list?"</p>
+
+  <div id="s2-flow"></div>
+  <h3>Decision flow</h3>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 640 400" role="img">
+      <title>rorule and rwrule decision flow</title>
+      <desc>Step-by-step flow showing how ONTAP evaluates rorule first then rwrule to determine access level.</desc>
+      <defs>
+        <marker id="arr2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+      <!-- Client -->
+      <rect x="220" y="16" width="200" height="44" rx="8" fill="#1c2333" stroke="#484f58" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="13" fill="#e6edf3" font-weight="600" x="320" y="34" text-anchor="middle">NFS client request</text>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#7d8590" x="320" y="50" text-anchor="middle">carries an auth credential (sys / krb5 / none)</text>
+      <line x1="320" y1="60" x2="320" y2="92" stroke="#484f58" stroke-width="1" marker-end="url(#arr2)"/>
+
+      <!-- clientmatch -->
+      <rect x="196" y="92" width="248" height="44" rx="8" fill="#1c2333" stroke="#a78bfa" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="13" fill="#a78bfa" font-weight="600" x="320" y="110" text-anchor="middle">clientmatch check</text>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#7d8590" x="320" y="126" text-anchor="middle">Is client IP in this rule's match list?</text>
+
+      <!-- clientmatch NO -->
+      <path d="M196 114 L80 114 L80 188" fill="none" stroke="#484f58" stroke-width="1" marker-end="url(#arr2)"/>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#7d8590" x="138" y="106" text-anchor="middle">No match</text>
+      <rect x="24" y="188" width="112" height="44" rx="8" fill="#1a0808" stroke="#f87171" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="13" fill="#f87171" font-weight="600" x="80" y="206" text-anchor="middle">EACCES</text>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#7d8590" x="80" y="222" text-anchor="middle">No rule matched</text>
+
+      <line x1="320" y1="136" x2="320" y2="168" stroke="#484f58" stroke-width="1" marker-end="url(#arr2)"/>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#7d8590" x="336" y="155">Matched</text>
+
+      <!-- rorule -->
+      <rect x="196" y="168" width="248" height="44" rx="8" fill="#1c2333" stroke="#a78bfa" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="13" fill="#a78bfa" font-weight="600" x="320" y="186" text-anchor="middle">rorule check</text>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#7d8590" x="320" y="202" text-anchor="middle">Does client auth match rorule value?</text>
+
+      <!-- rorule NO -->
+      <path d="M196 190 L80 190 L80 290" fill="none" stroke="#484f58" stroke-width="1" marker-end="url(#arr2)"/>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#7d8590" x="138" y="182" text-anchor="middle">No match</text>
+      <rect x="24" y="290" width="112" height="44" rx="8" fill="#1a0808" stroke="#f87171" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="13" fill="#f87171" font-weight="600" x="80" y="308" text-anchor="middle">EACCES</text>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#7d8590" x="80" y="324" text-anchor="middle">Denied at gate</text>
+
+      <line x1="320" y1="212" x2="320" y2="244" stroke="#484f58" stroke-width="1" marker-end="url(#arr2)"/>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#7d8590" x="336" y="231">Match → RO</text>
+
+      <!-- rwrule -->
+      <rect x="196" y="244" width="248" height="44" rx="8" fill="#1c2333" stroke="#a78bfa" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="13" fill="#a78bfa" font-weight="600" x="320" y="262" text-anchor="middle">rwrule check</text>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#7d8590" x="320" y="278" text-anchor="middle">Does client auth match rwrule value?</text>
+
+      <!-- rwrule NO → RO only -->
+      <path d="M444 266 L560 266 L560 316" fill="none" stroke="#484f58" stroke-width="1" marker-end="url(#arr2)"/>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#7d8590" x="502" y="258" text-anchor="middle">No match</text>
+      <rect x="504" y="316" width="112" height="44" rx="8" fill="#0f1f14" stroke="#4ade80" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="13" fill="#4ade80" font-weight="600" x="560" y="334" text-anchor="middle">Read-Only</text>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#7d8590" x="560" y="350" text-anchor="middle">RO access only</text>
+
+      <line x1="320" y1="288" x2="320" y2="332" stroke="#484f58" stroke-width="1" marker-end="url(#arr2)"/>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#7d8590" x="336" y="313">Match → RW</text>
+
+      <!-- RW -->
+      <rect x="196" y="332" width="248" height="44" rx="8" fill="#0a1f14" stroke="#4ade80" stroke-width="0.8"/>
+      <text font-family="Inter,sans-serif" font-size="13" fill="#4ade80" font-weight="600" x="320" y="350" text-anchor="middle">Read-Write access</text>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#7d8590" x="320" y="366" text-anchor="middle">Full data access (file perms still apply)</text>
+    </svg>
+  </div>
+
+  <div class="callout c-warn">
+    <div class="callout-icon">⚠️</div>
+    <div class="callout-body">
+      <strong>Critical distinction</strong>
+      Export policy grants or restricts access at the <em>network/auth level</em>. Even after rwrule grants read-write, the client is still subject to Unix mode bits and ACLs on individual files. Both layers work in series — export policy is the network gate, file permissions are the per-file gate.
+    </div>
+  </div>
+
+  <div id="s2-values"></div>
+  <h3>Auth method values — what each one means on the wire</h3>
+
+  <div class="auth-grid">
+    <div class="auth-card ac-sys">
+      <span class="chip">No encryption</span>
+      <h4>sys</h4>
+      <p>AUTH_SYS (UNIX auth). The client sends a plain UID + GID list in the RPC header. No cryptographic verification — the server trusts whatever the client claims. Default for most NFSv3 environments. Works everywhere but provides zero identity assurance.</p>
+    </div>
+    <div class="auth-card ac-krb5">
+      <span class="chip">Identity verified</span>
+      <h4>krb5</h4>
+      <p>Kerberos authentication. The client proves its identity with a Kerberos ticket from a KDC. ONTAP verifies the ticket — so you know <em>who</em> the client is. Data on the wire is still unencrypted and unsigned. Identity verified, data unprotected.</p>
+    </div>
+    <div class="auth-card ac-krb5i">
+      <span class="chip">Integrity checked</span>
+      <h4>krb5i</h4>
+      <p>Kerberos + integrity. Every RPC message is signed with a checksum. If anyone tampers with data in transit, the checksum fails and the operation is rejected. Data is readable on the wire but tampering is detected. Good middle ground for internal networks.</p>
+    </div>
+    <div class="auth-card ac-krb5p">
+      <span class="chip">Encrypted</span>
+      <h4>krb5p</h4>
+      <p>Kerberos + privacy. Full encryption of every RPC payload. Strongest option — identity verified, data signed, data encrypted. Highest CPU overhead on both client and storage. Required for compliance mandates or highly sensitive data.</p>
+    </div>
+    <div class="auth-card ac-any">
+      <span class="chip">Wildcard</span>
+      <h4>any</h4>
+      <p>Accepts sys, krb5, krb5i, krb5p, and even unauthenticated requests. Essentially disables auth checking for that rule. Commonly used for rorule in open lab environments, then tighten rwrule to <code style="font-family:var(--mono);font-size:11px">sys</code> or <code style="font-family:var(--mono);font-size:11px">krb5</code>.</p>
+    </div>
+    <div class="auth-card ac-none">
+      <span class="chip">No auth</span>
+      <h4>none / never</h4>
+      <p><strong>none</strong> — allows unauthenticated access. Requests are mapped to the <code style="font-family:var(--mono);font-size:11px">anon</code> UID (default 65534). Used deliberately for anonymous read shares.<br/><strong>never</strong> — absolute block, no exceptions. Use in rwrule to make a share permanently read-only.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 03 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s3">
+  <span class="section-num">Section 03 · Combinations</span>
+  <h2>Common rorule / rwrule combinations</h2>
+
+  <table class="combo-table">
+    <thead>
+      <tr>
+        <th>rorule</th><th>rwrule</th><th>Client presents</th><th>Result</th><th>Typical use case</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>sys</code></td><td><code>sys</code></td>
+        <td>AUTH_SYS</td>
+        <td><span class="result-rw">✓ Read-Write</span></td>
+        <td>Standard internal NFS. Most common.</td>
+      </tr>
+      <tr>
+        <td><code>sys</code></td><td><code>sys</code></td>
+        <td>Kerberos</td>
+        <td><span class="result-deny">✗ Denied (EACCES)</span></td>
+        <td>Kerberos client hits a sys-only rule.</td>
+      </tr>
+      <tr>
+        <td><code>any</code></td><td><code>sys</code></td>
+        <td>AUTH_SYS</td>
+        <td><span class="result-rw">✓ Read-Write</span></td>
+        <td>Any client mounts; only sys clients write.</td>
+      </tr>
+      <tr>
+        <td><code>any</code></td><td><code>sys</code></td>
+        <td>Kerberos</td>
+        <td><span class="result-ro">~ Read-Only</span></td>
+        <td>Kerberos client gets RO, cannot write.</td>
+      </tr>
+      <tr>
+        <td><code>sys</code></td><td><code>never</code></td>
+        <td>AUTH_SYS</td>
+        <td><span class="result-ro">~ Read-Only</span></td>
+        <td>Enforced read-only share for all clients.</td>
+      </tr>
+      <tr>
+        <td><code>krb5</code></td><td><code>krb5</code></td>
+        <td>Kerberos</td>
+        <td><span class="result-rw">✓ Read-Write</span></td>
+        <td>Kerberos-only environment.</td>
+      </tr>
+      <tr>
+        <td><code>krb5</code></td><td><code>krb5</code></td>
+        <td>AUTH_SYS</td>
+        <td><span class="result-deny">✗ Denied (EACCES)</span></td>
+        <td>sys client denied on a Kerberos-only rule.</td>
+      </tr>
+      <tr>
+        <td><code>any</code></td><td><code>krb5p</code></td>
+        <td>AUTH_SYS</td>
+        <td><span class="result-ro">~ Read-Only</span></td>
+        <td>Anyone reads; only encrypted Kerberos writes.</td>
+      </tr>
+      <tr>
+        <td><code>any</code></td><td><code>never</code></td>
+        <td>Any</td>
+        <td><span class="result-ro">~ Read-Only</span></td>
+        <td>Publicly readable share, no writes ever.</td>
+      </tr>
+      <tr>
+        <td><code>sys</code></td><td><code>none</code></td>
+        <td>No credential</td>
+        <td><span class="result-rw">✓ RW as anon UID</span></td>
+        <td>⚠️ Almost always a misconfiguration.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 04 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s4">
+  <span class="section-num">Section 04 · ONTAP CLI</span>
+  <h2>ONTAP CLI — Create, Assign &amp; Verify</h2>
+
+  <div id="s4-create"></div>
+  <h3>Create an export policy and add rules</h3>
+
+  <h4>Step 1 — Create the policy</h4>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Create a new export policy on the SVM</span>
+<span class="ck">vserver export-policy create</span> \
+  <span class="cv">-vserver</span> svm1 \
+  <span class="cv">-policyname</span> nfs-prod-policy
+
+<span class="cm"># Verify it was created</span>
+<span class="ck">vserver export-policy show</span> <span class="cv">-vserver</span> svm1</code></pre>
+  </div>
+
+  <h4>Step 2 — Add rules</h4>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Rule: full RW for subnet 10.10.10.0/24</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="ck">vserver export-policy rule create</span> \
+  <span class="cv">-vserver</span>        svm1 \
+  <span class="cv">-policyname</span>     nfs-prod-policy \
+  <span class="cv">-ruleindex</span>      1 \
+  <span class="cv">-clientmatch</span>    10.10.10.0/24 \
+  <span class="cv">-protocol</span>       nfs3,nfs4 \
+  <span class="cv">-rorule</span>         sys \
+  <span class="cv">-rwrule</span>         sys \
+  <span class="cv">-superuser</span>      sys \
+  <span class="cv">-allow-suid</span>     true</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Rule: read-only for DR subnet 10.20.0.0/16</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="ck">vserver export-policy rule create</span> \
+  <span class="cv">-vserver</span>        svm1 \
+  <span class="cv">-policyname</span>     nfs-prod-policy \
+  <span class="cv">-ruleindex</span>      2 \
+  <span class="cv">-clientmatch</span>    10.20.0.0/16 \
+  <span class="cv">-protocol</span>       nfs3 \
+  <span class="cv">-rorule</span>         sys \
+  <span class="cv">-rwrule</span>         never \
+  <span class="cv">-superuser</span>      none</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Rule: Kerberos-only RW for secure subnet</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="ck">vserver export-policy rule create</span> \
+  <span class="cv">-vserver</span>        svm1 \
+  <span class="cv">-policyname</span>     nfs-prod-policy \
+  <span class="cv">-ruleindex</span>      3 \
+  <span class="cv">-clientmatch</span>    10.30.0.0/24 \
+  <span class="cv">-protocol</span>       nfs4 \
+  <span class="cv">-rorule</span>         krb5 \
+  <span class="cv">-rwrule</span>         krb5p \
+  <span class="cv">-superuser</span>      krb5</code></pre>
+  </div>
+
+  <div id="s4-assign"></div>
+  <h3>Assign policy to a volume</h3>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Assign during volume creation</span>
+<span class="ck">volume create</span> \
+  <span class="cv">-vserver</span>        svm1 \
+  <span class="cv">-volume</span>         vol-app01 \
+  <span class="cv">-aggregate</span>      aggr1_node1 \
+  <span class="cv">-size</span>           100g \
+  <span class="cv">-junction-path</span>  /vol-app01 \
+  <span class="cv">-export-policy</span>  nfs-prod-policy
+
+<span class="cm"># Change policy on an existing volume</span>
+<span class="ck">volume modify</span> \
+  <span class="cv">-vserver</span>        svm1 \
+  <span class="cv">-volume</span>         vol-app01 \
+  <span class="cv">-export-policy</span>  nfs-prod-policy</code></pre>
+  </div>
+
+  <div id="s4-verify"></div>
+  <h3>Verify and inspect</h3>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Show all rules in a policy</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="ck">vserver export-policy rule show</span> \
+  <span class="cv">-vserver</span>    svm1 \
+  <span class="cv">-policyname</span> nfs-prod-policy</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-output">Output</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code>  Policy Rule    Access   Client                RO       RW       Super
+  Name   Index  Protocol Match                 Rule     Rule     User
+  -----  -----  --------  -------               -------  -------  ------
+  nfs-prod-policy
+         1      nfs3,nfs4  10.10.10.0/24        sys      sys      sys
+         2      nfs3       10.20.0.0/16         sys      never    none
+         3      nfs4       10.30.0.0/24         krb5     krb5p    krb5</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Check which policy a volume uses</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="ck">volume show</span> <span class="cv">-vserver</span> svm1 <span class="cv">-fields</span> export-policy
+
+<span class="cm"># Output</span>
+vserver  volume      export-policy
+-------  ----------  ----------------
+svm1     vol-app01   nfs-prod-policy
+svm1     vol-app02   nfs-prod-policy
+svm1     vol-logs    nfs-readonly-policy</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Test which rule a client IP matches</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Simulate the rule evaluation for a specific client IP</span>
+<span class="ck">vserver export-policy check-access</span> \
+  <span class="cv">-vserver</span>      svm1 \
+  <span class="cv">-client-ip</span>    10.10.10.55 \
+  <span class="cv">-volume</span>       vol-app01 \
+  <span class="cv">-authentication-method</span> sys \
+  <span class="cv">-protocol</span>     nfs3 \
+  <span class="cv">-access-type</span>  write
+
+<span class="cm"># Output — tells you exactly which rule fired and what access was granted</span>
+Policy         Rule    Access   Matching
+Name           Index   Level    Clientmatch
+-------------- ------  -------  ----------------
+nfs-prod-policy  1     write    10.10.10.0/24</code></pre>
+  </div>
+
+  <div class="callout c-tip">
+    <div class="callout-icon">💡</div>
+    <div class="callout-body">
+      <strong>Pro tip</strong>
+      <code style="font-family:var(--mono);font-size:12px">vserver export-policy check-access</code> is your best friend when troubleshooting. It simulates the full rule evaluation for any client IP + auth method + protocol combination without needing a live client. Use it before raising a support case.
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 05 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s5">
+  <span class="section-num">Section 05 · Linux Client</span>
+  <h2>Client-Side Commands</h2>
+
+  <div id="s5-mount"></div>
+  <h3>AUTH_SYS (sys) — standard NFS mount</h3>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-client">Linux Client — NFSv3 mount with sys auth</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Mount NFSv3 with AUTH_SYS (default, no extra options needed)</span>
+<span class="cg">mount</span> -t nfs \
+  -o rw,nfsvers=3,sec=sys \
+  10.10.10.20:/vol-app01 \
+  /mnt/app01
+
+<span class="cm"># Verify mount is active</span>
+<span class="cg">mount</span> | grep app01
+<span class="cg">df</span> -h /mnt/app01
+
+<span class="cm"># Test write access</span>
+<span class="cg">touch</span> /mnt/app01/test-write.txt &amp;&amp; echo "RW working" || echo "DENIED"
+
+<span class="cm"># Test read</span>
+<span class="cg">ls</span> -la /mnt/app01/</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-client">Linux Client — NFSv4 mount with sys auth</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cg">mount</span> -t nfs4 \
+  -o rw,nfsvers=4.1,sec=sys,proto=tcp \
+  10.10.10.20:/vol-app01 \
+  /mnt/app01</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-client">Linux Client — /etc/fstab persistent mount</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Add to /etc/fstab for persistent mounts</span>
+10.10.10.20:/vol-app01  /mnt/app01  nfs  rw,nfsvers=3,sec=sys,_netdev  0  0
+10.10.10.20:/vol-app02  /mnt/app02  nfs  rw,nfsvers=4.1,sec=sys,_netdev  0  0
+
+<span class="cm"># Mount all fstab entries</span>
+<span class="cg">mount</span> -a</code></pre>
+  </div>
+
+  <div id="s5-krb"></div>
+  <h3>Kerberos client — krb5 / krb5i / krb5p</h3>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-client">Linux Client — Kerberos prerequisites</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Install required packages (RHEL/Rocky)</span>
+<span class="cg">dnf</span> install -y nfs-utils krb5-workstation krb5-libs
+
+<span class="cm"># Obtain a Kerberos ticket first</span>
+<span class="cg">kinit</span> ramesh@EXAMPLE.COM
+
+<span class="cm"># Verify ticket is present</span>
+<span class="cg">klist</span>
+<span class="cm"># Credentials cache: API:...
+# Default principal: ramesh@EXAMPLE.COM
+#   Valid starting       Expires
+#   06/11/2026 10:00:00  06/11/2026 20:00:00</span></code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-client">Linux Client — Mount with krb5 / krb5i / krb5p</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># krb5 — Kerberos auth, unencrypted data</span>
+<span class="cg">mount</span> -t nfs4 \
+  -o rw,nfsvers=4.1,sec=krb5 \
+  10.10.10.20:/vol-secure \
+  /mnt/secure
+
+<span class="cm"># krb5i — Kerberos auth + data integrity (checksum)</span>
+<span class="cg">mount</span> -t nfs4 \
+  -o rw,nfsvers=4.1,sec=krb5i \
+  10.10.10.20:/vol-secure \
+  /mnt/secure
+
+<span class="cm"># krb5p — Kerberos auth + integrity + encryption (strongest)</span>
+<span class="cg">mount</span> -t nfs4 \
+  -o rw,nfsvers=4.1,sec=krb5p \
+  10.10.10.20:/vol-secure \
+  /mnt/secure</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-client">Linux Client — Verify the sec= option active on mount</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Show active mount options including security flavour</span>
+<span class="cg">cat</span> /proc/mounts | grep app01
+<span class="cm"># 10.10.10.20:/vol-app01 /mnt/app01 nfs4 rw,relatime,vers=4.1,rsize=65536,
+#   wsize=65536,sec=sys ...</span>
+
+<span class="cm"># Check negotiated security using nfsstat</span>
+<span class="cg">nfsstat</span> -m /mnt/app01</code></pre>
+  </div>
+
+  <h3>Test access scenarios from client</h3>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-client">Linux Client — Reproduce a permission denied and diagnose</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Attempt to write — will show EACCES if rwrule denies</span>
+<span class="cg">touch</span> /mnt/app01/testfile
+<span class="cm"># touch: cannot touch '/mnt/app01/testfile': Permission denied</span>
+
+<span class="cm"># Check if it is export-policy denial (EACCES) vs file permission (EPERM)</span>
+<span class="cm"># Export policy denial: write fails even to a 777 directory</span>
+<span class="cm"># File permission denial: write fails only on specific files/dirs</span>
+
+<span class="cm"># Create a 777 test dir to isolate the layer</span>
+<span class="cg">mkdir</span> /mnt/app01/testdir 2&gt;&amp;1
+<span class="cm"># If mkdir fails → export policy issue (rwrule denying)</span>
+<span class="cm"># If mkdir succeeds but touch in existing dir fails → file ACL issue</span></code></pre>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 06 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s6">
+  <span class="section-num">Section 06 · Troubleshooting</span>
+  <h2>Troubleshooting Export Policy Issues</h2>
+
+  <h3>Step 1 — Run check-access on ONTAP first</h3>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Simulate exactly what the client sees</span>
+<span class="ck">vserver export-policy check-access</span> \
+  <span class="cv">-vserver</span>               svm1 \
+  <span class="cv">-client-ip</span>             10.10.10.55 \
+  <span class="cv">-volume</span>                vol-app01 \
+  <span class="cv">-authentication-method</span> sys \
+  <span class="cv">-protocol</span>              nfs3 \
+  <span class="cv">-access-type</span>           write
+
+<span class="cm"># Run for read too</span>
+<span class="ck">vserver export-policy check-access</span> \
+  <span class="cv">-vserver</span>               svm1 \
+  <span class="cv">-client-ip</span>             10.10.10.55 \
+  <span class="cv">-volume</span>                vol-app01 \
+  <span class="cv">-authentication-method</span> sys \
+  <span class="cv">-protocol</span>              nfs3 \
+  <span class="cv">-access-type</span>           read</code></pre>
+  </div>
+
+  <h3>Step 2 — Check clientmatch is correct</h3>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Show all rules with full detail</span>
+<span class="ck">vserver export-policy rule show</span> \
+  <span class="cv">-vserver</span>    svm1 \
+  <span class="cv">-policyname</span> nfs-prod-policy \
+  <span class="cv">-instance</span>
+
+<span class="cm"># Common mistake: client IP 10.10.10.55 but clientmatch is 10.10.0.0/16
+# → wrong subnet, rule won't match</span></code></pre>
+  </div>
+
+  <h3>Step 3 — Check the volume has the right policy</h3>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="ck">volume show</span> <span class="cv">-vserver</span> svm1 <span class="cv">-volume</span> vol-app01 <span class="cv">-fields</span> export-policy,junction-path
+
+<span class="cm"># Also check qtrees if exports at qtree level</span>
+<span class="ck">qtree show</span> <span class="cv">-vserver</span> svm1 <span class="cv">-fields</span> export-policy</code></pre>
+  </div>
+
+  <h3>Step 4 — Enable NFS trace on the SVM (advanced)</h3>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Advanced privilege</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="ck">set</span> <span class="cv">-privilege</span> advanced
+
+<span class="cm"># Enable NFS access trace for a specific client IP</span>
+<span class="ck">vserver nfs access-cache config modify</span> \
+  <span class="cv">-vserver</span>  svm1 \
+  <span class="cv">-is-nfs-access-logging-enabled</span>  true
+
+<span class="cm"># Watch event log while client tries to mount</span>
+<span class="ck">event log show</span> <span class="cv">-severity</span> ERROR <span class="cv">-message-name</span> nfs.export*
+
+<span class="ck">set</span> <span class="cv">-privilege</span> admin</code></pre>
+  </div>
+
+  <h3>Common issues and fixes</h3>
+
+  <table class="dtable">
+    <thead>
+      <tr><th>Symptom</th><th>Likely cause</th><th>Fix</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Client gets <code>Permission denied</code> on mount</td>
+        <td>rorule does not match client's auth method, or clientmatch doesn't cover client IP</td>
+        <td>Run <code>check-access</code>, verify clientmatch subnet and rorule value</td>
+      </tr>
+      <tr>
+        <td>Client can read but not write</td>
+        <td>rwrule is <code>never</code>, or rwrule requires krb5 but client uses sys</td>
+        <td>Check rwrule value; change to <code>sys</code> or match client's auth method</td>
+      </tr>
+      <tr>
+        <td>Root user gets <code>Nobody</code> mapping</td>
+        <td><code>-superuser</code> is set to <code>none</code> — root is squashed to anon UID</td>
+        <td>Set <code>-superuser sys</code> or <code>-superuser krb5</code> to match the environment</td>
+      </tr>
+      <tr>
+        <td>Kerberos mount fails immediately</td>
+        <td>Client has no valid Kerberos ticket (<code>klist</code> shows no credentials)</td>
+        <td>Run <code>kinit user@REALM</code> on the client first</td>
+      </tr>
+      <tr>
+        <td>New volume is not accessible</td>
+        <td>Volume was created with the <code>default</code> export policy which has no rules</td>
+        <td>Assign the correct policy: <code>volume modify -export-policy &lt;name&gt;</code></td>
+      </tr>
+      <tr>
+        <td>Rule exists but client still denied</td>
+        <td>A higher-index rule is matching first due to wrong rule order</td>
+        <td>Check rule indexes; reorder with <code>vserver export-policy rule setindex</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout c-danger">
+    <div class="callout-icon">🚨</div>
+    <div class="callout-body">
+      <strong>Default policy has no rules</strong>
+      Every SVM is created with a policy called <code>default</code>. This policy has no rules — meaning no client can access any volume assigned to it. Newly created volumes are assigned to <code>default</code> by default. Always explicitly assign your policy when creating a volume.
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 07 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s7">
+  <span class="section-num">Section 07 · Interview Q&amp;A</span>
+  <h2>Interview &amp; Exam Questions</h2>
+
+  <ul class="qa-list">
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q01</span> What is the difference between rorule and rwrule in ONTAP export policy?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">rorule controls which authentication methods are accepted to grant any access at all (read-only as a minimum). If the client's auth method doesn't match rorule, the mount is denied with EACCES. rwrule is only evaluated after rorule passes — it controls which auth methods are permitted to write. If the client passes rorule but fails rwrule, it gets read-only access. rorule is the front door; rwrule is the inner door.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q02</span> A client can read but cannot write even though rwrule is set to sys. What do you check?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">First run <code>vserver export-policy check-access</code> with access-type write to confirm it is an export policy issue and not a file permission issue. Check that the client IP matches the correct clientmatch — a higher-index rule with rwrule=never might be matching first. Verify the volume has the correct policy assigned with <code>volume show -fields export-policy</code>. Also check the <code>-superuser</code> parameter — if the client is mounting as root and superuser is set to <code>none</code>, root is squashed to nobody and denied writes.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q03</span> What does setting rwrule to "never" achieve? How is that different from not having a rule?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">Setting rwrule to <code>never</code> explicitly means no client, regardless of auth method, will ever be granted write access through this rule. The share is permanently read-only. Not having a rule at all means no clientmatch exists — the client is denied entirely (both read and write) because no rule matched. <code>never</code> is a deliberate read-only setting; no rule is a default deny.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q04</span> What is the difference between krb5, krb5i and krb5p?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a"><strong>krb5</strong>: Kerberos authentication only. Identity is verified via a Kerberos ticket. Data on the wire is unencrypted and unsigned. <strong>krb5i</strong>: Adds integrity — every RPC message carries a checksum. Tampering in transit is detected and the operation rejected. Data is still readable but modification is detected. <strong>krb5p</strong>: Adds full privacy — every RPC payload is encrypted. Highest security, highest CPU overhead. Required for compliance mandates. The suffix i = integrity, p = privacy.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q05</span> What is the difference between auth method "none" and "never"?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a"><strong>none</strong> means accept requests with no authentication — unauthenticated clients are mapped to the <code>anon</code> UID (default 65534 / nobody). It is an explicit grant to anonymous clients. <strong>never</strong> means no client regardless of what credential they present will be granted access through this rule. <code>none</code> in rorule = anonymous read allowed. <code>never</code> in rwrule = no client can ever write.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q06</span> How does ONTAP evaluate multiple rules in an export policy?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">Rules are evaluated in order by their rule index (1, 2, 3…). The first rule whose clientmatch field matches the client's IP address is the rule applied — ONTAP stops evaluating immediately after the first match. If no rule matches the client's IP, access is denied. This means rule order is critical: more specific rules (individual IPs or smaller subnets) should have lower index numbers than broad rules (large subnets or 0.0.0.0/0 catch-alls).</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q07</span> A newly created volume is inaccessible to all NFS clients. What is the most likely cause?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">The most common cause is that the volume was created with the <code>default</code> export policy, which exists on every SVM but contains no rules. No rules means no clientmatch ever succeeds, so all clients are denied. Fix: run <code>volume modify -vserver &lt;svm&gt; -volume &lt;vol&gt; -export-policy &lt;policy-with-rules&gt;</code> to assign a policy that has appropriate rules for your clients.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q08</span> How do you test export policy access without a live NFS client?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">Use <code>vserver export-policy check-access</code> with parameters: <code>-client-ip</code>, <code>-volume</code>, <code>-authentication-method</code>, <code>-protocol</code>, and <code>-access-type</code>. This simulates the full rule evaluation and tells you exactly which rule index matched and what access level was granted. It is the fastest diagnostic tool and should always be the first step before any other troubleshooting.</div>
+    </li>
+  </ul>
+</div>
+
+<!-- ABOUT -->
+<div class="about-box">
+  <div class="about-avatar">R</div>
+  <div class="about-text">
+    <h3>Ramesh Nelluri — NetApp Storage Architect</h3>
+    <p>Storage infrastructure professional specialising in NetApp ONTAP, NAS/SAN protocols, and enterprise data management. These tutorials are built from real-world lab work and production experience.</p>
+  </div>
+</div>
+
+</main>
+</div>
+
+<footer>
+  &copy; 2026 Ramesh Nelluri &nbsp;·&nbsp; NetApp KBs &nbsp;·&nbsp;
+  <a href="index.html" style="color:var(--muted2);text-decoration:none">← Back to home</a>
+</footer>
+
+<script>
+/* ── Copy buttons ── */
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+/* ── Q&A accordion ── */
+function toggleQA(el) {
+  el.closest('.qa-item').classList.toggle('open');
+}
+
+/* ── Active TOC on scroll ── */
+const sections = document.querySelectorAll('[id]');
+const links = document.querySelectorAll('.toc-link');
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      links.forEach(l => l.classList.remove('active'));
+      const active = document.querySelector(`.toc-link[href="#${e.target.id}"]`);
+      if (active) active.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+sections.forEach(s => obs.observe(s));
+</script>
+
+</body>
+</html>
