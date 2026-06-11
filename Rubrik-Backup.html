@@ -1,0 +1,443 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Rubrik NAS Backup Masterclass</title>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    font-family:'Segoe UI',Arial,sans-serif;
+    background:#f4f7fb;
+    color:#333;
+    line-height:1.6;
+}
+
+header{
+    background:linear-gradient(135deg,#0b1f3a,#0057b8);
+    color:white;
+    text-align:center;
+    padding:40px;
+}
+
+header h1{
+    font-size:40px;
+}
+
+header p{
+    font-size:18px;
+    margin-top:10px;
+}
+
+nav{
+    background:#0b5cab;
+    position:sticky;
+    top:0;
+    z-index:1000;
+}
+
+nav ul{
+    list-style:none;
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+}
+
+nav li{
+    padding:12px 18px;
+}
+
+nav a{
+    color:white;
+    text-decoration:none;
+    font-weight:bold;
+}
+
+.container{
+    width:95%;
+    max-width:1400px;
+    margin:auto;
+    padding:20px;
+}
+
+.card{
+    background:white;
+    margin-bottom:20px;
+    padding:25px;
+    border-radius:10px;
+    box-shadow:0 3px 12px rgba(0,0,0,0.08);
+}
+
+h2{
+    color:#0057b8;
+    margin-bottom:15px;
+    border-bottom:2px solid #e5e5e5;
+    padding-bottom:10px;
+}
+
+h3{
+    color:#0b5cab;
+    margin-top:15px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:15px;
+}
+
+table th{
+    background:#0057b8;
+    color:white;
+    padding:12px;
+}
+
+table td{
+    border:1px solid #ddd;
+    padding:10px;
+}
+
+pre{
+    background:#1e1e1e;
+    color:#dcdcdc;
+    padding:15px;
+    border-radius:8px;
+    overflow:auto;
+}
+
+.note{
+    background:#fff6d8;
+    border-left:6px solid #ffc107;
+    padding:15px;
+    margin-top:15px;
+}
+
+.tip{
+    background:#e9f9ea;
+    border-left:6px solid #28a745;
+    padding:15px;
+    margin-top:15px;
+}
+
+.warning{
+    background:#ffe8e8;
+    border-left:6px solid #dc3545;
+    padding:15px;
+    margin-top:15px;
+}
+
+.footer{
+    background:#0b1f3a;
+    color:white;
+    text-align:center;
+    padding:25px;
+    margin-top:40px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>Rubrik NAS Backup Masterclass</h1>
+<p>NFS | SMB | NetApp | Isilon | Windows File Server | Enterprise Backup</p>
+</header>
+
+<nav>
+<ul>
+<li><a href="#overview">Overview</a></li>
+<li><a href="#workflow">Workflow</a></li>
+<li><a href="#fileset">Filesets</a></li>
+<li><a href="#sla">SLA</a></li>
+<li><a href="#snapdiff">SnapDiff</a></li>
+<li><a href="#restore">Restore</a></li>
+<li><a href="#interview">Interview</a></li>
+</ul>
+</nav>
+
+<div class="container">
+
+<!-- SECTION 1 -->
+<section id="overview" class="card">
+<h2>1. What is NAS Backup?</h2>
+
+<p>
+NAS backup protects shared file storage such as:
+</p>
+
+<ul>
+<li>NetApp ONTAP</li>
+<li>Dell PowerScale / Isilon</li>
+<li>Windows File Servers</li>
+<li>Linux NFS Servers</li>
+<li>SMB Shares</li>
+</ul>
+
+<div class="tip">
+Rubrik performs agentless backup of NAS data.
+</div>
+</section>
+
+<!-- SECTION 2 -->
+<section class="card">
+<h2>2. Why NAS Backup Matters</h2>
+
+<ul>
+<li>Accidental deletion recovery</li>
+<li>Ransomware protection</li>
+<li>Compliance retention</li>
+<li>Disaster recovery</li>
+<li>Business continuity</li>
+</ul>
+</section>
+
+<!-- SECTION 3 -->
+<section class="card">
+<h2>3. Rubrik NAS Architecture</h2>
+
+<pre>
+Users
+  |
+  v
+NAS Share
+  |
+  v
+Rubrik Cluster
+  |
+  v
+Fileset
+  |
+  v
+SLA Domain
+  |
+  v
+Snapshots
+  |
+  v
+Restore
+</pre>
+
+</section>
+
+<!-- SECTION 4 -->
+<section id="workflow" class="card">
+<h2>4. NAS Backup Workflow</h2>
+
+<ol>
+<li>Add NAS Share</li>
+<li>Configure Credentials</li>
+<li>Create Fileset</li>
+<li>Assign SLA Domain</li>
+<li>Run Backup</li>
+<li>Monitor Jobs</li>
+<li>Restore Files</li>
+</ol>
+</section>
+
+<!-- SECTION 5 -->
+<section id="fileset" class="card">
+<h2>5. Filesets</h2>
+
+<p>
+Filesets define exactly what data Rubrik protects.
+</p>
+
+<pre>
+Include:
+/finance/data
+/finance/reports
+
+Exclude:
+/finance/temp
+/finance/cache
+</pre>
+
+</section>
+
+<!-- SECTION 6 -->
+<section id="sla" class="card">
+<h2>6. SLA Domains</h2>
+
+<table>
+<tr>
+<th>Setting</th>
+<th>Example</th>
+</tr>
+
+<tr>
+<td>Frequency</td>
+<td>Daily</td>
+</tr>
+
+<tr>
+<td>Retention</td>
+<td>30 Days</td>
+</tr>
+
+<tr>
+<td>Archive</td>
+<td>180 Days</td>
+</tr>
+
+<tr>
+<td>Replication</td>
+<td>Enabled</td>
+</tr>
+</table>
+
+</section>
+
+<!-- Continue Sections 7 through 30 here -->
+
+<section id="snapdiff" class="card">
+<h2>NetApp SnapDiff Integration</h2>
+
+<pre>
+Rubrik
+   |
+   | What changed?
+   v
+ONTAP SnapDiff
+   |
+Changed Files Only
+</pre>
+
+<ul>
+<li>Faster incremental backups</li>
+<li>Reduced scans</li>
+<li>Less network traffic</li>
+</ul>
+
+</section>
+
+<section class="card">
+<h2>NFS vs SMB Comparison</h2>
+
+<table>
+<tr>
+<th>Feature</th>
+<th>NFS</th>
+<th>SMB</th>
+</tr>
+
+<tr>
+<td>Primary OS</td>
+<td>Linux</td>
+<td>Windows</td>
+</tr>
+
+<tr>
+<td>Port</td>
+<td>2049</td>
+<td>445</td>
+</tr>
+
+<tr>
+<td>Authentication</td>
+<td>UID/GID</td>
+<td>AD</td>
+</tr>
+</table>
+</section>
+
+<section class="card">
+<h2>ONTAP Troubleshooting Commands</h2>
+
+<pre>
+export-policy rule show
+
+vserver nfs show
+
+volume show -fields policy
+
+volume show -fields junction-path
+
+network interface show
+</pre>
+</section>
+
+<section class="card">
+<h2>Linux Client Verification</h2>
+
+<pre>
+showmount -e <NFS_Server>
+
+mount | grep nfs
+
+nfsstat
+
+rpcinfo -p <NFS_Server>
+
+ping <NFS_LIF>
+</pre>
+</section>
+
+<section id="restore" class="card">
+<h2>Restore Options</h2>
+
+<ul>
+<li>File Restore</li>
+<li>Folder Restore</li>
+<li>Original Location</li>
+<li>Alternate Location</li>
+</ul>
+
+<div class="tip">
+Always test restores regularly.
+</div>
+
+</section>
+
+<section id="interview" class="card">
+<h2>Top Interview Questions</h2>
+
+<h3>What is a Fileset?</h3>
+<p>Defines files and folders protected by Rubrik.</p>
+
+<h3>What is an SLA Domain?</h3>
+<p>Defines retention and backup schedule.</p>
+
+<h3>What is SnapDiff?</h3>
+<p>NetApp change-tracking technology used for efficient incremental backups.</p>
+
+<h3>Can Rubrik restore a single file?</h3>
+<p>Yes.</p>
+
+<h3>What permissions are required?</h3>
+<p>Read for backup, Write for restore.</p>
+
+</section>
+
+<section class="card">
+<h2>Rubrik Administrator Daily Checklist</h2>
+
+<pre>
+✓ Cluster Healthy
+✓ SLA Compliance Healthy
+✓ Replication Healthy
+✓ Archive Healthy
+✓ No Failed Jobs
+✓ Restore Test Successful
+✓ NAS Shares Reachable
+</pre>
+
+</section>
+
+</div>
+
+<div class="footer">
+<h3>Rubrik NAS Backup Masterclass</h3>
+<p>Backup Today • Recover Anytime • Zero Data Loss</p>
+</div>
+
+</body>
+</html>
+```
