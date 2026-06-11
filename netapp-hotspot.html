@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NetApp Hotspot — Disk, Aggregate &amp; Volume I/O Contention</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg:       #0d1117;
+  --bg2:      #161b22;
+  --bg3:      #1c2333;
+  --bg4:      #21262d;
+  --border:   #30363d;
+  --teal:     #2dd4bf;
+  --teal-d:   #134e4a;
+  --purple:   #a78bfa;
+  --purple-d: #2e1065;
+  --amber:    #fbbf24;
+  --amber-d:  #78350f;
+  --coral:    #f87171;
+  --coral-d:  #450a0a;
+  --green:    #4ade80;
+  --green-d:  #052e16;
+  --blue:     #60a5fa;
+  --blue-d:   #0c1a3a;
+  --orange:   #fb923c;
+  --orange-d: #431407;
+  --text:     #e6edf3;
+  --muted:    #7d8590;
+  --muted2:   #484f58;
+  --mono:     'JetBrains Mono', monospace;
+  --sans:     'Inter', system-ui, sans-serif;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.7}
+
+/* ── HEADER ── */
+header{
+  border-bottom:1px solid var(--border);
+  padding:0 clamp(1rem,5vw,4rem);
+  position:sticky;top:0;
+  background:rgba(13,17,23,0.93);
+  backdrop-filter:blur(12px);
+  z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  height:52px;
+}
+.logo{font-family:var(--mono);font-size:12px;color:var(--teal);text-decoration:none;letter-spacing:.05em}
+.logo span{color:var(--muted)}
+nav a{font-size:12px;color:var(--muted);text-decoration:none;margin-left:1.5rem;transition:color .2s}
+nav a:hover{color:var(--text)}
+
+/* ── LAYOUT ── */
+.layout{display:flex;max-width:1100px;margin:0 auto;padding:0 clamp(1rem,3vw,2.5rem)}
+aside{
+  width:220px;flex-shrink:0;
+  position:sticky;top:52px;
+  height:calc(100vh - 52px);
+  overflow-y:auto;
+  padding:2rem 1rem 2rem 0;
+  border-right:1px solid var(--border);
+  scrollbar-width:none;
+}
+aside::-webkit-scrollbar{display:none}
+.toc-group{margin-bottom:1.4rem}
+.toc-part{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted2);padding:0 .5rem;margin-bottom:.4rem}
+.toc-link{display:block;font-size:12px;color:var(--muted);text-decoration:none;padding:.28rem .5rem;border-radius:4px;transition:all .15s;border-left:2px solid transparent}
+.toc-link:hover{color:var(--text);background:var(--bg2)}
+.toc-link.active{color:var(--teal);border-left-color:var(--teal);background:rgba(45,212,191,.05)}
+.toc-sub{padding-left:1rem;font-size:11px;color:var(--muted2)}
+.toc-sub:hover{color:var(--muted)}
+main{flex:1;min-width:0;padding:2.5rem 0 4rem 2.5rem}
+
+/* ── HERO ── */
+.hero{margin-bottom:2.8rem}
+.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.15em;color:var(--orange);text-transform:uppercase;margin-bottom:1rem;display:flex;align-items:center;gap:.6rem}
+.eyebrow::before{content:'';display:inline-block;width:24px;height:1px;background:var(--orange)}
+h1{font-size:clamp(1.7rem,4vw,2.6rem);font-weight:700;letter-spacing:-.02em;line-height:1.15;margin-bottom:1rem}
+h1 em{font-style:normal;color:var(--orange)}
+.hero-desc{font-size:15px;color:var(--muted);max-width:600px;line-height:1.75;margin-bottom:1.4rem}
+.badge-row{display:flex;flex-wrap:wrap;gap:.5rem}
+.badge{font-family:var(--mono);font-size:10px;padding:2px 9px;border-radius:20px;border:1px solid;letter-spacing:.04em}
+.b-orange{border-color:var(--orange);color:var(--orange);background:rgba(251,146,60,.07)}
+.b-teal  {border-color:var(--teal);  color:var(--teal);  background:rgba(45,212,191,.07)}
+.b-purple{border-color:var(--purple);color:var(--purple);background:rgba(167,139,250,.07)}
+.b-coral {border-color:var(--coral); color:var(--coral); background:rgba(248,113,113,.07)}
+
+/* ── HEAT METER (hero visual) ── */
+.heat-meter{
+  margin:1.5rem 0 2rem;
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:12px;padding:1.2rem 1.4rem;
+  display:flex;align-items:center;gap:1.4rem;
+  max-width:520px;
+}
+.heat-bar-wrap{flex:1}
+.heat-label{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:.4rem}
+.heat-bar{height:14px;border-radius:7px;background:var(--bg3);overflow:hidden;position:relative}
+.heat-fill{
+  height:100%;border-radius:7px;
+  background:linear-gradient(90deg,#4ade80 0%,#fbbf24 45%,#fb923c 70%,#f87171 100%);
+  width:0;transition:width 1.2s cubic-bezier(.4,0,.2,1);
+}
+.heat-pct{font-family:var(--mono);font-size:22px;font-weight:600;color:var(--coral);min-width:50px;text-align:right}
+.heat-desc{font-size:11px;color:var(--muted);margin-top:.2rem}
+
+/* ── SECTIONS ── */
+.section{margin-bottom:3rem}
+.section-num{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted2);display:block;margin-bottom:.5rem}
+h2{font-size:1.35rem;font-weight:600;margin-bottom:.9rem;padding-bottom:.7rem;border-bottom:1px solid var(--border)}
+h3{font-size:1rem;font-weight:600;margin:1.6rem 0 .7rem;color:var(--text)}
+h4{font-size:.85rem;font-weight:600;margin:1.2rem 0 .5rem;color:var(--muted);font-family:var(--mono);letter-spacing:.03em;text-transform:uppercase}
+p{margin-bottom:.9rem;color:var(--text);line-height:1.75}
+p:last-child{margin-bottom:0}
+
+/* ── CODE BLOCKS ── */
+.code-block{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:1rem 0 1.4rem}
+.code-header{display:flex;align-items:center;justify-content:space-between;padding:.55rem 1rem;background:var(--bg3);border-bottom:1px solid var(--border)}
+.code-label{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+.label-ontap {color:var(--teal)}
+.label-output{color:var(--muted)}
+.label-warn  {color:var(--orange)}
+.copy-btn{font-family:var(--mono);font-size:10px;color:var(--muted);background:none;border:1px solid var(--border);border-radius:4px;padding:2px 8px;cursor:pointer;transition:all .15s}
+.copy-btn:hover{color:var(--text);border-color:var(--muted)}
+.copy-btn.copied{color:var(--green);border-color:var(--green)}
+pre{padding:1.1rem 1.2rem;font-family:var(--mono);font-size:12.5px;line-height:1.7;overflow-x:auto;tab-size:4}
+.cm{color:var(--muted2)}
+.ck{color:var(--teal)}
+.cv{color:var(--amber)}
+.cs{color:var(--coral)}
+.cg{color:var(--green)}
+.cp{color:var(--purple)}
+.cb{color:var(--blue)}
+.co{color:var(--orange)}
+
+/* ── CALLOUTS ── */
+.callout{border-radius:10px;padding:1rem 1.1rem;margin:1.2rem 0;border:1px solid;display:flex;gap:.75rem;align-items:flex-start}
+.callout-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.callout-body{font-size:13.5px;line-height:1.65}
+.callout-body strong{display:block;font-size:11px;font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.3rem}
+.c-tip   {background:rgba(45,212,191,.06);border-color:var(--teal-d)}
+.c-tip .callout-body{color:#b2f5ea}
+.c-warn  {background:rgba(251,146,60,.06);border-color:var(--orange-d)}
+.c-warn .callout-body{color:#fed7aa}
+.c-danger{background:rgba(248,113,113,.06);border-color:var(--coral-d)}
+.c-danger .callout-body{color:#fecaca}
+.c-info  {background:rgba(96,165,250,.06);border-color:var(--blue-d)}
+.c-info .callout-body{color:#bfdbfe}
+
+/* ── HOTSPOT TYPE CARDS ── */
+.type-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.85rem;margin:1rem 0 1.4rem}
+.type-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:1.1rem 1.2rem;border-left:3px solid}
+.type-card .tc-icon{font-size:22px;margin-bottom:.5rem}
+.type-card h4{font-size:.95rem;font-family:var(--sans);font-weight:600;letter-spacing:0;text-transform:none;color:var(--text);margin:0 0 .4rem}
+.type-card p{font-size:12.5px;color:var(--muted);margin:0;line-height:1.6}
+.tc-disk  {border-color:var(--coral)}
+.tc-agg   {border-color:var(--orange)}
+.tc-vol   {border-color:var(--amber)}
+.tc-lun   {border-color:var(--purple)}
+.tc-cpu   {border-color:var(--blue)}
+
+/* ── TABLES ── */
+.dtable{width:100%;border-collapse:collapse;margin:1.2rem 0;font-size:13px}
+.dtable th{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:.55rem .8rem;border-bottom:2px solid var(--border);text-align:left;background:var(--bg3)}
+.dtable td{padding:.55rem .8rem;border-bottom:1px solid var(--border);vertical-align:top;line-height:1.55}
+.dtable tr:hover td{background:var(--bg2)}
+.dtable code{font-family:var(--mono);font-size:11.5px;padding:1px 5px;background:var(--bg3);border-radius:3px;border:1px solid var(--border)}
+.tag-orange{color:var(--orange);font-family:var(--mono);font-size:11px}
+.tag-coral {color:var(--coral); font-family:var(--mono);font-size:11px}
+.tag-green {color:var(--green); font-family:var(--mono);font-size:11px}
+.tag-amber {color:var(--amber); font-family:var(--mono);font-size:11px}
+
+/* ── THRESHOLD TABLE ── */
+.thresh-table{width:100%;border-collapse:collapse;font-size:13px;margin:1rem 0}
+.thresh-table th{background:var(--bg3);font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:.55rem .9rem;border-bottom:2px solid var(--border);text-align:left}
+.thresh-table td{padding:.55rem .9rem;border-bottom:1px solid var(--border);vertical-align:middle}
+.thresh-table tr:hover td{background:rgba(251,146,60,.03)}
+.t-low  {color:var(--green); font-family:var(--mono);font-size:11px;font-weight:600}
+.t-med  {color:var(--amber); font-family:var(--mono);font-size:11px;font-weight:600}
+.t-high {color:var(--orange);font-family:var(--mono);font-size:11px;font-weight:600}
+.t-crit {color:var(--coral); font-family:var(--mono);font-size:11px;font-weight:600}
+
+/* ── DIAGRAM WRAP ── */
+.diagram-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:1.2rem;margin:1.2rem 0}
+.diagram-wrap svg{display:block;width:100%}
+
+/* ── STEP LIST ── */
+.step-list{list-style:none;margin:1rem 0 1.4rem}
+.step-item{display:flex;gap:1rem;margin-bottom:1rem;align-items:flex-start}
+.step-num{
+  width:28px;height:28px;border-radius:50%;
+  background:var(--orange-d);border:1px solid var(--orange);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:11px;color:var(--orange);
+  flex-shrink:0;margin-top:2px;
+}
+.step-body h4{font-size:.9rem;font-family:var(--sans);font-weight:600;text-transform:none;letter-spacing:0;color:var(--text);margin:0 0 .3rem}
+.step-body p{font-size:13px;color:var(--muted);margin:0;line-height:1.6}
+
+/* ── Q&A ACCORDION ── */
+.qa-list{list-style:none}
+.qa-item{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:.8rem}
+.qa-q{display:flex;justify-content:space-between;align-items:center;padding:.85rem 1.1rem;cursor:pointer;background:var(--bg2);font-size:13.5px;font-weight:500;user-select:none;transition:background .15s}
+.qa-q:hover{background:var(--bg3)}
+.qa-q .q-num{font-family:var(--mono);font-size:10px;color:var(--orange);margin-right:.6rem}
+.qa-q .chevron{color:var(--muted);font-size:12px;transition:transform .25s}
+.qa-item.open .chevron{transform:rotate(180deg)}
+.qa-a{display:none;padding:.9rem 1.1rem;background:var(--bg);font-size:13px;color:var(--muted);line-height:1.7;border-top:1px solid var(--border)}
+.qa-item.open .qa-a{display:block}
+
+/* ── ABOUT / FOOTER ── */
+.about-box{border-top:1px solid var(--border);padding:2rem 0 0;margin-top:3rem;display:flex;gap:1.2rem;align-items:flex-start}
+.about-avatar{width:44px;height:44px;border-radius:50%;background:var(--teal-d);border:2px solid var(--teal);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:16px;color:var(--teal);flex-shrink:0}
+.about-text h3{font-size:13px;font-weight:600;margin-bottom:.25rem}
+.about-text p{font-size:12.5px;color:var(--muted);line-height:1.6}
+footer{border-top:1px solid var(--border);padding:1.1rem clamp(1rem,5vw,4rem);text-align:center;font-family:var(--mono);font-size:10px;color:var(--muted2);letter-spacing:.04em}
+
+@media(max-width:768px){aside{display:none}main{padding:1.5rem 0 3rem}.layout{padding:0 1rem}}
+</style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="index.html"><span>~/</span>NetAppKBs</a>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="#s1">Concepts</a>
+    <a href="#s3">Detection</a>
+    <a href="#s5">Resolution</a>
+    <a href="https://github.com/rameshnelluri-netapp/NetAppKBs" target="_blank">GitHub ↗</a>
+  </nav>
+</header>
+
+<div class="layout">
+
+<aside>
+  <div class="toc-group">
+    <div class="toc-part">Part A — Concepts</div>
+    <a class="toc-link active" href="#s1">01 What is a Hotspot?</a>
+    <a class="toc-link toc-sub" href="#s1-types">Types of Hotspots</a>
+    <a class="toc-link toc-sub" href="#s1-causes">Root Causes</a>
+    <a class="toc-link" href="#s2">02 How ONTAP Measures It</a>
+    <a class="toc-link toc-sub" href="#s2-metrics">Key Metrics</a>
+    <a class="toc-link toc-sub" href="#s2-thresh">Thresholds</a>
+  </div>
+  <div class="toc-group">
+    <div class="toc-part">Part B — Detection</div>
+    <a class="toc-link" href="#s3">03 CLI Detection</a>
+    <a class="toc-link toc-sub" href="#s3-disk">Disk Hotspot</a>
+    <a class="toc-link toc-sub" href="#s3-agg">Aggregate Hotspot</a>
+    <a class="toc-link toc-sub" href="#s3-vol">Volume Hotspot</a>
+    <a class="toc-link" href="#s4">04 System Manager</a>
+  </div>
+  <div class="toc-group">
+    <div class="toc-part">Part C — Resolution</div>
+    <a class="toc-link" href="#s5">05 Resolution Methods</a>
+    <a class="toc-link toc-sub" href="#s5-rebalance">Volume Move</a>
+    <a class="toc-link toc-sub" href="#s5-fp">Flash Pool</a>
+    <a class="toc-link toc-sub" href="#s5-qos">QoS Throttle</a>
+    <a class="toc-link toc-sub" href="#s5-fc">FlexCache</a>
+    <a class="toc-link" href="#s6">06 Prevention</a>
+    <a class="toc-link" href="#s7">07 Interview Q&amp;A</a>
+  </div>
+</aside>
+
+<main>
+
+<!-- HERO -->
+<div class="hero" id="top">
+  <div class="eyebrow">Performance · Storage · WAFL</div>
+  <h1>NetApp Storage<br/><em>Hotspot</em></h1>
+  <p class="hero-desc">
+    A hotspot occurs when I/O load concentrates on a single disk, aggregate, or volume —
+    creating a performance bottleneck while surrounding resources sit idle.
+    This tutorial covers what causes hotspots, how ONTAP measures and reports them,
+    CLI commands to detect and confirm them, and every resolution method available.
+  </p>
+  <div class="badge-row">
+    <span class="badge b-orange">ONTAP 9.x</span>
+    <span class="badge b-teal">WAFL · Aggregate</span>
+    <span class="badge b-purple">QoS · FlexCache</span>
+    <span class="badge b-coral">Performance</span>
+  </div>
+
+  <!-- Live heat meter animation -->
+  <div class="heat-meter" id="heat-meter">
+    <div class="heat-bar-wrap">
+      <div class="heat-label">Disk busy% — hotspot threshold</div>
+      <div class="heat-bar"><div class="heat-fill" id="heat-fill"></div></div>
+      <div class="heat-desc">A single disk above ~75% busy% while peers are below 30% = hotspot condition</div>
+    </div>
+    <div class="heat-pct" id="heat-pct">0%</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 01 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s1">
+  <span class="section-num">Section 01 · Concepts</span>
+  <h2>What is a Hotspot?</h2>
+
+  <p>A <strong>hotspot</strong> in NetApp ONTAP is an I/O imbalance condition where one storage component — a disk, a RAID group, an aggregate, or a volume — receives a disproportionately high workload relative to its neighbours. The result is that the hot component becomes a bottleneck: latency climbs, queue depth grows, and application performance degrades — while the surrounding components are underutilised.</p>
+
+  <p>Hotspots are particularly common in spinning disk (HDD) environments because each disk has a fixed rotational speed and a single read/write head. An SSD can service many more IOPS simultaneously, making disk-level hotspots less common on all-flash arrays — but aggregate, volume, and LUN-level hotspots still occur on AFF platforms when workloads are unevenly distributed.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 640 220" role="img">
+      <title>Hotspot imbalance diagram — one disk overloaded, others idle</title>
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+      <!-- Label -->
+      <text font-family="JetBrains Mono,monospace" font-size="10" fill="#7d8590" x="320" y="18" text-anchor="middle" letter-spacing="1">RAID GROUP — DISK BUSY %</text>
+
+      <!-- Disk bars -->
+      <!-- Disk 1 — cool -->
+      <rect x="40" y="30" width="60" height="140" rx="6" fill="#1c2333" stroke="#30363d" stroke-width="0.5"/>
+      <rect x="40" y="102" width="60" height="68" rx="4" fill="#1a3a1e"/>
+      <rect x="40" y="102" width="60" height="68" rx="4" fill="#4ade80" opacity="0.5"/>
+      <text font-family="JetBrains Mono,monospace" font-size="11" fill="#4ade80" x="70" y="185" text-anchor="middle">28%</text>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#7d8590" x="70" y="200" text-anchor="middle">Disk 0</text>
+
+      <!-- Disk 2 — cool -->
+      <rect x="120" y="30" width="60" height="140" rx="6" fill="#1c2333" stroke="#30363d" stroke-width="0.5"/>
+      <rect x="120" y="108" width="60" height="62" rx="4" fill="#1a3a1e"/>
+      <rect x="120" y="108" width="60" height="62" rx="4" fill="#4ade80" opacity="0.5"/>
+      <text font-family="JetBrains Mono,monospace" font-size="11" fill="#4ade80" x="150" y="185" text-anchor="middle">22%</text>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#7d8590" x="150" y="200" text-anchor="middle">Disk 1</text>
+
+      <!-- Disk 3 — HOT -->
+      <rect x="200" y="30" width="60" height="140" rx="6" fill="#1c2333" stroke="#f87171" stroke-width="1.5"/>
+      <rect x="200" y="38" width="60" height="132" rx="4" fill="#2a0a0a"/>
+      <rect x="200" y="38" width="60" height="132" rx="4" fill="#f87171" opacity="0.7"/>
+      <text font-family="JetBrains Mono,monospace" font-size="11" fill="#f87171" font-weight="600" x="230" y="185" text-anchor="middle">92%</text>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#f87171" font-weight="600" x="230" y="200" text-anchor="middle">Disk 2 🔥</text>
+
+      <!-- Disk 4 — warm -->
+      <rect x="280" y="30" width="60" height="140" rx="6" fill="#1c2333" stroke="#30363d" stroke-width="0.5"/>
+      <rect x="280" y="94" width="60" height="76" rx="4" fill="#221a00"/>
+      <rect x="280" y="94" width="60" height="76" rx="4" fill="#fbbf24" opacity="0.4"/>
+      <text font-family="JetBrains Mono,monospace" font-size="11" fill="#fbbf24" x="310" y="185" text-anchor="middle">35%</text>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#7d8590" x="310" y="200" text-anchor="middle">Disk 3</text>
+
+      <!-- Disk 5 — cool -->
+      <rect x="360" y="30" width="60" height="140" rx="6" fill="#1c2333" stroke="#30363d" stroke-width="0.5"/>
+      <rect x="360" y="112" width="60" height="58" rx="4" fill="#1a3a1e"/>
+      <rect x="360" y="112" width="60" height="58" rx="4" fill="#4ade80" opacity="0.5"/>
+      <text font-family="JetBrains Mono,monospace" font-size="11" fill="#4ade80" x="390" y="185" text-anchor="middle">18%</text>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#7d8590" x="390" y="200" text-anchor="middle">Disk 4</text>
+
+      <!-- Disk 6 — cool -->
+      <rect x="440" y="30" width="60" height="140" rx="6" fill="#1c2333" stroke="#30363d" stroke-width="0.5"/>
+      <rect x="440" y="105" width="60" height="65" rx="4" fill="#1a3a1e"/>
+      <rect x="440" y="105" width="60" height="65" rx="4" fill="#4ade80" opacity="0.5"/>
+      <text font-family="JetBrains Mono,monospace" font-size="11" fill="#4ade80" x="470" y="185" text-anchor="middle">25%</text>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#7d8590" x="470" y="200" text-anchor="middle">Disk 5</text>
+
+      <!-- Parity disk -->
+      <rect x="520" y="30" width="60" height="140" rx="6" fill="#1c2333" stroke="#30363d" stroke-width="0.5"/>
+      <rect x="520" y="100" width="60" height="70" rx="4" fill="#1a1a2e"/>
+      <rect x="520" y="100" width="60" height="70" rx="4" fill="#a78bfa" opacity="0.3"/>
+      <text font-family="JetBrains Mono,monospace" font-size="11" fill="#a78bfa" x="550" y="185" text-anchor="middle">30%</text>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#7d8590" x="550" y="200" text-anchor="middle">Parity</text>
+
+      <!-- Hotspot label -->
+      <line x1="230" y1="28" x2="230" y2="14" stroke="#f87171" stroke-width="1" stroke-dasharray="3 2"/>
+      <text font-family="JetBrains Mono,monospace" font-size="9" fill="#f87171" x="240" y="12" letter-spacing=".5">HOTSPOT</text>
+    </svg>
+  </div>
+
+  <div id="s1-types"></div>
+  <h3>Types of hotspots</h3>
+
+  <div class="type-grid">
+    <div class="type-card tc-disk">
+      <div class="tc-icon">💽</div>
+      <h4>Disk-level hotspot</h4>
+      <p>One physical disk — usually a data disk in a RAID group — receives the majority of I/O. Common when a single heavily accessed file or LUN maps to blocks on that disk. The disk busy% counter spikes while peers sit idle. Most impactful on HDDs; less so on SSDs.</p>
+    </div>
+    <div class="type-card tc-agg">
+      <div class="tc-icon">🗄️</div>
+      <h4>Aggregate-level hotspot</h4>
+      <p>One aggregate on a node receives far more workload than other aggregates on the same or peer nodes. Usually caused by placing too many high-I/O volumes on a single aggregate. Results in high aggregate utilisation and elevated latency for all volumes on that aggregate.</p>
+    </div>
+    <div class="type-card tc-vol">
+      <div class="tc-icon">📁</div>
+      <h4>Volume-level hotspot</h4>
+      <p>A single FlexVol receives disproportionate I/O. Can happen with application databases, NFS home directories for power users, or shared volumes with many concurrent writers. Competes for WAFL buffer cache and CPU cycles on the owning node.</p>
+    </div>
+    <div class="type-card tc-lun">
+      <div class="tc-icon">🔲</div>
+      <h4>LUN-level hotspot</h4>
+      <p>Specific in SAN environments. A single LUN within a volume carries the bulk of IOPS — often a database log LUN or a VM swap disk. Even if the volume is balanced, this LUN's workload can dominate the node's processing queue.</p>
+    </div>
+    <div class="type-card tc-cpu">
+      <div class="tc-icon">⚡</div>
+      <h4>Node CPU hotspot</h4>
+      <p>One node in an HA pair or cluster handles the majority of client connections and I/O processing, while its partner node runs light. Results in high CPU utilisation, increased WAFL scheduling latency, and potential NFSv4 lease renewal issues.</p>
+    </div>
+  </div>
+
+  <div id="s1-causes"></div>
+  <h3>Root causes</h3>
+
+  <table class="dtable">
+    <thead><tr><th>Cause</th><th>Why it creates a hotspot</th><th>Typical scenario</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Uneven volume placement</strong></td>
+        <td>All high-IOPS volumes placed on same aggregate by default or manually</td>
+        <td>DBA puts all Oracle data, redo log, and temp volumes on aggr1</td>
+      </tr>
+      <tr>
+        <td><strong>Sequential I/O pattern on HDD</strong></td>
+        <td>Sequential writes concentrate on the last-written disk in a RAID stripe</td>
+        <td>Large file copy or backup job hitting a single data volume</td>
+      </tr>
+      <tr>
+        <td><strong>Small file / metadata storm</strong></td>
+        <td>Millions of small file operations flood WAFL metadata blocks, which map to specific disks</td>
+        <td>NFS home directory server with thousands of users at login time</td>
+      </tr>
+      <tr>
+        <td><strong>No QoS limits</strong></td>
+        <td>A runaway workload monopolises node resources with no ceiling</td>
+        <td>Dev/test VM doing unthrottled random 4K writes on a shared cluster</td>
+      </tr>
+      <tr>
+        <td><strong>Unbalanced HA pair</strong></td>
+        <td>All aggregates are on one node; partner has minimal load</td>
+        <td>Node failover never reversed — all workload stays on one node indefinitely</td>
+      </tr>
+      <tr>
+        <td><strong>Flash Pool cache misses</strong></td>
+        <td>SSD cache repeatedly misses, driving all I/O to spinning disks</td>
+        <td>Workload with low temporal locality — each I/O hits a different LBA</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 02 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s2">
+  <span class="section-num">Section 02 · Measurement</span>
+  <h2>How ONTAP Measures Hotspots</h2>
+
+  <div id="s2-metrics"></div>
+  <h3>Key counters to watch</h3>
+
+  <table class="dtable">
+    <thead><tr><th>Counter</th><th>What it measures</th><th>Where to find it</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>disk.busy</code></td>
+        <td>Percentage of time the disk is busy servicing I/O (0–100%). The primary disk hotspot indicator.</td>
+        <td><code>statistics show</code>, <code>sysstat -d</code></td>
+      </tr>
+      <tr>
+        <td><code>disk.avg_latency</code></td>
+        <td>Average I/O latency on the disk in microseconds. Rises sharply when busy% is high on HDD.</td>
+        <td><code>statistics show -object disk</code></td>
+      </tr>
+      <tr>
+        <td><code>aggregate.total_transfers</code></td>
+        <td>Total I/O operations per second across the aggregate. Compare across aggregates on the same node.</td>
+        <td><code>statistics show -object aggregate</code></td>
+      </tr>
+      <tr>
+        <td><code>volume.avg_latency</code></td>
+        <td>Average client-visible latency for operations on the volume. Reflects combined disk + WAFL + network overhead.</td>
+        <td><code>statistics show -object volume</code></td>
+      </tr>
+      <tr>
+        <td><code>node.cpu_busy</code></td>
+        <td>Overall CPU utilisation on the node. Consistently above 80% points to a node hotspot.</td>
+        <td><code>sysstat -x 1</code></td>
+      </tr>
+      <tr>
+        <td><code>wafl.total_cp_msecs</code></td>
+        <td>Time spent in Consistency Point write cycles. Elevated CP time indicates WAFL is under pressure.</td>
+        <td><code>statistics show -object wafl</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div id="s2-thresh"></div>
+  <h3>Thresholds — when to act</h3>
+
+  <table class="thresh-table">
+    <thead><tr><th>Counter</th><th>Normal</th><th>Watch</th><th>Hotspot</th><th>Critical</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>disk.busy</code> (HDD)</td>
+        <td><span class="t-low">0–40%</span></td>
+        <td><span class="t-med">40–60%</span></td>
+        <td><span class="t-high">60–80%</span></td>
+        <td><span class="t-crit">&gt;80%</span></td>
+      </tr>
+      <tr>
+        <td><code>disk.busy</code> (SSD)</td>
+        <td><span class="t-low">0–60%</span></td>
+        <td><span class="t-med">60–75%</span></td>
+        <td><span class="t-high">75–90%</span></td>
+        <td><span class="t-crit">&gt;90%</span></td>
+      </tr>
+      <tr>
+        <td>Aggregate utilisation</td>
+        <td><span class="t-low">&lt;50%</span></td>
+        <td><span class="t-med">50–70%</span></td>
+        <td><span class="t-high">70–85%</span></td>
+        <td><span class="t-crit">&gt;85%</span></td>
+      </tr>
+      <tr>
+        <td>Node CPU busy</td>
+        <td><span class="t-low">&lt;50%</span></td>
+        <td><span class="t-med">50–70%</span></td>
+        <td><span class="t-high">70–85%</span></td>
+        <td><span class="t-crit">&gt;85%</span></td>
+      </tr>
+      <tr>
+        <td>Volume latency (NFS)</td>
+        <td><span class="t-low">&lt;2 ms</span></td>
+        <td><span class="t-med">2–5 ms</span></td>
+        <td><span class="t-high">5–20 ms</span></td>
+        <td><span class="t-crit">&gt;20 ms</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout c-info">
+    <div class="callout-icon">ℹ️</div>
+    <div class="callout-body">
+      <strong>Relative comparison matters more than absolutes</strong>
+      A disk at 70% busy% is only a hotspot if its peers are at 20%. If all disks in the RAID group are at 65–70%, the aggregate is simply under high load — a different problem. Always compare the suspect component against its peers, not just against a fixed threshold.
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 03 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s3">
+  <span class="section-num">Section 03 · CLI Detection</span>
+  <h2>CLI Detection Commands</h2>
+
+  <div id="s3-disk"></div>
+  <h3>Disk-level hotspot detection</h3>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Check disk busy% across all disks</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Show disk busy% — run several times 5–10 seconds apart</span>
+<span class="ck">statistics show</span> \
+  <span class="cv">-object</span>  disk \
+  <span class="cv">-counter</span> disk_busy_pct,avg_latency \
+  <span class="cv">-raw</span>
+
+<span class="cm"># Simpler view — disk performance summary</span>
+<span class="ck">storage disk show</span> <span class="cv">-fields</span> disk,type,rpm,avg-latency,iops
+
+<span class="cm"># Advanced privilege — per-disk I/O detail</span>
+<span class="ck">set</span> <span class="cv">-privilege</span> advanced
+<span class="ck">statistics show</span> <span class="cv">-object</span> disk <span class="cv">-instance</span> <span class="co">0a.00.1</span>   <span class="cm"># specific disk</span>
+<span class="ck">set</span> <span class="cv">-privilege</span> admin</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-output">Sample output — disk 0a.00.2 is a hotspot</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code>Object: disk
+Instance               disk_busy_pct    avg_latency (us)
+--------------------   -------------    ----------------
+0a.00.0                       22              540
+0a.00.1                       18              480
+<span class="cs">0a.00.2                       91             8240   ← HOTSPOT</span>
+0a.00.3                       25              560
+0a.00.4                       19              510
+0a.00.5                       27              590
+P (parity)                    30              620</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Real-time disk I/O with sysstat</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># -d flag shows per-disk breakdown, 1-second intervals</span>
+<span class="ck">sysstat</span> <span class="cv">-d</span> 1
+
+<span class="cm"># -x flag for extended node stats including CP activity</span>
+<span class="ck">sysstat</span> <span class="cv">-x</span> 1</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Which volume/file is generating the I/O</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Show top volumes by IOPS on the node right now</span>
+<span class="ck">statistics show</span> \
+  <span class="cv">-object</span>  volume \
+  <span class="cv">-counter</span> total_ops,avg_latency \
+  <span class="cv">-sort-key</span> total_ops
+
+<span class="cm"># Show top files by access count (advanced)</span>
+<span class="ck">set</span> <span class="cv">-privilege</span> advanced
+<span class="ck">statistics show</span> <span class="cv">-object</span> file <span class="cv">-counter</span> total_ops
+<span class="ck">set</span> <span class="cv">-privilege</span> admin</code></pre>
+  </div>
+
+  <div id="s3-agg"></div>
+  <h3>Aggregate-level hotspot detection</h3>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Compare aggregate utilisation across nodes</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Show aggregate I/O stats — look for imbalance between aggregates</span>
+<span class="ck">statistics show</span> \
+  <span class="cv">-object</span>  aggregate \
+  <span class="cv">-counter</span> total_transfers,user_reads,user_writes,avg_latency
+
+<span class="cm"># Show aggregate space and utilisation</span>
+<span class="ck">aggr show</span> \
+  <span class="cv">-fields</span> aggregate,node,availsize,usedsize,percent-used,state
+
+<span class="cm"># Show how many volumes live on each aggregate</span>
+<span class="ck">volume show</span> <span class="cv">-fields</span> volume,aggregate,node,size \
+  <span class="cv">-state</span> online | <span class="ck">sort</span> aggregate</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-output">Sample — aggr1 is taking all the I/O</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code>Instance         total_transfers   user_reads   user_writes   avg_latency
+-----------      ---------------   ----------   -----------   -----------
+<span class="cs">aggr1_node1            42,800        28,600        14,200        18,400 us  ← HOT</span>
+aggr2_node1             1,200           800           400           900 us
+aggr1_node2             3,400         2,100         1,300         1,200 us
+aggr2_node2             2,800         1,900           900         1,100 us</code></pre>
+  </div>
+
+  <div id="s3-vol"></div>
+  <h3>Volume-level hotspot detection</h3>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Top volumes by latency and IOPS</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Show volume performance — sort by latency descending</span>
+<span class="ck">statistics show</span> \
+  <span class="cv">-object</span>   volume \
+  <span class="cv">-counter</span>  avg_latency,read_ops,write_ops,total_ops \
+  <span class="cv">-sort-key</span> avg_latency \
+  <span class="cv">-order</span>    descending
+
+<span class="cm"># QoS workload activity — see which workloads are busiest</span>
+<span class="ck">qos statistics workload show</span>
+
+<span class="cm"># Volume move eligibility — useful before planning rebalance</span>
+<span class="ck">volume show</span> <span class="cv">-fields</span> aggregate,node,total-footprint,size \
+  <span class="cv">-vserver</span> svm1</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Node-level CPU and load</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Show per-node CPU utilisation</span>
+<span class="ck">statistics show</span> \
+  <span class="cv">-object</span>  node \
+  <span class="cv">-counter</span> cpu_busy,processor_busy
+
+<span class="cm"># Node summary including CPU, ops, latency</span>
+<span class="ck">sysstat</span> <span class="cv">-x</span> 2 5   <span class="cm"># 2-second intervals, 5 iterations</span>
+
+<span class="cm"># See if one node has all the LIFs (clients stuck on one node)</span>
+<span class="ck">network interface show</span> \
+  <span class="cv">-fields</span> lif,vserver,curr-node,curr-port,address</code></pre>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 04 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s4">
+  <span class="section-num">Section 04 · System Manager</span>
+  <h2>Detecting via System Manager &amp; Active IQ</h2>
+
+  <h3>System Manager (ONTAP 9.9+)</h3>
+  <p>Navigate to <strong>Storage → Volumes</strong> and click the <strong>Activity Tracking</strong> tab on any volume. This shows a live IOPS and latency graph for the volume and identifies the top client IPs generating the most I/O. No CLI knowledge required — it is the fastest way to point a finger at a specific workload.</p>
+
+  <p>For aggregate-level view: <strong>Storage → Tiers</strong> shows each aggregate with a live utilisation bar and IOPS histogram. Hovering over a tier shows peak and average throughput.</p>
+
+  <h3>Active IQ Unified Manager</h3>
+  <p>Active IQ Unified Manager provides automated hotspot detection via its <strong>Performance Event</strong> engine. It compares each component's performance to a learned baseline and raises a <em>Dynamic Threshold</em> event when the component's latency or IOPS deviates significantly above its expected range. Key event types to look for:</p>
+
+  <table class="dtable">
+    <thead><tr><th>Event</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>Volume Latency above Performance Threshold</code></td>
+        <td>Volume latency exceeded the defined SLO or dynamic baseline.</td>
+      </tr>
+      <tr>
+        <td><code>Aggregate IOPS above Performance Threshold</code></td>
+        <td>Aggregate is receiving more IOPS than its historical baseline suggests.</td>
+      </tr>
+      <tr>
+        <td><code>Node CPU Utilisation above Threshold</code></td>
+        <td>Node CPU is consistently above the configured warning threshold.</td>
+      </tr>
+      <tr>
+        <td><code>Disk Performance Threshold Breached</code></td>
+        <td>One or more disks in an aggregate have busy% above the defined limit.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout c-tip">
+    <div class="callout-icon">💡</div>
+    <div class="callout-body">
+      <strong>Quick detection sequence</strong>
+      In practice: start with <code>sysstat -x 1</code> to spot a hot node. If CPU is high, run <code>qos statistics workload show</code> to find the offending workload. Then run <code>statistics show -object disk</code> to confirm which disk is physically hot. That three-step sequence covers 90% of production hotspot investigations.
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 05 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s5">
+  <span class="section-num">Section 05 · Resolution</span>
+  <h2>Resolution Methods</h2>
+
+  <div id="s5-rebalance"></div>
+  <h3>Method 1 — Volume Move (rebalance across aggregates)</h3>
+  <p>The most common and effective fix for aggregate-level hotspots. Move high-I/O volumes from the overloaded aggregate to a less-loaded one — on the same node or to the partner node. The move is non-disruptive; clients continue to access data throughout.</p>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Non-disruptive volume move</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Check destination aggregate has enough space</span>
+<span class="ck">aggr show</span> <span class="cv">-aggregate</span> aggr2_node1 <span class="cv">-fields</span> availsize
+
+<span class="cm"># Start the volume move — non-disruptive by default</span>
+<span class="ck">volume move start</span> \
+  <span class="cv">-vserver</span>           svm1 \
+  <span class="cv">-volume</span>            vol-db-redo \
+  <span class="cv">-destination-aggregate</span> aggr2_node1
+
+<span class="cm"># Monitor progress</span>
+<span class="ck">volume move show</span>
+
+<span class="cm"># Output shows phase: replicating → cutover → done
+# Clients see no interruption — cutover takes &lt; 1 second</span>
+
+<span class="cm"># Move to partner node aggregate (load balance across nodes)</span>
+<span class="ck">volume move start</span> \
+  <span class="cv">-vserver</span>           svm1 \
+  <span class="cv">-volume</span>            vol-db-data \
+  <span class="cv">-destination-aggregate</span> aggr1_node2</code></pre>
+  </div>
+
+  <div class="callout c-warn">
+    <div class="callout-icon">⚠️</div>
+    <div class="callout-body">
+      <strong>Check LIF home port after node move</strong>
+      If you move a volume to an aggregate on the partner node, client connections continue via LIF redirection — but with added network hop latency. After the move, consider also migrating the volume's serving LIF to the new home node using <code>network interface migrate</code> to restore optimal I/O path.
+    </div>
+  </div>
+
+  <div id="s5-fp"></div>
+  <h3>Method 2 — Flash Pool (add SSD cache to HDD aggregate)</h3>
+  <p>If the hotspot is caused by a read-heavy workload on an HDD aggregate, adding SSD cache via Flash Pool can absorb the read I/O without moving volumes. Frequently accessed blocks are promoted to the SSD tier automatically.</p>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Add SSD cache to existing HDD aggregate</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Check if Flash Pool is supported on the aggregate</span>
+<span class="ck">aggr show</span> <span class="cv">-aggregate</span> aggr1_node1 <span class="cv">-fields</span> type,is-flash-pool-eligible
+
+<span class="cm"># Add SSDs to create a Flash Pool</span>
+<span class="ck">aggr add-disks</span> \
+  <span class="cv">-aggregate</span>   aggr1_node1 \
+  <span class="cv">-disk-type</span>   SSD \
+  <span class="cv">-disklist</span>    1.1.0,1.1.1,1.1.2,1.1.3
+
+<span class="cm"># Confirm Flash Pool is active</span>
+<span class="ck">aggr show</span> <span class="cv">-aggregate</span> aggr1_node1 <span class="cv">-fields</span> type,hybrid-enabled</code></pre>
+  </div>
+
+  <div id="s5-qos"></div>
+  <h3>Method 3 — QoS Policy (throttle the hot workload)</h3>
+  <p>If the hotspot is caused by one runaway workload (a dev job, a backup, a poorly written query), apply a QoS maximum limit to that volume or LUN. This limits the IOPS or throughput it can consume, protecting other workloads sharing the same aggregate.</p>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Create and apply a QoS max policy</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Create a QoS policy with a maximum ceiling</span>
+<span class="ck">qos policy-group create</span> \
+  <span class="cv">-policy-group</span>  pg-limit-backup \
+  <span class="cv">-vserver</span>       svm1 \
+  <span class="cv">-max-throughput</span> 500IOPS
+
+<span class="cm"># Assign the QoS policy to the hot volume</span>
+<span class="ck">volume modify</span> \
+  <span class="cv">-vserver</span>          svm1 \
+  <span class="cv">-volume</span>           vol-backup \
+  <span class="cv">-qos-policy-group</span> pg-limit-backup
+
+<span class="cm"># Verify the policy is active and being enforced</span>
+<span class="ck">qos statistics workload show</span>
+<span class="ck">qos statistics performance show</span>
+
+<span class="cm"># Adaptive QoS — scales IOPS limit with volume size</span>
+<span class="ck">qos adaptive-policy-group create</span> \
+  <span class="cv">-policy-group</span>       pg-adaptive-prod \
+  <span class="cv">-vserver</span>            svm1 \
+  <span class="cv">-expected-iops</span>      1000IOPS/TB \
+  <span class="cv">-peak-iops</span>          5000IOPS/TB</code></pre>
+  </div>
+
+  <div id="s5-fc"></div>
+  <h3>Method 4 — FlexCache (edge caching for read hotspots)</h3>
+  <p>If the hotspot is a read-heavy volume accessed by clients across multiple sites or from one specific location, deploy a FlexCache volume at the edge. Read I/O is served from the cache, dramatically reducing traffic to the origin and relieving the hotspot.</p>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Create a FlexCache for a hot volume</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Create a FlexCache volume on the edge cluster</span>
+<span class="ck">volume flexcache create</span> \
+  <span class="cv">-vserver</span>           svm-edge \
+  <span class="cv">-volume</span>            vol-app01-cache \
+  <span class="cv">-size</span>              50g \
+  <span class="cv">-aggr-list</span>         aggr1_edge \
+  <span class="cv">-origin-vserver</span>    svm-origin \
+  <span class="cv">-origin-volume</span>     vol-app01
+
+<span class="cm"># Check cache hit rate — should climb above 90% for good workloads</span>
+<span class="ck">statistics show</span> \
+  <span class="cv">-object</span>  flexcache \
+  <span class="cv">-counter</span> cache_hits,cache_misses,hit_percent</code></pre>
+  </div>
+
+  <h3>Method 5 — LIF migration (fix node CPU hotspot)</h3>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Migrate LIFs to rebalance client load across nodes</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># See current LIF distribution across nodes</span>
+<span class="ck">network interface show</span> <span class="cv">-fields</span> lif,curr-node,home-node,address
+
+<span class="cm"># Migrate a specific LIF to the partner node</span>
+<span class="ck">network interface migrate</span> \
+  <span class="cv">-vserver</span>     svm1 \
+  <span class="cv">-lif</span>         svm1-nfs-lif1 \
+  <span class="cv">-dest-node</span>   node2 \
+  <span class="cv">-dest-port</span>   e0c
+
+<span class="cm"># Auto-rebalance all LIFs across nodes (ONTAP 9.11+)</span>
+<span class="ck">network interface rebalance</span> <span class="cv">-vserver</span> svm1</code></pre>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 06 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s6">
+  <span class="section-num">Section 06 · Prevention</span>
+  <h2>Prevention Best Practices</h2>
+
+  <ul class="step-list">
+    <li class="step-item">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h4>Spread volumes across aggregates intentionally</h4>
+        <p>Never place all production volumes on a single aggregate. For database environments, separate data, redo log, temp, and archive volumes across different aggregates — ideally on different nodes. Even if it feels like over-engineering on day one, it buys headroom as workloads grow.</p>
+      </div>
+    </li>
+    <li class="step-item">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h4>Use Adaptive QoS as a safety net on shared clusters</h4>
+        <p>Apply adaptive QoS minimum/maximum policies to all volumes on a shared cluster. This prevents any single workload from monopolising aggregate or node resources. A 5000 IOPS/TB ceiling is a reasonable starting point that stops runaway jobs without impacting normal workloads.</p>
+      </div>
+    </li>
+    <li class="step-item">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h4>Balance LIF placement at SVM creation time</h4>
+        <p>When creating SVMs and LIFs, distribute LIF home ports evenly across both nodes in an HA pair. Do not let all client-facing LIFs home on node1 — this concentrates all NFS/CIFS processing on a single node regardless of where volumes actually live.</p>
+      </div>
+    </li>
+    <li class="step-item">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h4>Revert LIFs after a takeover/giveback</h4>
+        <p>After an HA failover and giveback, LIFs do not always migrate back automatically. Run <code>network interface revert *</code> after a giveback to return LIFs to their home nodes. Failing to do this leaves one node doing double the client work indefinitely.</p>
+      </div>
+    </li>
+    <li class="step-item">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <h4>Set Active IQ Unified Manager performance thresholds</h4>
+        <p>Configure automated threshold alerts in Active IQ Unified Manager so you are notified when disk busy% exceeds 70%, aggregate utilisation exceeds 75%, or volume latency exceeds your SLO. Proactive alerting means you fix hotspots before users complain.</p>
+      </div>
+    </li>
+    <li class="step-item">
+      <div class="step-num">6</div>
+      <div class="step-body">
+        <h4>Consider all-flash (AFF) for mixed-workload environments</h4>
+        <p>Disk-level hotspots are a fundamentally HDD problem. SSDs have no rotational latency and can service random I/O from many logical locations simultaneously, making disk-specific hotspots essentially non-existent. If disk hotspots are a recurring problem, the architectural answer is transitioning the affected aggregate to SSD.</p>
+      </div>
+    </li>
+  </ul>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 07 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s7">
+  <span class="section-num">Section 07 · Interview Q&amp;A</span>
+  <h2>Interview &amp; Exam Questions</h2>
+
+  <ul class="qa-list">
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q01</span> What is a hotspot in NetApp ONTAP and at what levels can it occur?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">A hotspot is an I/O imbalance where one storage component receives disproportionately more workload than its peers. It can occur at five levels: disk level (one physical disk in a RAID group receiving most I/O), aggregate level (one aggregate on a node receiving most of the cluster's I/O), volume level (one FlexVol dominating WAFL and CPU resources), LUN level (one LUN inside a volume monopolising SAN I/O), and node level (one node in an HA pair handling all client connections and I/O processing).</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q02</span> Which CLI command gives you the fastest overview of a disk hotspot?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">The fastest initial command is <code>sysstat -d 1</code> which gives a per-disk I/O breakdown refreshed every second. It immediately shows if one disk is significantly busier than its peers. Follow it with <code>statistics show -object disk -counter disk_busy_pct,avg_latency</code> for point-in-time values you can compare side by side. The combination of a high busy% on one disk and much lower values on its RAID group peers confirms a disk hotspot.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q03</span> What is the difference between a disk hotspot and an aggregate hotspot? How do you distinguish them?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">A disk hotspot means one physical disk is disproportionately busy within its RAID group — you see one disk at 90% busy% while peers are at 20%. An aggregate hotspot means an entire aggregate is overloaded relative to other aggregates on the same node — all disks in the aggregate may be moderately busy, but the aggregate is absorbing far more IOPS than other aggregates. To distinguish: check <code>statistics show -object disk</code> first — if all disks in the aggregate are equally elevated, it is aggregate-level. If only one disk is hot while its RAID group peers are idle, it is disk-level.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q04</span> How do you resolve an aggregate hotspot non-disruptively?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">Use <code>volume move start</code> to migrate high-I/O volumes from the overloaded aggregate to a less-loaded aggregate — either on the same node or on the partner node. Volume move is completely non-disruptive: clients continue reading and writing throughout the operation. ONTAP copies data in the background, then performs a sub-second cutover. After the move, the source aggregate's I/O load drops and the destination aggregate absorbs the workload. If moving to the partner node's aggregate, also consider migrating the associated LIF to avoid cross-node I/O path overhead.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q05</span> A dev team's backup job is causing a storage hotspot affecting production workloads. What is the fastest fix?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">Apply a QoS maximum policy to the backup volume immediately. Create a policy group with a maximum IOPS or throughput ceiling — for example <code>qos policy-group create -policy-group pg-backup-limit -max-throughput 200MB/s</code> — and assign it to the backup volume with <code>volume modify -qos-policy-group pg-backup-limit</code>. This takes effect within seconds. The backup job continues but is throttled, and production workloads regain their share of the aggregate's capacity. Long-term, the backup volume should be moved to a dedicated aggregate or scheduled to run during off-peak hours.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q06</span> Why are disk hotspots more common on HDD aggregates than AFF/SSD aggregates?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">A spinning hard disk has a single read/write head and fixed rotational speed (typically 10K or 15K RPM). It can only service one I/O request at a time physically, and its throughput is constrained by seek time and rotational latency. If a specific LBA range is accessed repeatedly (e.g. a hot file or hot block), that disk's head is constantly seeking to the same track — driving busy% to near 100% while other disks sit idle. An SSD has no moving parts, no seek latency, and can service many parallel I/O requests from any logical block address simultaneously. While SSD IOPS can still be saturated, the absence of mechanical constraints eliminates the disk-specific concentration effect that makes HDD hotspots so severe.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q07</span> After an HA failover and giveback, one node has much higher CPU than the other. Why?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">During a failover, all LIFs from the failed node migrate to the surviving partner. After a giveback, the volumes return to the original node but the LIFs do not automatically revert unless configured to do so or manually triggered. This leaves all client connections still terminating on the partner node, which then forwards I/O to the original node across the cluster interconnect — double the processing work on the partner. The fix is to run <code>network interface revert *</code> after confirming giveback is complete, which returns all LIFs to their home nodes and restores balanced load across both nodes.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q08</span> What is the difference between QoS maximum and QoS minimum in the context of hotspot management?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">A QoS <strong>maximum</strong> is a ceiling — it limits a workload to a defined IOPS or throughput cap regardless of available resources. Use it to prevent a workload from creating a hotspot by consuming too much. A QoS <strong>minimum</strong> is a floor — it guarantees a workload receives at least a defined level of resources even when the system is under contention. Use it to protect critical workloads from being starved when a hotspot forms around them. In a shared cluster, best practice is to apply both: a minimum on production volumes to protect their SLO, and a maximum on dev/test/backup workloads to prevent them from creating hotspots for production.</div>
+    </li>
+  </ul>
+</div>
+
+<!-- ABOUT -->
+<div class="about-box">
+  <div class="about-avatar">R</div>
+  <div class="about-text">
+    <h3>Ramesh Nelluri — NetApp Storage Architect</h3>
+    <p>Storage infrastructure professional specialising in NetApp ONTAP, NAS/SAN protocols, and enterprise data management. These tutorials are built from real-world lab work and production experience.</p>
+  </div>
+</div>
+
+</main>
+</div>
+
+<footer>
+  &copy; 2026 Ramesh Nelluri &nbsp;·&nbsp; NetApp KBs &nbsp;·&nbsp;
+  <a href="index.html" style="color:var(--muted2);text-decoration:none">← Back to home</a>
+</footer>
+
+<script>
+/* Heat meter animation on load */
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    const fill = document.getElementById('heat-fill');
+    const pct  = document.getElementById('heat-pct');
+    const target = 92;
+    fill.style.width = target + '%';
+    let cur = 0;
+    const t = setInterval(() => {
+      cur = Math.min(cur + 2, target);
+      pct.textContent = cur + '%';
+      if (cur >= target) clearInterval(t);
+    }, 24);
+  }, 400);
+});
+
+/* Copy buttons */
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(() => {
+    btn.textContent = 'copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+/* Q&A accordion */
+function toggleQA(el) {
+  el.closest('.qa-item').classList.toggle('open');
+}
+
+/* Active TOC on scroll */
+const sections = document.querySelectorAll('[id]');
+const links    = document.querySelectorAll('.toc-link');
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      links.forEach(l => l.classList.remove('active'));
+      const a = document.querySelector(`.toc-link[href="#${e.target.id}"]`);
+      if (a) a.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+sections.forEach(s => obs.observe(s));
+</script>
+</body>
+</html>
