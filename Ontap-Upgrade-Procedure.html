@@ -1,0 +1,1079 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetApp Tutorial 20 — ONTAP Upgrade Execution & 7-Mode to ONTAP Migration</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Sora:wght@300;400;600;700;800&family=Inter:wght@300;400;500;600&display=swap');
+  :root {
+    --bg-primary:#0b0f1a;--bg-secondary:#111827;--bg-card:#1a2235;
+    --accent-blue:#60a5fa;--accent-green:#34d399;--accent-orange:#fb923c;
+    --accent-purple:#a78bfa;--accent-yellow:#fbbf24;--accent-teal:#2dd4bf;
+    --accent-rose:#f472b6;
+    --text-primary:#f1f5f9;--text-secondary:#94a3b8;--text-muted:#64748b;
+    --border:#1e293b;--border-bright:#334155;--sidebar-width:295px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{font-family:'Inter',sans-serif;background:var(--bg-primary);color:var(--text-primary);display:flex;min-height:100vh}
+  #reading-progress{position:fixed;top:0;left:var(--sidebar-width);right:0;height:3px;background:linear-gradient(90deg,var(--accent-teal),var(--accent-blue),var(--accent-purple),var(--accent-rose));transform-origin:left;transform:scaleX(0);z-index:999;transition:transform .1s linear}
+  .sidebar{width:var(--sidebar-width);background:var(--bg-secondary);border-right:1px solid var(--border);position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:100;display:flex;flex-direction:column}
+  .sidebar-header{padding:20px 16px;border-bottom:1px solid var(--border);background:var(--bg-secondary);position:sticky;top:0;z-index:10}
+  .sidebar-logo{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+  .sidebar-logo .logo-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--accent-orange),var(--accent-rose));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px}
+  .sidebar-logo span{font-family:'Sora',sans-serif;font-weight:700;font-size:13.5px;color:var(--text-primary);letter-spacing:.4px}
+  .sidebar-subtitle{font-size:11px;color:var(--text-muted);padding-left:44px}
+  .toc-nav{padding:10px 0;flex:1}
+  .toc-section-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.3px;color:var(--text-muted);padding:14px 16px 5px}
+  .toc-link{display:flex;align-items:center;gap:8px;padding:7px 16px;font-size:12.5px;color:var(--text-secondary);text-decoration:none;transition:all .2s ease;border-left:2px solid transparent;line-height:1.4}
+  .toc-link:hover{background:rgba(251,146,60,.06);color:var(--text-primary);border-left-color:var(--accent-orange)}
+  .toc-link.active{background:rgba(251,146,60,.1);color:var(--accent-orange);border-left-color:var(--accent-orange);font-weight:500}
+  .toc-link .toc-num{font-size:10px;font-weight:700;color:var(--text-muted);min-width:20px;font-family:'JetBrains Mono',monospace}
+  .toc-link.sub{padding-left:34px;font-size:12px}
+  .series-nav{padding:12px 16px;border-top:1px solid var(--border)}
+  .series-nav-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:8px}
+  .series-link{display:block;padding:5px 8px;font-size:11.5px;color:var(--text-secondary);text-decoration:none;border-radius:5px;transition:all .2s;margin-bottom:2px}
+  .series-link:hover{background:var(--bg-card);color:var(--accent-orange)}
+  .series-link.current{color:var(--accent-orange);font-weight:600}
+  .main-content{margin-left:var(--sidebar-width);flex:1;max-width:calc(100vw - var(--sidebar-width))}
+  .top-header{background:linear-gradient(135deg,#0b0f1a 0%,#0f172a 50%,#0b0f1a 100%);border-bottom:1px solid var(--border);padding:60px 60px 50px;position:relative;overflow:hidden}
+  .top-header::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 75% 40%,rgba(251,146,60,.07) 0%,transparent 55%),radial-gradient(ellipse at 15% 85%,rgba(244,114,182,.06) 0%,transparent 50%),radial-gradient(ellipse at 50% 10%,rgba(167,139,250,.04) 0%,transparent 40%)}
+  .header-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(251,146,60,.1);border:1px solid rgba(251,146,60,.3);border-radius:20px;padding:4px 14px;font-size:12px;color:var(--accent-orange);font-weight:500;margin-bottom:18px;font-family:'JetBrains Mono',monospace}
+  .main-title{font-family:'Sora',sans-serif;font-size:34px;font-weight:800;line-height:1.15;margin-bottom:16px;background:linear-gradient(135deg,#f1f5f9 15%,#fb923c 50%,#f472b6 85%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;position:relative}
+  .header-desc{font-size:15px;color:var(--text-secondary);line-height:1.7;max-width:720px;position:relative}
+  .header-meta{display:flex;gap:24px;flex-wrap:wrap;margin-top:20px;position:relative}
+  .meta-chip{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-secondary)}
+  .meta-chip .dot{width:8px;height:8px;border-radius:50%}
+  .prog-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;position:relative}
+  .prog-chip{background:rgba(255,255,255,.04);border:1px solid var(--border-bright);border-radius:6px;padding:3px 10px;font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace}
+  .content-area{padding:40px 60px 80px;max-width:1020px}
+  .section{margin-bottom:64px;scroll-margin-top:30px}
+  .section-header{display:flex;align-items:flex-start;gap:16px;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+  .section-icon{width:46px;height:46px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0;margin-top:2px}
+  .icon-teal{background:rgba(45,212,191,.15);border:1px solid rgba(45,212,191,.3)}
+  .icon-blue{background:rgba(96,165,250,.15);border:1px solid rgba(96,165,250,.3)}
+  .icon-green{background:rgba(52,211,153,.15);border:1px solid rgba(52,211,153,.3)}
+  .icon-orange{background:rgba(251,146,60,.15);border:1px solid rgba(251,146,60,.3)}
+  .icon-purple{background:rgba(167,139,250,.15);border:1px solid rgba(167,139,250,.3)}
+  .icon-yellow{background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.3)}
+  .icon-rose{background:rgba(244,114,182,.15);border:1px solid rgba(244,114,182,.3)}
+  .section-title-wrap h2{font-family:'Sora',sans-serif;font-size:23px;font-weight:700;color:var(--text-primary);line-height:1.2}
+  .section-title-wrap .section-num{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text-muted);font-weight:400;margin-bottom:4px}
+  .card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:20px;transition:border-color .2s}
+  .card:hover{border-color:var(--border-bright)}
+  .card-title{font-family:'Sora',sans-serif;font-weight:600;font-size:15px;color:var(--text-primary);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  p{font-size:14.5px;line-height:1.8;color:var(--text-secondary);margin-bottom:14px}
+  .callout{border-radius:10px;padding:16px 20px;margin:20px 0;display:flex;gap:14px;align-items:flex-start}
+  .callout-icon{font-size:18px;margin-top:1px;flex-shrink:0}
+  .callout-content{flex:1}
+  .callout-title{font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+  .callout-text{font-size:13.5px;line-height:1.7;color:var(--text-secondary)}
+  .callout.info{background:rgba(96,165,250,.07);border:1px solid rgba(96,165,250,.22)}.callout.info .callout-title{color:var(--accent-blue)}
+  .callout.success{background:rgba(52,211,153,.07);border:1px solid rgba(52,211,153,.22)}.callout.success .callout-title{color:var(--accent-green)}
+  .callout.warning{background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.28)}.callout.warning .callout-title{color:var(--accent-yellow)}
+  .callout.danger{background:rgba(251,146,60,.07);border:1px solid rgba(251,146,60,.28)}.callout.danger .callout-title{color:var(--accent-orange)}
+  .callout.tip{background:rgba(167,139,250,.07);border:1px solid rgba(167,139,250,.22)}.callout.tip .callout-title{color:var(--accent-purple)}
+  .callout.teal{background:rgba(45,212,191,.07);border:1px solid rgba(45,212,191,.22)}.callout.teal .callout-title{color:var(--accent-teal)}
+  .callout.rose{background:rgba(244,114,182,.07);border:1px solid rgba(244,114,182,.22)}.callout.rose .callout-title{color:var(--accent-rose)}
+  .code-block{background:#060a12;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:16px 0}
+  .code-header{background:var(--bg-secondary);border-bottom:1px solid var(--border);padding:8px 16px;display:flex;align-items:center;justify-content:space-between}
+  .code-lang{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;font-family:'JetBrains Mono',monospace}
+  .code-dots{display:flex;gap:5px}.code-dots span{width:10px;height:10px;border-radius:50%}
+  .dot-red{background:#ff5f56}.dot-ylw{background:#ffbd2e}.dot-grn{background:#27c93f}
+  .code-body{padding:20px;font-size:12.5px;line-height:1.9;color:#7dd3fc;overflow-x:auto;white-space:pre;font-family:'JetBrains Mono',monospace}
+  .code-body .cmd{color:#4ade80}.code-body .comment{color:#475569;font-style:italic}
+  .code-body .param{color:#fb923c}.code-body .value{color:#93c5fd}
+  .code-body .output{color:#64748b}.code-body .prompt{color:#fbbf24}.code-body .hl{color:#2dd4bf}
+  .code-body .warn{color:#f472b6}
+  .spec-table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px}
+  .spec-table th{background:var(--bg-secondary);color:var(--text-secondary);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.5px;padding:10px 16px;text-align:left;border-bottom:2px solid var(--border)}
+  .spec-table td{padding:11px 16px;border-bottom:1px solid var(--border);color:var(--text-secondary);vertical-align:middle}
+  .spec-table tr:hover td{background:rgba(255,255,255,.02)}
+  .badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11.5px;font-weight:600;font-family:'JetBrains Mono',monospace}
+  .badge-blue{background:rgba(96,165,250,.15);color:var(--accent-blue);border:1px solid rgba(96,165,250,.3)}
+  .badge-green{background:rgba(52,211,153,.15);color:var(--accent-green);border:1px solid rgba(52,211,153,.3)}
+  .badge-orange{background:rgba(251,146,60,.15);color:var(--accent-orange);border:1px solid rgba(251,146,60,.3)}
+  .badge-yellow{background:rgba(251,191,36,.15);color:var(--accent-yellow);border:1px solid rgba(251,191,36,.3)}
+  .badge-rose{background:rgba(244,114,182,.15);color:var(--accent-rose);border:1px solid rgba(244,114,182,.3)}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:16px 0}
+  .stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:20px;text-align:center}
+  .stat-num{font-family:'Sora',sans-serif;font-size:28px;font-weight:800;margin-bottom:4px}
+  .stat-label{font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
+  .step-list{list-style:none;margin:12px 0}
+  .step-list li{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid rgba(30,41,59,.6);font-size:13.5px;color:var(--text-secondary);line-height:1.6;align-items:flex-start}
+  .step-list li:last-child{border-bottom:none}
+  .step-num{width:22px;height:22px;border-radius:6px;background:rgba(251,146,60,.15);border:1px solid rgba(251,146,60,.3);color:var(--accent-orange);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;font-family:'JetBrains Mono',monospace}
+  .bullet-list{list-style:none;margin:10px 0}
+  .bullet-list li{padding:6px 0 6px 20px;position:relative;font-size:13.5px;color:var(--text-secondary);line-height:1.6}
+  .bullet-list li::before{content:'▸';position:absolute;left:0;color:var(--accent-orange);font-size:11px;top:8px}
+  h3{font-family:'Sora',sans-serif;font-size:17px;font-weight:600;color:var(--text-primary);margin:24px 0 12px}
+  h4{font-family:'Sora',sans-serif;font-size:13.5px;font-weight:700;color:var(--accent-orange);margin:18px 0 8px;text-transform:uppercase;letter-spacing:.6px}
+  .diagram-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:24px;margin:20px 0;overflow-x:auto}
+  .diagram-caption{text-align:center;font-size:12px;color:var(--text-muted);margin-top:12px;font-style:italic}
+  .mermaid{display:flex;justify-content:center}
+  .svg-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:24px;margin:20px 0;overflow:hidden}
+  .quiz-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:22px;margin-bottom:16px}
+  .quiz-q{font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:12px}
+  .quiz-a{display:none;background:rgba(251,146,60,.06);border:1px solid rgba(251,146,60,.2);border-radius:8px;padding:14px 16px;margin-top:10px;font-size:13.5px;color:var(--text-secondary);line-height:1.7}
+  .quiz-btn{background:rgba(251,146,60,.1);border:1px solid rgba(251,146,60,.3);color:var(--accent-orange);border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all .2s}
+  .quiz-btn:hover{background:rgba(251,146,60,.2)}
+  .author-card{background:linear-gradient(135deg,#111827,#1a2235);border:1px solid var(--border);border-radius:16px;padding:32px;margin-top:40px;position:relative;overflow:hidden}
+  .author-card::before{content:'';position:absolute;top:-40px;right:-40px;width:180px;height:180px;background:radial-gradient(circle,rgba(251,146,60,.08),transparent 70%);border-radius:50%}
+  .author-avatar{font-size:48px;margin-bottom:12px}
+  .author-name{font-family:'Sora',sans-serif;font-size:22px;font-weight:700;color:var(--text-primary);margin-bottom:4px}
+  .author-title{font-size:13px;color:var(--accent-orange);margin-bottom:16px;font-family:'JetBrains Mono',monospace}
+  .author-bio{font-size:14px;color:var(--text-secondary);line-height:1.7;margin-bottom:20px}
+  .tech-badges{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
+  .tech-badge{background:rgba(251,146,60,.1);border:1px solid rgba(251,146,60,.25);color:var(--accent-orange);border-radius:20px;padding:3px 12px;font-size:12px;font-family:'JetBrains Mono',monospace}
+  .contact-link{display:inline-flex;align-items:center;gap:8px;background:rgba(251,146,60,.1);border:1px solid rgba(251,146,60,.3);color:var(--accent-orange);border-radius:8px;padding:8px 16px;font-size:13px;text-decoration:none;transition:all .2s;margin-bottom:20px}
+  .contact-link:hover{background:rgba(251,146,60,.2)}
+  .compare-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:20px 0}
+  .compare-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px;position:relative;overflow:hidden}
+  .compare-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+  .compare-card.host::before{background:var(--accent-blue)}
+  .compare-card.tdp::before{background:var(--accent-purple)}
+  .compare-card.mtt::before{background:var(--accent-green)}
+  .compare-card-title{font-family:'Sora',sans-serif;font-weight:700;font-size:14px;margin-bottom:10px}
+  .compare-card.host .compare-card-title{color:var(--accent-blue)}
+  .compare-card.tdp .compare-card-title{color:var(--accent-purple)}
+  .compare-card.mtt .compare-card-title{color:var(--accent-green)}
+  .compare-item{font-size:12.5px;color:var(--text-secondary);padding:3px 0 3px 14px;position:relative;line-height:1.5}
+  .compare-item::before{content:'·';position:absolute;left:4px;color:var(--text-muted)}
+  .checklist{list-style:none;margin:12px 0}
+  .checklist li{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid rgba(30,41,59,.5);font-size:13.5px;color:var(--text-secondary);line-height:1.6}
+  .checklist li:last-child{border-bottom:none}
+  .check-icon{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;margin-top:1px}
+  .check-ok{background:rgba(52,211,153,.15);border:1px solid rgba(52,211,153,.3);color:var(--accent-green)}
+  .check-warn{background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.3);color:var(--accent-yellow)}
+  .check-stop{background:rgba(251,146,60,.15);border:1px solid rgba(251,146,60,.3);color:var(--accent-orange)}
+  .boot-module{display:flex;gap:20px;margin:20px 0;flex-wrap:wrap}
+  .boot-partition{border:2px solid var(--border);border-radius:10px;padding:18px 24px;flex:1;min-width:180px;text-align:center}
+  .boot-partition.primary{border-color:var(--accent-green);background:rgba(52,211,153,.06)}
+  .boot-partition.secondary{border-color:var(--border-bright);background:rgba(255,255,255,.02)}
+  .boot-label{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);margin-bottom:6px;font-family:'JetBrains Mono',monospace}
+  .boot-version{font-family:'Sora',sans-serif;font-size:20px;font-weight:700;margin-bottom:4px}
+  .boot-status{font-size:11px;font-family:'JetBrains Mono',monospace}
+  @media(max-width:900px){
+    .sidebar{transform:translateX(-100%)}
+    .main-content{margin-left:0;max-width:100vw}
+    .top-header{padding:30px 20px}
+    .content-area{padding:20px}
+    .grid-2,.grid-3,.compare-grid{grid-template-columns:1fr}
+    #reading-progress{left:0}
+  }
+</style>
+</head>
+<body>
+<div id="reading-progress"></div>
+<nav class="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🚀</div>
+      <span>ONTAP Operations</span>
+    </div>
+    <div class="sidebar-subtitle">Upgrade Lab · Platform Migration</div>
+  </div>
+  <div class="toc-nav">
+    <div class="toc-section-label">Part A — ONTAP Upgrade Lab</div>
+    <a class="toc-link" href="#s1"><span class="toc-num">01</span>Downloading the ONTAP Image</a>
+    <a class="toc-link sub" href="#s1"><span class="toc-num">↳</span>Encryption vs Non-Encryption</a>
+    <a class="toc-link sub" href="#s1"><span class="toc-num">↳</span>Web Server Image Staging</a>
+    <a class="toc-link" href="#s2"><span class="toc-num">02</span>Pre-Upgrade Health Checks</a>
+    <a class="toc-link sub" href="#s2"><span class="toc-num">↳</span>Hardware Readiness</a>
+    <a class="toc-link sub" href="#s2"><span class="toc-num">↳</span>Utilization Checks</a>
+    <a class="toc-link sub" href="#s2"><span class="toc-num">↳</span>Background Job Management</a>
+    <a class="toc-link" href="#s3"><span class="toc-num">03</span>AutoSupport and Image Staging</a>
+    <a class="toc-link sub" href="#s3"><span class="toc-num">↳</span>Triggering AutoSupport</a>
+    <a class="toc-link sub" href="#s3"><span class="toc-num">↳</span>Image Validation</a>
+    <a class="toc-link" href="#s4"><span class="toc-num">04</span>Executing the Upgrade</a>
+    <a class="toc-link sub" href="#s4"><span class="toc-num">↳</span>Running the Upgrade</a>
+    <a class="toc-link sub" href="#s4"><span class="toc-num">↳</span>Boot Module Internals</a>
+    <a class="toc-link sub" href="#s4"><span class="toc-num">↳</span>CFO vs SFO Failover</a>
+    <div class="toc-section-label">Part B — Platform Migration</div>
+    <a class="toc-link" href="#s5"><span class="toc-num">05</span>Migration Methods Overview</a>
+    <a class="toc-link sub" href="#s5"><span class="toc-num">↳</span>Host-Based Migration</a>
+    <a class="toc-link sub" href="#s5"><span class="toc-num">↳</span>SnapMirror TDP</a>
+    <a class="toc-link sub" href="#s5"><span class="toc-num">↳</span>Migration Transition Tool</a>
+    <a class="toc-link" href="#s6"><span class="toc-num">06</span>Copy-Based Transition</a>
+    <a class="toc-link sub" href="#s6"><span class="toc-num">↳</span>NAS Volume Migration</a>
+    <a class="toc-link sub" href="#s6"><span class="toc-num">↳</span>SAN LUN Migration</a>
+    <a class="toc-link sub" href="#s6"><span class="toc-num">↳</span>SnapMirror Relationship Migration</a>
+    <a class="toc-link" href="#s7"><span class="toc-num">07</span>Copy-Free Transition</a>
+    <a class="toc-link" href="#s8"><span class="toc-num">08</span>Interview Q&amp;A</a>
+    <a class="toc-link" href="#about"><span class="toc-num">✦</span>About the Author</a>
+  </div>
+  <div class="series-nav">
+    <div class="series-nav-title">Tutorial Series</div>
+    <a class="series-link" href="#">Tutorial 18 — SnapMirror Deep Dive</a>
+    <a class="series-link" href="#">Tutorial 19 — SVM DR &amp; Upgrade Planning</a>
+    <a class="series-link current" href="#">Tutorial 20 — Upgrade Lab &amp; Migration</a>
+    <a class="series-link" href="#">Tutorial 21 — Dedup &amp; Compression</a>
+  </div>
+</nav>
+
+<div class="main-content">
+<div class="top-header">
+  <div class="header-badge">📘 Tutorial 20 · ONTAP Upgrade Lab &amp; Platform Migration</div>
+  <h1 class="main-title">ONTAP Upgrade Execution<br>&amp; Platform Migration Guide</h1>
+  <p class="header-desc">A practical, hands-on walkthrough of the full ONTAP upgrade process — from downloading the correct image and staging it on a web server, through pre-upgrade health validation, AutoSupport signaling, and live upgrade execution — followed by an in-depth guide to migrating storage from legacy 7-Mode platforms to clustered ONTAP using three distinct approaches.</p>
+  <div class="header-meta">
+    <span class="meta-chip"><span class="dot" style="background:var(--accent-orange)"></span>ONTAP 9.x</span>
+    <span class="meta-chip"><span class="dot" style="background:var(--accent-green)"></span>Non-Disruptive Upgrade</span>
+    <span class="meta-chip"><span class="dot" style="background:var(--accent-purple)"></span>7-Mode to ONTAP</span>
+    <span class="meta-chip"><span class="dot" style="background:var(--accent-yellow)"></span>~100 min read</span>
+  </div>
+  <div class="prog-chips">
+    <span class="prog-chip">cluster image update</span>
+    <span class="prog-chip">system node run -node * -command systat</span>
+    <span class="prog-chip">autosupport invoke</span>
+    <span class="prog-chip">cluster image validate</span>
+    <span class="prog-chip">7MTT copy-based transition</span>
+  </div>
+</div>
+
+<div class="content-area">
+
+<!-- SECTION 1 -->
+<section class="section" id="s1">
+  <div class="section-header">
+    <div class="section-icon icon-orange">📥</div>
+    <div class="section-title-wrap">
+      <div class="section-num">SECTION 01</div>
+      <h2>Downloading the ONTAP Software Image</h2>
+    </div>
+  </div>
+  <p>Before executing any upgrade, you must obtain the correct ONTAP software image from the NetApp support portal and stage it in a location your controllers can reach. Selecting the wrong image variant can result in a non-bootable controller — making image selection a critical first step.</p>
+
+  <h3>Encryption vs. Non-Encryption Image</h3>
+  <p>The ONTAP download portal presents two image variants for every release. Understanding which one applies to your environment is essential for a safe upgrade.</p>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">🔐 Image with Volume Encryption</div>
+      <ul class="bullet-list">
+        <li>Includes NetApp Volume Encryption (NVE) capability</li>
+        <li>Required when encryption is active in your cluster</li>
+        <li>Safe to use even if encryption is currently disabled</li>
+        <li>Recommended as the default choice for most environments</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">🔓 Image without Volume Encryption</div>
+      <ul class="bullet-list">
+        <li>Mandatory for deployments in encryption-restricted regions</li>
+        <li>Cannot be used if encryption licenses are active on the cluster</li>
+        <li>Using this on an encrypted cluster causes controller boot failure</li>
+        <li>Required in certain government-regulated jurisdictions</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout danger">
+    <span class="callout-icon">🚨</span>
+    <div class="callout-content">
+      <div class="callout-title">Critical — Wrong Image Variant Causes Boot Failure</div>
+      <div class="callout-text">If active volume encryption is present but you apply the non-encryption image, the controllers will fail to boot. Recovery requires NetApp Technical Support involvement, planned downtime, and a full controller re-image. Verify your variant selection before proceeding.</div>
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <span class="callout-icon">💡</span>
+    <div class="callout-content">
+      <div class="callout-title">Best Practice — When Uncertain, Choose Encryption-Capable</div>
+      <div class="callout-text">If you are unsure whether encryption is active in your environment, download the image that includes volume encryption support. Running the encryption-capable image on a cluster without active encryption is fully safe. The risk only flows in one direction.</div>
+    </div>
+  </div>
+
+  <h4>Navigating the Download Portal</h4>
+  <p>ONTAP 9 and later versions are listed under the "O" section of the downloads catalogue. Earlier Data ONTAP releases (8.x and below) appear under the "D" section. To download a specific patch level (e.g., P4 instead of the latest P5 shown by default), modify the version number directly in the URL.</p>
+
+  <h3>Web Server Image Staging</h3>
+  <p>After downloading, the image must be placed on a web server accessible by the cluster. Most organizations maintain a dedicated internal web server for this purpose, managed by the infrastructure team. The cluster retrieves the image using an HTTP, HTTPS, or FTP URL you provide.</p>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart LR
+    A["🌐 NetApp Support\nDownload Portal"] -->|"Download .tgz image"| B["💾 Admin Workstation"]
+    B -->|"Upload via SCP / SFTP"| C["🖥️ Internal Web Server\nhttps://storage-repo.corp/ontap/"]
+    C -->|"HTTPS URL provided to cluster"| D["🔶 ONTAP Cluster\ncluster image package get"]
+    D --> E["📦 Cluster Image\nRepository"]
+    style A fill:#1a2235,stroke:#fb923c,color:#f1f5f9
+    style B fill:#1a2235,stroke:#60a5fa,color:#f1f5f9
+    style C fill:#1a2235,stroke:#34d399,color:#f1f5f9
+    style D fill:#1a2235,stroke:#fbbf24,color:#f1f5f9
+    style E fill:#1a2235,stroke:#a78bfa,color:#f1f5f9
+    </div>
+    <div class="diagram-caption">Fig 1 — ONTAP image acquisition and staging flow from the NetApp portal to the cluster repository</div>
+  </div>
+
+  <div class="callout warning">
+    <span class="callout-icon">⚠️</span>
+    <div class="callout-content">
+      <div class="callout-title">Security — Use HTTPS Where Possible</div>
+      <div class="callout-text">HTTP transfers are unencrypted and not recommended in production. HTTPS is the preferred protocol for image transfer. FTP can be used when HTTPS is unavailable but offers significantly weaker security. Always follow your organization's data transfer policy.</div>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-lang">ONTAP CLI — Download and Manage Image Repository</span>
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+    </div>
+    <div class="code-body"><span class="comment"># Pull image from internal web server to cluster repository</span>
+<span class="prompt">cluster1::></span> <span class="cmd">cluster image package get</span> <span class="param">-url</span> <span class="value">https://storage-repo.corp/ontap/9.8P4/image.tgz</span>
+
+<span class="output">Package download started.
+Package download completed.
+Package processing started (extracting .tgz archive).
+Package processing completed successfully.</span>
+
+<span class="comment"># Confirm the image is available in the repository</span>
+<span class="prompt">cluster1::></span> <span class="cmd">cluster image package show</span>
+<span class="output">Version       Size       Date              Description
+----------    -------    ----------------  -------------------------
+9.8P4         2.3 GB     03/12 07:22:41    ONTAP Release 9.8P4</span>
+
+<span class="comment"># Remove older images to reclaim repository space</span>
+<span class="prompt">cluster1::></span> <span class="cmd">cluster image package delete</span> <span class="param">-version</span> <span class="value">9.6P7</span></div>
+  </div>
+</section>
+
+<!-- SECTION 2 -->
+<section class="section" id="s2">
+  <div class="section-header">
+    <div class="section-icon icon-yellow">🔍</div>
+    <div class="section-title-wrap">
+      <div class="section-num">SECTION 02</div>
+      <h2>Pre-Upgrade Health Checks</h2>
+    </div>
+  </div>
+  <p>A successful ONTAP upgrade depends on thoroughly validating cluster health before initiating any commands. The checks below form a systematic readiness gate — skipping any of them materially increases risk during the upgrade window.</p>
+
+  <h3>Hardware Readiness</h3>
+  <ul class="checklist">
+    <li>
+      <span class="check-icon check-stop">✕</span>
+      <div><strong style="color:var(--text-primary)">No hardware failures of any kind</strong><br>Even a single failed disk disqualifies the cluster for upgrade. All controllers, shelves, disks, and expansion modules must show a healthy status. Replace failed drives using available spares before proceeding.</div>
+    </li>
+    <li>
+      <span class="check-icon check-stop">✕</span>
+      <div><strong style="color:var(--text-primary)">No offline volumes or LUNs</strong><br>The cluster must not contain any offline volumes or LUNs. Either bring them online or permanently delete them. An upgrade cannot proceed with offline data objects present.</div>
+    </li>
+    <li>
+      <span class="check-icon check-warn">!</span>
+      <div><strong style="color:var(--text-primary)">Minimum 5 MB free space on every volume</strong><br>ONTAP modifies volume metadata during upgrade. Each volume requires at least 5 MB of available space. Validate this across all volumes before proceeding.</div>
+    </li>
+  </ul>
+
+  <h3>Resource Utilization Checks</h3>
+  <div class="grid-2">
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--accent-orange)">&lt; 50%</div>
+      <div class="stat-label">CPU Utilization Threshold</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--accent-yellow)">Non-Business Hours</div>
+      <div class="stat-label">Recommended Upgrade Window</div>
+    </div>
+  </div>
+  <p>CPU utilization is the most critical resource metric before an ONTAP upgrade. Elevated CPU load increases the risk of disruption during controller failover and giveback operations. Schedule upgrades during periods of low client activity to ensure utilization stays below the 50% threshold.</p>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-lang">Node Shell — Observe CPU and I/O Utilization</span>
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+    </div>
+    <div class="code-body"><span class="comment"># Collect 10 samples at 1-second intervals from node01</span>
+<span class="prompt">cluster1::></span> <span class="cmd">system node run</span> <span class="param">-node</span> <span class="value">node01</span> <span class="param">-command</span> <span class="value">"systat -c 10 -x 1"</span>
+
+<span class="output">  CPU   NFS   CIFS  HTTP  Total  Net kB/s  Disk kB/s
+  ---   ---   ----  ----  -----  --------  ---------
+   8%     0      0     0      0      112        230
+   9%     0      0     0      0      118        244
+   7%     0      0     0      0      108        218</span>
+
+<span class="comment"># Repeat on every node in the cluster</span>
+<span class="prompt">cluster1::></span> <span class="cmd">system node run</span> <span class="param">-node</span> <span class="value">node02</span> <span class="param">-command</span> <span class="value">"systat -c 10 -x 1"</span>
+
+<span class="comment"># -c 10  = 10 sample count</span>
+<span class="comment"># -x 1   = 1-second interval between samples</span></div>
+  </div>
+
+  <h3>Background Job Management</h3>
+  <p>Several background processes can elevate CPU load or interfere with the upgrade sequence. Identify and stop them before the maintenance window opens.</p>
+
+  <table class="spec-table">
+    <thead>
+      <tr><th>Process</th><th>Impact</th><th>Action Required</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Volume Deduplication</td><td>High CPU</td><td>Stop all running dedupe jobs</td></tr>
+      <tr><td>Data Compression</td><td>High CPU</td><td>Stop all compression scans</td></tr>
+      <tr><td>Disk Scrubbing</td><td>Elevated CPU and disk I/O</td><td>Pause or stop scrub operations</td></tr>
+      <tr><td>SnapMirror Transfers</td><td>Network and CPU load</td><td>Quiesce all SnapMirror relationships</td></tr>
+      <tr><td>Backup Jobs (NDMP)</td><td>CPU and network consumption</td><td>Coordinate with backup team to pause; disable NDMP if needed</td></tr>
+      <tr><td>Volume / Snapshot Creation</td><td>Metadata writes during upgrade</td><td>Stop or delete with <code>job stop / job delete</code></td></tr>
+    </tbody>
+  </table>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-lang">ONTAP CLI — Job Inspection and Cleanup</span>
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+    </div>
+    <div class="code-body"><span class="comment"># List all scheduled and active jobs</span>
+<span class="prompt">cluster1::></span> <span class="cmd">job show</span>
+<span class="output">Job ID  Name                    Vserver    Node       State    Schedule
+------  ----------------------  ---------  ---------  -------  --------
+12      Dedup               prod-svm   node01     Running  Hourly
+47      Snapshot create         svm-data   node02     Queued   Daily</span>
+
+<span class="comment"># Stop a specific running job</span>
+<span class="prompt">cluster1::></span> <span class="cmd">job stop</span> <span class="param">-id</span> <span class="value">12</span>
+
+<span class="comment"># Quiesce all SnapMirror relationships before upgrade</span>
+<span class="prompt">cluster1::></span> <span class="cmd">snapmirror quiesce</span> <span class="param">-destination-path</span> <span class="value">*</span></div>
+  </div>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart TD
+    A["Start Pre-Upgrade Checks"] --> B{"Hardware healthy?\nNo failed components"}
+    B -->|"Failed hardware found"| B1["Replace components\nReschedule upgrade"]
+    B -->|"All healthy"| C{"Offline volumes\nor LUNs present?"}
+    C -->|"Offline objects found"| C1["Bring online or delete\nthen recheck"]
+    C -->|"None present"| D{"CPU below 50%\non all nodes?"}
+    D -->|"CPU too high"| D1["Stop background jobs\nWait for idle period"]
+    D -->|"Within threshold"| E{"SnapMirrors\nall quiesced?"}
+    E -->|"Transfers still running"| E1["snapmirror quiesce *\nAwait completion"]
+    E -->|"All quiesced"| F{"Backup jobs\npaused?"}
+    F -->|"Jobs still active"| F1["Coordinate with\nbackup team / disable NDMP"]
+    F -->|"All paused"| G["Cluster Ready to Upgrade\nProceed to AutoSupport"]
+    style A fill:#1a2235,stroke:#fb923c,color:#f1f5f9
+    style G fill:#1a2235,stroke:#34d399,color:#f1f5f9
+    style B1 fill:#1a2235,stroke:#f472b6,color:#f1f5f9
+    style C1 fill:#1a2235,stroke:#f472b6,color:#f1f5f9
+    style D1 fill:#1a2235,stroke:#fbbf24,color:#f1f5f9
+    style E1 fill:#1a2235,stroke:#fbbf24,color:#f1f5f9
+    style F1 fill:#1a2235,stroke:#fbbf24,color:#f1f5f9
+    </div>
+    <div class="diagram-caption">Fig 2 — Pre-upgrade readiness decision flowchart</div>
+  </div>
+</section>
+
+<!-- SECTION 3 -->
+<section class="section" id="s3">
+  <div class="section-header">
+    <div class="section-icon icon-blue">📡</div>
+    <div class="section-title-wrap">
+      <div class="section-num">SECTION 03</div>
+      <h2>AutoSupport Notification &amp; Image Validation</h2>
+    </div>
+  </div>
+
+  <h3>Triggering AutoSupport</h3>
+  <p>Immediately before starting the upgrade, trigger an AutoSupport message across all cluster nodes. This serves two critical functions simultaneously: uploading a fresh configuration snapshot to NetApp's support infrastructure, and signaling that controller reboots are expected — preventing unnecessary support escalations.</p>
+
+  <div class="callout warning">
+    <span class="callout-icon">⚠️</span>
+    <div class="callout-content">
+      <div class="callout-title">Why This Step Matters</div>
+      <div class="callout-text">Without an AutoSupport notification: (1) NetApp's monitoring infrastructure sees unexpected controller reboots and may initiate support contact. (2) If issues arise during the upgrade, NetApp support won't have a current configuration baseline to assist with troubleshooting.</div>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-lang">ONTAP CLI — AutoSupport and Image Validation</span>
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+    </div>
+    <div class="code-body"><span class="comment"># Trigger AutoSupport on all nodes before upgrade</span>
+<span class="prompt">cluster1::></span> <span class="cmd">autosupport invoke</span> <span class="param">-node</span> <span class="value">*</span> <span class="param">-type</span> <span class="value">all</span> <span class="param">-message</span> <span class="value">"Initiating ANDU upgrade to ONTAP 9.8P4 — scheduled maintenance"</span>
+
+<span class="output">AutoSupport successfully invoked on all nodes.</span>
+
+<span class="comment"># Validate image integrity (checksum verification)</span>
+<span class="prompt">cluster1::></span> <span class="cmd">cluster image validate</span> <span class="param">-version</span> <span class="value">9.8P4</span>
+
+<span class="output">Image validation passed.
+Checksum verified. Image is intact and suitable for upgrade.</span>
+
+<span class="comment"># Estimate upgrade duration (dry run — does not apply changes)</span>
+<span class="prompt">cluster1::></span> <span class="cmd">cluster image update</span> <span class="param">-version</span> <span class="value">9.8P4</span> <span class="param">-nodes</span> <span class="value">*</span> <span class="param">-estimate-only</span> <span class="value">true</span>
+
+<span class="output">Estimated upgrade duration:
+  node01: approximately 31 minutes
+  node02: approximately 31 minutes
+  Total:  approximately 62 minutes</span></div>
+  </div>
+
+  <div class="callout teal">
+    <span class="callout-icon">🔎</span>
+    <div class="callout-content">
+      <div class="callout-title">Upgrade Advisor Plan Reminder</div>
+      <div class="callout-text">The Upgrade Advisor Plan generated from the Active IQ portal provides a tailored pre-upgrade checklist for your specific cluster — including protocol-specific guidance, disk qualification package status, and firmware version checks. Review this document before proceeding beyond validation.</div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 4 -->
+<section class="section" id="s4">
+  <div class="section-header">
+    <div class="section-icon icon-green">⚡</div>
+    <div class="section-title-wrap">
+      <div class="section-num">SECTION 04</div>
+      <h2>Executing the ONTAP Upgrade</h2>
+    </div>
+  </div>
+
+  <div class="callout danger">
+    <span class="callout-icon">🚨</span>
+    <div class="callout-content">
+      <div class="callout-title">Always Connect via Console or Service Processor — Never Cluster Management IP</div>
+      <div class="callout-text">During ONTAP upgrade failover and giveback sequences, the cluster management LIF migrates between ports and controllers. If you are connected via the cluster management IP, your session drops and you lose visibility into the upgrade. Always connect via the node's Service Processor (SP) IP or physical console before initiating an upgrade.</div>
+    </div>
+  </div>
+
+  <h3>Running the Upgrade Command</h3>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-lang">ONTAP CLI — Automated Non-Disruptive Upgrade (ANDU)</span>
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+    </div>
+    <div class="code-body"><span class="comment"># Start ANDU — ONTAP handles all failover and giveback automatically</span>
+<span class="prompt">cluster1::></span> <span class="cmd">cluster image update</span> <span class="param">-version</span> <span class="value">9.8P4</span> <span class="param">-nodes</span> <span class="value">*</span>
+
+<span class="output">Pre-upgrade validation running...
+
+Warning: CIFS and NFS protocols are active on this cluster.
+         Verify session connectivity after upgrade completion.
+Warning: Confirm SAN zoning compatibility via Interoperability Matrix Tool.
+
+Do you want to continue? {y|n}: </span><span class="hl">y</span>
+
+<span class="output">Installing ONTAP 9.8P4 on node01... Done.
+Installing ONTAP 9.8P4 on node02... Done.
+Initiating failover sequence.</span>
+
+<span class="comment"># Monitor live upgrade progress</span>
+<span class="prompt">cluster1::></span> <span class="cmd">cluster image show-update-progress</span>
+
+<span class="output">Status:     In progress
+Phase:      Takeover of node02 by node01
+Remaining:  ~23 minutes</span></div>
+  </div>
+
+  <div class="callout info">
+    <span class="callout-icon">📋</span>
+    <div class="callout-content">
+      <div class="callout-title">Warnings vs. Errors During Upgrade Pre-checks</div>
+      <div class="callout-text"><strong>Warnings</strong> are informational — review them and confirm they don't apply before typing <code>y</code>. <strong>Errors</strong> block the upgrade completely — you must resolve the underlying issue before ONTAP will allow the upgrade to proceed. The command will not offer a Yes/No prompt when errors are present.</div>
+    </div>
+  </div>
+
+  <h3>Boot Module Internals — Dual-Partition Architecture</h3>
+  <p>Each ONTAP controller contains a boot module with two image slots. Understanding this architecture explains the reboot sequence observed during an upgrade.</p>
+
+  <div class="svg-wrap">
+    <div style="text-align:center;margin-bottom:20px;font-family:'Sora',sans-serif;font-size:15px;color:var(--text-primary);font-weight:600">Boot Module — Dual Partition Layout</div>
+    <div style="display:flex;gap:40px;justify-content:center;align-items:center;flex-wrap:wrap">
+      <div>
+        <div style="text-align:center;font-size:11px;color:var(--text-muted);margin-bottom:10px;font-family:'JetBrains Mono',monospace;letter-spacing:.8px">BEFORE UPGRADE</div>
+        <div style="display:flex;gap:12px">
+          <div class="boot-partition primary" style="min-width:130px">
+            <div class="boot-label">Partition 1 — Active</div>
+            <div class="boot-version" style="color:var(--accent-green)">9.5P3</div>
+            <div class="boot-status" style="color:var(--accent-green)">★ Running</div>
+          </div>
+          <div class="boot-partition secondary" style="min-width:130px">
+            <div class="boot-label">Partition 2 — Standby</div>
+            <div class="boot-version" style="color:var(--text-muted)">9.3P2</div>
+            <div class="boot-status" style="color:var(--text-muted)">Backup</div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:28px;color:var(--accent-orange);padding:0 8px">→</div>
+      <div>
+        <div style="text-align:center;font-size:11px;color:var(--text-muted);margin-bottom:10px;font-family:'JetBrains Mono',monospace;letter-spacing:.8px">AFTER UPGRADE</div>
+        <div style="display:flex;gap:12px">
+          <div class="boot-partition primary" style="min-width:130px;border-color:var(--accent-orange);background:rgba(251,146,60,.06)">
+            <div class="boot-label">Partition 1 — Active</div>
+            <div class="boot-version" style="color:var(--accent-orange)">9.8P4</div>
+            <div class="boot-status" style="color:var(--accent-orange)">★ Running</div>
+          </div>
+          <div class="boot-partition secondary" style="min-width:130px">
+            <div class="boot-label">Partition 2 — Standby</div>
+            <div class="boot-version" style="color:var(--text-muted)">9.5P3</div>
+            <div class="boot-status" style="color:var(--text-muted)">Rollback</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:16px;font-style:italic">The new image overwrites the older standby slot. ONTAP automatically designates the newest version as the active boot target after reboot.</p>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-lang">ONTAP CLI — Inspect Boot Module Image Slots</span>
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+    </div>
+    <div class="code-body"><span class="comment"># View both image partitions on every node's boot module</span>
+<span class="prompt">cluster1::></span> <span class="cmd">version -b</span>
+
+<span class="output">Node         Image 1              Image 2
+-----------  -------------------  -------------------
+node01       9.8P4 (Active)       9.5P3
+node02       9.8P4 (Active)       9.5P3</span>
+
+<span class="comment"># Confirm both nodes running on the new version</span>
+<span class="prompt">cluster1::></span> <span class="cmd">cluster image show</span>
+<span class="output">Current Version: 9.8P4
+Node       Version   Status
+--------   --------  ------
+node01     9.8P4     ok
+node02     9.8P4     ok</span></div>
+  </div>
+
+  <h3>CFO vs SFO — Understanding the Failover Sequence</h3>
+  <p>During an ONTAP upgrade reboot, data services move between HA partners through a coordinated two-phase failover. Understanding this sequence explains what you observe in the console logs.</p>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+sequenceDiagram
+    participant N1 as Node 1 (Upgrading)
+    participant N2 as Node 2 (Partner)
+    Note over N1,N2: TAKEOVER PHASE
+    N1->>N2: SFO — Relocate data aggregates to partner
+    Note over N2: N2 now hosts all client-serving data
+    N1->>N2: CFO — Relocate root aggregate to partner
+    Note over N1: Node 1 fully offline — rebooting with new image
+    Note over N1,N2: GIVEBACK PHASE
+    N2->>N1: CFO — Return root aggregate to Node 1
+    Note over N1: Node 1 reads config from root aggregate and boots
+    N2->>N1: SFO — Return data aggregates to Node 1
+    Note over N1,N2: Node 1 fully operational on new ONTAP version
+    </div>
+    <div class="diagram-caption">Fig 3 — CFO and SFO sequencing during an ONTAP upgrade node reboot cycle</div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">🔄 CFO — Controller Failover</div>
+      <ul class="bullet-list">
+        <li>Governs the <strong>root aggregate</strong> only</li>
+        <li>Occurs <em>after</em> SFO during takeover (node goes down last)</li>
+        <li>Root aggregate contains all controller configuration data</li>
+        <li>Occurs <em>before</em> SFO during giveback (node needs config first)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">💾 SFO — Storage Failover</div>
+      <ul class="bullet-list">
+        <li>Governs all <strong>data aggregates</strong></li>
+        <li>Occurs <em>first</em> during takeover (clients must stay online)</li>
+        <li>Moves all client I/O to the partner node</li>
+        <li>Occurs <em>last</em> during giveback (after node is confirmed stable)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout success">
+    <span class="callout-icon">✅</span>
+    <div class="callout-content">
+      <div class="callout-title">Zero Downtime for Clients in Multi-Node Clusters</div>
+      <div class="callout-text">In a properly configured HA cluster, ANDU requires zero client downtime. While one node reboots for upgrade, its HA partner serves all I/O. Single-node clusters are the only exception — that scenario is inherently disruptive.</div>
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <span class="callout-icon">💡</span>
+    <div class="callout-content">
+      <div class="callout-title">Version Mismatch Alerts Are Expected and Normal</div>
+      <div class="callout-text">When one node is on the new version while the other is still upgrading, ONTAP logs version mismatch warnings. These are expected and resolve automatically once both nodes complete their upgrade cycle. Do not attempt to intervene.</div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 5 -->
+<section class="section" id="s5">
+  <div class="section-header">
+    <div class="section-icon icon-purple">🔀</div>
+    <div class="section-title-wrap">
+      <div class="section-num">SECTION 05</div>
+      <h2>Platform Migration — Methods Overview</h2>
+    </div>
+  </div>
+
+  <p>Migrating storage from a legacy 7-Mode platform to clustered ONTAP involves choosing from three distinct approaches. Each method has specific prerequisites, advantages, and constraints. The right choice depends on your source version, licensing, volume count, and acceptable downtime.</p>
+
+  <div class="compare-grid">
+    <div class="compare-card host">
+      <div class="compare-card-title">Host-Based Migration</div>
+      <div class="compare-item">Uses xCopy, RoboCopy, rsync, or vMotion</div>
+      <div class="compare-item">No SnapMirror license required</div>
+      <div class="compare-item">Works with any Data ONTAP version</div>
+      <div class="compare-item">Copies data only — no config transfer</div>
+      <div class="compare-item">Ideal for VMware vMotion scenarios</div>
+      <div class="compare-item">Required when source is ONTAP 8.0 or older</div>
+    </div>
+    <div class="compare-card tdp">
+      <div class="compare-card-title">SnapMirror TDP</div>
+      <div class="compare-item">Transition Data Protection replication</div>
+      <div class="compare-item">Requires Data ONTAP 8.1+ on source</div>
+      <div class="compare-item">Copies data only — no configuration</div>
+      <div class="compare-item">SnapMirror license required on both sides</div>
+      <div class="compare-item">Not practical for large volume counts</div>
+      <div class="compare-item">Requires per-volume manual cutover</div>
+    </div>
+    <div class="compare-card mtt">
+      <div class="compare-card-title">Migration Transition Tool</div>
+      <div class="compare-item">NetApp-provided browser-based tool</div>
+      <div class="compare-item">Uses SnapMirror TDP internally</div>
+      <div class="compare-item">Migrates data AND configuration together</div>
+      <div class="compare-item">Handles large-scale migrations (100+ volumes)</div>
+      <div class="compare-item">Two modes: Copy-Based and Copy-Free</div>
+      <div class="compare-item">Minimal cutover downtime</div>
+    </div>
+  </div>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart TD
+    START["Evaluate Migration Path"] --> Q1{"Source Data ONTAP\nversion?"}
+    Q1 -->|"8.0 or earlier"| HB["Host-Based Migration\nxCopy / RoboCopy / vMotion"]
+    Q1 -->|"8.1 or later"| Q2{"SnapMirror license\navailable on both sides?"}
+    Q2 -->|"No"| HB
+    Q2 -->|"Yes"| Q3{"Volume count?"}
+    Q3 -->|"Small — under 20 volumes"| TDP["SnapMirror TDP\nDirect replication"]
+    Q3 -->|"Large — 20 or more"| Q4{"Migration preference?"}
+    Q4 -->|"Minimal downtime\nGranular volume selection"| CBT["MTT Copy-Based Transition"]
+    Q4 -->|"Petabyte scale\nPhysical shelf relocation"| CFT["MTT Copy-Free Transition"]
+    style START fill:#1a2235,stroke:#a78bfa,color:#f1f5f9
+    style HB fill:#1a2235,stroke:#60a5fa,color:#f1f5f9
+    style TDP fill:#1a2235,stroke:#a78bfa,color:#f1f5f9
+    style CBT fill:#1a2235,stroke:#34d399,color:#f1f5f9
+    style CFT fill:#1a2235,stroke:#fbbf24,color:#f1f5f9
+    </div>
+    <div class="diagram-caption">Fig 4 — Decision tree for selecting the appropriate migration method</div>
+  </div>
+
+  <h3>Host-Based Migration</h3>
+  <p>In a host-based migration, the storage team provisions new volumes or LUNs on the destination ONTAP cluster and presents them to the same servers. The server or application team then uses platform-native tools — robocopy for Windows, rsync for Linux, or storage vMotion for VMware — to move the actual data with no storage-layer involvement.</p>
+  <div class="callout info">
+    <span class="callout-icon">🖥️</span>
+    <div class="callout-content">
+      <div class="callout-title">Ideal for VMware Workloads</div>
+      <div class="callout-text">For VMware virtual machine data, storage vMotion can relocate VMs between datastores without any downtime — something storage-layer tools cannot achieve on their own. This makes host-based migration the preferred path for VMware environments even when storage-level tools are available.</div>
+    </div>
+  </div>
+
+  <h3>SnapMirror TDP</h3>
+  <p>SnapMirror TDP (Transition Data Protection) establishes a replication relationship between a 7-Mode source volume and a clustered ONTAP destination volume. It bridges the two platform generations but copies data only. Share definitions, export policies, iGroup mappings, and efficiency settings require separate manual configuration on the destination.</p>
+
+  <h3>Migration Transition Tool (MTT)</h3>
+  <p>The NetApp Migration Transition Tool is a dedicated, browser-based orchestration platform that automates the full migration workflow. It wraps SnapMirror TDP for data movement while additionally migrating configuration — shares, exports, iGroups, LUN mappings, snapshot schedules, and efficiency policies. MTT is the preferred choice for migrations involving more than a handful of volumes.</p>
+</section>
+
+<!-- SECTION 6 -->
+<section class="section" id="s6">
+  <div class="section-header">
+    <div class="section-icon icon-teal">📋</div>
+    <div class="section-title-wrap">
+      <div class="section-num">SECTION 06</div>
+      <h2>Copy-Based Transition — Step by Step</h2>
+    </div>
+  </div>
+
+  <p>Copy-based transition is the industry-standard MTT mode. It replicates data incrementally via SnapMirror TDP while source volumes remain online, keeping downtime to the brief final synchronization and configuration-apply window.</p>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart LR
+    A["Add Source &\nDestination Systems"] --> B["Select Volumes\nNAS / SAN /\nSnapMirror"]
+    B --> C["Map Aggregate,\nLIF, Mount Path"]
+    C --> D["Define Sync\nSchedule"]
+    D --> E["Select Config\nElements to Migrate"]
+    E --> F["Run Prechecks\nResolve errors"]
+    F --> G["Start Baseline\nCopy"]
+    G --> H["Incremental\nSync Updates"]
+    H --> I["Apply Config\nto Destination SVM"]
+    I --> J["Complete Cutover\nSource goes offline"]
+    style A fill:#1a2235,stroke:#fb923c,color:#f1f5f9
+    style J fill:#1a2235,stroke:#34d399,color:#f1f5f9
+    </div>
+    <div class="diagram-caption">Fig 5 — Copy-based transition workflow in the Migration Transition Tool</div>
+  </div>
+
+  <h3>NAS Volume Migration Walkthrough</h3>
+
+  <ol class="step-list">
+    <li><span class="step-num">1</span><div><strong>Add storage systems to MTT</strong> — Register both 7-Mode source controllers using <code>root</code> as the username (not <code>admin</code> — 7-Mode default differs from clustered ONTAP) and the destination cluster. MTT validates credentials and fetches volume inventory automatically.</div></li>
+    <li><span class="step-num">2</span><div><strong>Select the volume and transition type</strong> — Choose standalone for independent volumes, or relationship mode to migrate a SnapMirror source, destination, and the relationship together. SnapMirror volumes are migrated as a coordinated pair.</div></li>
+    <li><span class="step-num">3</span><div><strong>Map the data interface</strong> — Specify the 7-Mode IP address MTT will use to pull data. Providing two interfaces enables concurrent data transfer over both paths, improving throughput without being mandatory.</div></li>
+    <li><span class="step-num">4</span><div><strong>Select destination SVM and aggregate</strong> — Choose the target SVM and aggregate where the migrated volume will reside. MTT displays available free space on each aggregate to assist the decision.</div></li>
+    <li><span class="step-num">5</span><div><strong>Configure mount path policy</strong> — Three options exist: (a) preserve 7-Mode paths (<code>/vol/volumename</code>) so existing NFS clients require no reconfiguration; (b) use clustered ONTAP junction paths (<code>/volumename</code>); (c) apply a custom name. Option (b) is the most common in new deployments.</div></li>
+    <li><span class="step-num">6</span><div><strong>Select LIF migration</strong> — Optionally migrate existing 7-Mode IP addresses directly to the destination SVM as new LIFs. The original IP is automatically removed from the 7-Mode controller during cutover, preserving client transparency.</div></li>
+    <li><span class="step-num">7</span><div><strong>Define incremental sync schedule</strong> — Configure how frequently MTT copies incremental changes after baseline. Daily with hourly deltas is a common production cadence.</div></li>
+    <li><span class="step-num">8</span><div><strong>Select configuration elements to migrate</strong> — For NAS volumes: CIFS shares and ACLs, NFS export policies, DNS/LDAP settings, Unix user/group mappings, efficiency configuration. For SAN volumes: iGroup definitions, LUN-to-iGroup mappings, LUN IDs.</div></li>
+  </ol>
+
+  <div class="callout warning">
+    <span class="callout-icon">⚠️</span>
+    <div class="callout-content">
+      <div class="callout-title">Missing Configuration Elements Cause Access Failures Post-Cutover</div>
+      <div class="callout-text">If you omit a required configuration element — such as NFS export policies or CIFS share ACLs — clients will be unable to access the migrated volume immediately after cutover. Review each category against your actual environment before advancing.</div>
+    </div>
+  </div>
+
+  <h4>Pre-Check Result Severity Levels</h4>
+  <table class="spec-table">
+    <thead>
+      <tr><th>Level</th><th>Indicator</th><th>Action</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Error</td><td><span class="badge badge-rose">Red</span></td><td>Must be resolved — Start Baseline button remains greyed out until fixed</td></tr>
+      <tr><td>Warning</td><td><span class="badge badge-yellow">Yellow</span></td><td>Review and assess applicability — proceed if warnings don't affect your environment</td></tr>
+      <tr><td>Informational</td><td><span class="badge badge-blue">Blue</span></td><td>Advisory only — no action required</td></tr>
+    </tbody>
+  </table>
+
+  <h3>SAN LUN Migration</h3>
+  <p>SAN migrations follow the same MTT workflow. The key differences are that LIF migration is skipped (iSCSI and FC LIFs are created separately on the destination), and the configuration elements selected are iGroup definitions, LUN-to-iGroup mappings, and LUN identifiers. MTT migrates all of these automatically.</p>
+
+  <div class="callout info">
+    <span class="callout-icon">🔌</span>
+    <div class="callout-content">
+      <div class="callout-title">Post-Migration Manual Steps for SAN</div>
+      <div class="callout-text">After MTT completes a SAN migration: for iSCSI, reconnect the host's iSCSI initiator to the new cluster LIFs. For Fibre Channel, re-zone the SAN fabric to include the new cluster FC target ports. MTT handles the storage-side configuration; fabric-level connectivity must be updated manually.</div>
+    </div>
+  </div>
+
+  <h3>SnapMirror Relationship Migration</h3>
+  <p>When migrating volumes with an existing SnapMirror relationship, MTT creates a project that includes both the source volume and its SnapMirror destination as a coordinated pair. The tool replicates both to clustered ONTAP equivalents and re-establishes the SnapMirror relationship on the destination cluster, maintaining data protection continuity through the cutover.</p>
+
+  <div class="callout tip">
+    <span class="callout-icon">💡</span>
+    <div class="callout-content">
+      <div class="callout-title">Post-Migration — Convert DP to XDP Relationship Type</div>
+      <div class="callout-text">SnapMirror relationships created by MTT during migration land as DP (Data Protection) type. In clustered ONTAP, XDP (Extended Data Protection) is the recommended and feature-complete relationship type. Plan to convert DP to XDP after the migration is validated and stable.</div>
+    </div>
+  </div>
+
+  <h4>Connectivity Prerequisites for MTT</h4>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-lang">Connectivity Verification — Both Directions</span>
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+    </div>
+    <div class="code-body"><span class="comment"># From 7-Mode controller — verify reachability to cluster</span>
+<span class="prompt">stor-src01></span> ping 10.20.30.50
+<span class="output">10.20.30.50 is alive</span>
+
+<span class="comment"># From cluster — verify reachability to 7-Mode source IP</span>
+<span class="prompt">cluster1::></span> <span class="cmd">network ping</span> <span class="param">-lif</span> <span class="value">intercluster_lif1</span> <span class="param">-destination</span> <span class="value">10.20.30.121</span> <span class="param">-show-detail</span> <span class="value">true</span>
+<span class="output">10.20.30.121 is alive  TTL=64  bytes=24  time=0ms</span>
+
+<span class="comment"># Required: SnapMirror license on both systems</span>
+<span class="comment"># Required: SnapMirror TCP ports open through network firewall</span></div>
+  </div>
+</section>
+
+<!-- SECTION 7 -->
+<section class="section" id="s7">
+  <div class="section-header">
+    <div class="section-icon icon-rose">🔧</div>
+    <div class="section-title-wrap">
+      <div class="section-num">SECTION 07</div>
+      <h2>Copy-Free Transition</h2>
+    </div>
+  </div>
+
+  <p>Copy-free transition is a physically different approach — instead of replicating data over the network, disk shelves are physically disconnected from the 7-Mode controller and reconnected to the new clustered ONTAP system. The cluster then imports the shelf content, recognizing existing volumes and LUNs automatically.</p>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title" style="color:var(--accent-green)">✅ When Copy-Free Makes Sense</div>
+      <ul class="bullet-list">
+        <li>Migrating petabyte-scale datasets where network copy would take weeks</li>
+        <li>SnapMirror license unavailable on the source platform</li>
+        <li>Full infrastructure consolidation — moving entire shelf sets at once</li>
+        <li>Shelf hardware verified compatible with the destination controller</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--accent-rose)">⚠️ Copy-Free Limitations</div>
+      <ul class="bullet-list">
+        <li>All volumes on a shelf migrate simultaneously — no selective choice</li>
+        <li>Significantly longer downtime than copy-based</li>
+        <li>Requires physical shelf removal and recabling</li>
+        <li>NetApp Professional Services involvement strongly recommended</li>
+        <li>Rollback is complex — requires full physical reversal</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart TD
+    A["7-Mode Controller\nwith Disk Shelves"] -->|"1. Graceful shutdown\n7-Mode controller"| B["Physical Shelf\nDisconnection &amp; Recabling"]
+    B -->|"2. Connect shelves\nto ONTAP cluster"| C["Clustered ONTAP\nController"]
+    C -->|"3. Run MTT\nCopy-Free import wizard"| D["MTT Imports\nVolume &amp; Config Data"]
+    D -->|"4. Validate access\nand data integrity"| E["Migration Complete"]
+    style A fill:#1a2235,stroke:#60a5fa,color:#f1f5f9
+    style B fill:#1a2235,stroke:#fbbf24,color:#f1f5f9
+    style C fill:#1a2235,stroke:#34d399,color:#f1f5f9
+    style D fill:#1a2235,stroke:#a78bfa,color:#f1f5f9
+    style E fill:#1a2235,stroke:#34d399,color:#f1f5f9
+    </div>
+    <div class="diagram-caption">Fig 6 — Copy-free transition — physical shelf relocation flow</div>
+  </div>
+
+  <table class="spec-table">
+    <thead>
+      <tr><th>Attribute</th><th>Copy-Based Transition</th><th>Copy-Free Transition</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Data Movement</td><td>Network (SnapMirror TDP)</td><td>Physical shelf relocation</td></tr>
+      <tr><td>Downtime</td><td>Minimal — final sync + cutover only</td><td>Extended — physical work required</td></tr>
+      <tr><td>Granularity</td><td>Individual volume selection</td><td>All volumes on shelf — all or nothing</td></tr>
+      <tr><td>SnapMirror License</td><td>Required</td><td>Not required</td></tr>
+      <tr><td>Rollback</td><td>Relatively straightforward</td><td>Complex — requires physical reconnection</td></tr>
+      <tr><td>Best For</td><td>Most production migrations</td><td>Petabyte-scale, bandwidth-constrained</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout warning">
+    <span class="callout-icon">⚠️</span>
+    <div class="callout-content">
+      <div class="callout-title">Industry Reality</div>
+      <div class="callout-text">The overwhelming majority of real-world migrations use copy-based transition. Copy-free is reserved for specific scenarios where petabyte-scale data or bandwidth constraints make network-based copying infeasible. Always evaluate copy-based first — consider copy-free only when specific constraints rule it out.</div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 8 — INTERVIEW Q&A -->
+<section class="section" id="s8">
+  <div class="section-header">
+    <div class="section-icon icon-yellow">🎯</div>
+    <div class="section-title-wrap">
+      <div class="section-num">SECTION 08</div>
+      <h2>Scenario-Based Interview Q&amp;A</h2>
+    </div>
+  </div>
+
+  <p>These questions cover ONTAP upgrade execution and platform migration concepts commonly assessed in technical interviews and pre-engagement evaluations.</p>
+
+  <div class="quiz-card">
+    <div class="quiz-q">Q1: You are preparing to upgrade a production cluster and observe CPU utilization consistently at 68% across all nodes. What is your course of action before proceeding?</div>
+    <button class="quiz-btn" onclick="this.nextElementSibling.style.display='block';this.style.display='none'">Reveal Answer</button>
+    <div class="quiz-a">Do not proceed. The recommended CPU threshold is below 50% — 68% is unacceptably high.<br><br><strong>Investigation and remediation steps:</strong><br>1. Run <code>system node run -node * -command "systat -c 10 -x 1"</code> on all nodes to profile and confirm the load pattern.<br>2. Run <code>job show</code> to identify background processes contributing to load — deduplication, compression, and scrubbing are primary suspects.<br>3. Check for active SnapMirror transfers and quiesce all relationships with <code>snapmirror quiesce -destination-path *</code>.<br>4. Coordinate with the backup team to verify no NDMP backup jobs are running during the maintenance window.<br>5. Re-observe utilization after stopping background workloads and confirm it drops below 50% before initiating the upgrade.</div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q">Q2: What is the precise sequence in which CFO and SFO occur during a controller takeover, and why does order matter?</div>
+    <button class="quiz-btn" onclick="this.nextElementSibling.style.display='block';this.style.display='none'">Reveal Answer</button>
+    <div class="quiz-a"><strong>During Takeover (node going offline):</strong><br>1. SFO (Storage Failover) occurs first — all data aggregates relocate to the partner, maintaining client I/O continuity.<br>2. CFO (Controller Failover) occurs second — the root aggregate relocates to the partner, and the node goes fully offline.<br><br><strong>During Giveback (node returning):</strong><br>1. CFO occurs first — the root aggregate returns to the original node so it can read its configuration and complete the boot process.<br>2. SFO occurs second — data aggregates return after the node is confirmed stable and healthy.<br><br><strong>Why order matters:</strong> A controller cannot boot without its root aggregate (CFO must happen first on giveback). And client I/O must be preserved before the node goes down (SFO must happen first on takeover). The sequence is designed to ensure both zero downtime and a clean recovery path.</div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q">Q3: A storage team must migrate 200 volumes from a 7-Mode FAS controller running Data ONTAP 8.2 to a new ONTAP cluster. SnapMirror licenses are available on both systems. Which method do you recommend and why?</div>
+    <button class="quiz-btn" onclick="this.nextElementSibling.style.display='block';this.style.display='none'">Reveal Answer</button>
+    <div class="quiz-a">Recommend <strong>Copy-Based Transition using the Migration Transition Tool (MTT)</strong>.<br><br><strong>Reasoning:</strong><br>• Data ONTAP 8.2 meets the 8.1 minimum version requirement for storage-level migration tools.<br>• SnapMirror licenses are available on both sides — MTT is fully eligible.<br>• 200 volumes rules out SnapMirror TDP (per-volume manual cutover is operationally unmanageable at that scale).<br>• Host-based migration would require extensive server-team coordination and application-level tooling.<br>• MTT automates data replication, configuration migration (shares, exports, iGroups, LUN mappings), LIF migration, and cutover orchestration in a single workflow.<br>• Copy-based provides per-volume granularity and a straightforward rollback path if needed.</div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q">Q4: What is the difference between the encryption-capable and non-encryption ONTAP images, and what is the consequence of applying the wrong one?</div>
+    <button class="quiz-btn" onclick="this.nextElementSibling.style.display='block';this.style.display='none'">Reveal Answer</button>
+    <div class="quiz-a">The <strong>encryption-capable image</strong> includes support for NetApp Volume Encryption (NVE). It is safe to use in environments both with and without active encryption.<br><br>The <strong>non-encryption image</strong> lacks NVE support and must be used in jurisdictions where government regulations prohibit strong encryption in storage systems.<br><br><strong>Consequence of applying the wrong variant:</strong><br>If the non-encryption image is applied to a cluster with active NVE licenses and encrypted volumes, the controllers will fail to boot. Recovery requires engaging NetApp Technical Support, a planned downtime window, and a full re-image of the affected controllers.<br><br><strong>Best practice:</strong> When in doubt, always download the encryption-capable image. It works in both scenarios. The risk is unidirectional — applying the wrong image in an encrypted environment causes controller boot failure.</div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q">Q5: When performing a copy-based transition for an NFS volume, a client team says they cannot afford to update their mount paths after migration. Which MTT mount path policy option should you select, and what are the trade-offs?</div>
+    <button class="quiz-btn" onclick="this.nextElementSibling.style.display='block';this.style.display='none'">Reveal Answer</button>
+    <div class="quiz-a">Select <strong>"Preserve 7-Mode Mount Points"</strong>.<br><br>This option maintains the legacy 7-Mode path format (<code>/vol/volumename</code>) on the clustered ONTAP destination. Existing NFS clients can continue using their configured mount paths without any reconfiguration after cutover.<br><br><strong>Trade-offs:</strong><br>• Positive: Eliminates the need to update NFS mount configurations across all client servers — particularly valuable in large environments with many NFS clients.<br>• Negative: The non-standard 7-Mode path format is preserved on the new cluster, which may not align with clustered ONTAP best practices (<code>/volumename</code> junction paths are the standard).<br>• This is a legitimate choice when client disruption must be minimized; most organizations accept the path format trade-off in exchange for a transparent cutover.</div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q">Q6: What two things does triggering AutoSupport before an upgrade accomplish, and what happens if this step is skipped?</div>
+    <button class="quiz-btn" onclick="this.nextElementSibling.style.display='block';this.style.display='none'">Reveal Answer</button>
+    <div class="quiz-a">Triggering AutoSupport before an upgrade accomplishes two things simultaneously:<br><br><strong>1. Configuration snapshot upload:</strong> Uploads a current baseline of the cluster configuration to NetApp's Active IQ portal. If issues arise during the upgrade, NetApp support has an up-to-date configuration snapshot to work from — significantly accelerating troubleshooting and root-cause analysis.<br><br><strong>2. Maintenance notification:</strong> Signals NetApp's active monitoring infrastructure that controller reboots are planned and intentional. Without this signal, automated monitoring systems detect unexpected reboots and may generate support alerts or initiate proactive contact during your maintenance window.<br><br>Command: <code>autosupport invoke -node * -type all -message "ANDU upgrade to 9.8P4 — planned maintenance"</code></div>
+  </div>
+</section>
+
+<!-- ABOUT THE AUTHOR -->
+<section class="section" id="about">
+  <div class="author-card">
+    <div class="author-avatar">👨‍💻</div>
+    <div class="author-name">Mohammed Abdul</div>
+    <div class="author-title">Data Protection Architect · 10+ Years Experience</div>
+    <div class="author-bio">
+      Mohammed Abdul is a Data Protection Architect with more than 10 years of experience in Hybrid Cloud, having worked with global clients across various industries. With deep expertise in enterprise backup and recovery solutions, Mohammed specializes in designing and implementing robust data protection strategies that bridge on-premises infrastructure with modern cloud platforms.
+    </div>
+    <div class="tech-badges">
+      <span class="tech-badge">AWS</span>
+      <span class="tech-badge">Azure</span>
+      <span class="tech-badge">GCP</span>
+      <span class="tech-badge">NetApp ONTAP</span>
+      <span class="tech-badge">Commvault</span>
+      <span class="tech-badge">Veeam</span>
+      <span class="tech-badge">Veritas NetBackup</span>
+      <span class="tech-badge">SnapCenter</span>
+    </div>
+    <a class="contact-link" href="mailto:abdul.md.20000102@gmail.com">
+      📧 abdul.md.20000102@gmail.com
+    </a>
+    <div class="callout warning" style="margin-top:16px">
+      <span class="callout-icon">📋</span>
+      <div class="callout-content">
+        <div class="callout-title">Disclaimer</div>
+        <div class="callout-text">This content is for educational purposes and shared as tutorial material for knowledge sharing. Always refer to official NetApp documentation and follow your organization's change management procedures for production implementations.<br><br>I am not affiliated with or endorsed by NetApp, Inc. NetApp® and ONTAP® are registered trademarks of NetApp, Inc. All references are made purely for learning and knowledge sharing purposes.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div>
+</div>
+
+<script>
+  window.addEventListener('scroll', () => {
+    const d = document.documentElement;
+    const scrolled = d.scrollTop / (d.scrollHeight - d.clientHeight);
+    document.getElementById('reading-progress').style.transform = 'scaleX(' + scrolled + ')';
+  });
+  const sections = document.querySelectorAll('.section');
+  const tocLinks = document.querySelectorAll('.toc-link');
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.getAttribute('id');
+        tocLinks.forEach(link => {
+          link.classList.toggle('active', link.getAttribute('href') === '#' + id);
+        });
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px', threshold: 0 });
+  sections.forEach(s => obs.observe(s));
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      primaryColor: '#1a2235',
+      primaryTextColor: '#f1f5f9',
+      primaryBorderColor: '#fb923c',
+      lineColor: '#60a5fa',
+      secondaryColor: '#111827',
+      tertiaryColor: '#0b0f1a',
+      edgeLabelBackground: '#111827',
+      nodeTextColor: '#f1f5f9'
+    },
+    flowchart: { htmlLabels: true, curve: 'basis' },
+    sequence: { mirrorActors: false, messageAlign: 'center' }
+  });
+</script>
+</body>
+</html>
