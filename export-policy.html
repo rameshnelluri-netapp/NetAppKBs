@@ -1,0 +1,391 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetApp ONTAP Export Policy Guide</title>
+
+<style>
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    margin: 0;
+    background: #f5f7fa;
+    color: #333;
+    line-height: 1.6;
+}
+
+header {
+    background: #0057b8;
+    color: white;
+    padding: 30px;
+    text-align: center;
+}
+
+.container {
+    width: 90%;
+    max-width: 1200px;
+    margin: auto;
+    padding: 20px;
+}
+
+.card {
+    background: white;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    box-shadow: 0px 2px 8px rgba(0,0,0,0.1);
+}
+
+h1,h2,h3 {
+    color: #0057b8;
+}
+
+code {
+    background: #eef2f7;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+
+pre {
+    background: #1e1e1e;
+    color: #dcdcdc;
+    padding: 15px;
+    overflow-x: auto;
+    border-radius: 6px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+table th {
+    background: #0057b8;
+    color: white;
+    padding: 10px;
+}
+
+table td {
+    border: 1px solid #ddd;
+    padding: 10px;
+}
+
+.note {
+    background: #fff8d6;
+    border-left: 5px solid #f0c000;
+    padding: 15px;
+}
+
+.success {
+    background: #e8f7e8;
+    border-left: 5px solid #28a745;
+    padding: 15px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <h1>NetApp ONTAP Export Policy Guide</h1>
+    <p>Understanding NFS Access Control Using Export Policies</p>
+</header>
+
+<div class="container">
+
+<div class="card">
+<h2>1. What is an Export Policy?</h2>
+
+<p>
+An Export Policy in ONTAP controls which NFS clients can access a volume,
+what permissions they receive, and which security mechanisms are allowed.
+</p>
+
+<p>
+Think of it as a firewall rule for NFS exports.
+</p>
+
+<div class="note">
+<b>Key Point:</b><br>
+A volume can be mounted only if the client's IP matches an export-policy rule.
+</div>
+</div>
+
+<div class="card">
+<h2>2. Components of an Export Policy Rule</h2>
+
+<table>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+
+<tr>
+<td>Client Match</td>
+<td>IP address, subnet, hostname, or netgroup</td>
+</tr>
+
+<tr>
+<td>RO Rule</td>
+<td>Read-only access</td>
+</tr>
+
+<tr>
+<td>RW Rule</td>
+<td>Read-write access</td>
+</tr>
+
+<tr>
+<td>Protocol</td>
+<td>NFSv3, NFSv4, NFSv4.1</td>
+</tr>
+
+<tr>
+<td>Superuser</td>
+<td>Root access mapping</td>
+</tr>
+</table>
+
+</div>
+
+<div class="card">
+<h2>3. Example Environment</h2>
+
+<table>
+<tr>
+<th>Item</th>
+<th>Value</th>
+</tr>
+
+<tr>
+<td>SVM</td>
+<td>svm_prod</td>
+</tr>
+
+<tr>
+<td>Volume</td>
+<td>vol_data</td>
+</tr>
+
+<tr>
+<td>Junction Path</td>
+<td>/data</td>
+</tr>
+
+<tr>
+<td>Client IP</td>
+<td>10.10.10.50</td>
+</tr>
+</table>
+</div>
+
+<div class="card">
+<h2>4. Create Export Policy</h2>
+
+<pre>
+cluster::> export-policy create \
+-vserver svm_prod \
+-policyname linux_policy
+</pre>
+
+Verify:
+
+<pre>
+cluster::> export-policy show
+</pre>
+
+</div>
+
+<div class="card">
+<h2>5. Add Export Rule</h2>
+
+Allow host 10.10.10.50 read-write access.
+
+<pre>
+cluster::> export-policy rule create \
+-vserver svm_prod \
+-policyname linux_policy \
+-ruleindex 1 \
+-clientmatch 10.10.10.50 \
+-protocol nfs3,nfs4 \
+-rorule sys \
+-rwrule sys \
+-superuser sys
+</pre>
+
+Verify:
+
+<pre>
+cluster::> export-policy rule show \
+-vserver svm_prod \
+-policyname linux_policy
+</pre>
+
+</div>
+
+<div class="card">
+<h2>6. Assign Export Policy to Volume</h2>
+
+<pre>
+cluster::> volume modify \
+-vserver svm_prod \
+-volume vol_data \
+-policy linux_policy
+</pre>
+
+Verify:
+
+<pre>
+cluster::> volume show \
+-fields policy
+</pre>
+
+</div>
+
+<div class="card">
+<h2>7. Client Side Verification</h2>
+
+Check exported paths:
+
+<pre>
+showmount -e 192.168.1.100
+</pre>
+
+View mount information:
+
+<pre>
+mount | grep nfs
+</pre>
+
+Mount volume:
+
+<pre>
+mkdir /mnt/data
+
+mount -t nfs \
+192.168.1.100:/data \
+/mnt/data
+</pre>
+
+Verify access:
+
+<pre>
+touch /mnt/data/testfile
+
+echo "Hello ONTAP" > /mnt/data/testfile
+
+ls -l /mnt/data
+</pre>
+
+</div>
+
+<div class="card">
+<h2>8. Troubleshooting Commands</h2>
+
+<h3>Check Export Policy</h3>
+
+<pre>
+export-policy rule show
+</pre>
+
+<h3>Check Volume Policy</h3>
+
+<pre>
+volume show -fields policy
+</pre>
+
+<h3>Check NFS Status</h3>
+
+<pre>
+vserver nfs show
+</pre>
+
+<h3>Check LIFs</h3>
+
+<pre>
+network interface show
+</pre>
+
+<h3>Check Junction Path</h3>
+
+<pre>
+volume show -fields junction-path
+</pre>
+
+</div>
+
+<div class="card">
+<h2>9. Common Issues</h2>
+
+<table>
+<tr>
+<th>Issue</th>
+<th>Possible Cause</th>
+</tr>
+
+<tr>
+<td>Access Denied</td>
+<td>Client IP not matching export rule</td>
+</tr>
+
+<tr>
+<td>Read Only</td>
+<td>RW Rule missing</td>
+</tr>
+
+<tr>
+<td>Mount Fails</td>
+<td>NFS service disabled</td>
+</tr>
+
+<tr>
+<td>No Route</td>
+<td>LIF unreachable</td>
+</tr>
+
+<tr>
+<td>Permission Denied</td>
+<td>UNIX permissions issue</td>
+</tr>
+</table>
+
+</div>
+
+<div class="card">
+<h2>10. Export Policy Evaluation Flow</h2>
+
+<pre>
+Client Mount Request
+          |
+          v
+Export Policy Assigned?
+          |
+          v
+Rule Match Found?
+          |
+          v
+Protocol Allowed?
+          |
+          v
+RO/RW Permission Check
+          |
+          v
+Access Granted
+</pre>
+
+<div class="success">
+Remember:
+Export Policy controls network-level access.
+UNIX permissions control file-level access.
+Both must allow access for a successful NFS operation.
+</div>
+
+</div>
+
+</div>
+
+</body>
+</html>
+```
