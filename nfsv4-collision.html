@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NFSv4 Collision in NetApp — ID Mapping, Delegations &amp; Lock State</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg:       #0d1117;
+  --bg2:      #161b22;
+  --bg3:      #1c2333;
+  --bg4:      #21262d;
+  --border:   #30363d;
+  --teal:     #2dd4bf;
+  --teal-d:   #134e4a;
+  --purple:   #a78bfa;
+  --purple-d: #2e1065;
+  --amber:    #fbbf24;
+  --amber-d:  #78350f;
+  --coral:    #f87171;
+  --coral-d:  #450a0a;
+  --green:    #4ade80;
+  --green-d:  #052e16;
+  --blue:     #60a5fa;
+  --blue-d:   #0c1a3a;
+  --orange:   #fb923c;
+  --orange-d: #431407;
+  --pink:     #f472b6;
+  --pink-d:   #500724;
+  --text:     #e6edf3;
+  --muted:    #7d8590;
+  --muted2:   #484f58;
+  --mono:     'JetBrains Mono', monospace;
+  --sans:     'Inter', system-ui, sans-serif;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.7}
+
+/* ── HEADER ── */
+header{border-bottom:1px solid var(--border);padding:0 clamp(1rem,5vw,4rem);position:sticky;top:0;background:rgba(13,17,23,0.93);backdrop-filter:blur(12px);z-index:100;display:flex;align-items:center;justify-content:space-between;height:52px}
+.logo{font-family:var(--mono);font-size:12px;color:var(--teal);text-decoration:none;letter-spacing:.05em}
+.logo span{color:var(--muted)}
+nav a{font-size:12px;color:var(--muted);text-decoration:none;margin-left:1.5rem;transition:color .2s}
+nav a:hover{color:var(--text)}
+
+/* ── LAYOUT ── */
+.layout{display:flex;max-width:1100px;margin:0 auto;padding:0 clamp(1rem,3vw,2.5rem)}
+aside{width:220px;flex-shrink:0;position:sticky;top:52px;height:calc(100vh - 52px);overflow-y:auto;padding:2rem 1rem 2rem 0;border-right:1px solid var(--border);scrollbar-width:none}
+aside::-webkit-scrollbar{display:none}
+.toc-group{margin-bottom:1.4rem}
+.toc-part{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted2);padding:0 .5rem;margin-bottom:.4rem}
+.toc-link{display:block;font-size:12px;color:var(--muted);text-decoration:none;padding:.28rem .5rem;border-radius:4px;transition:all .15s;border-left:2px solid transparent}
+.toc-link:hover{color:var(--text);background:var(--bg2)}
+.toc-link.active{color:var(--teal);border-left-color:var(--teal);background:rgba(45,212,191,.05)}
+.toc-sub{padding-left:1rem;font-size:11px;color:var(--muted2)}
+.toc-sub:hover{color:var(--muted)}
+main{flex:1;min-width:0;padding:2.5rem 0 4rem 2.5rem}
+
+/* ── HERO ── */
+.hero{margin-bottom:2.8rem}
+.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.15em;color:var(--purple);text-transform:uppercase;margin-bottom:1rem;display:flex;align-items:center;gap:.6rem}
+.eyebrow::before{content:'';display:inline-block;width:24px;height:1px;background:var(--purple)}
+h1{font-size:clamp(1.7rem,4vw,2.6rem);font-weight:700;letter-spacing:-.02em;line-height:1.15;margin-bottom:1rem}
+h1 em{font-style:normal;color:var(--purple)}
+.hero-desc{font-size:15px;color:var(--muted);max-width:620px;line-height:1.75;margin-bottom:1.4rem}
+.badge-row{display:flex;flex-wrap:wrap;gap:.5rem}
+.badge{font-family:var(--mono);font-size:10px;padding:2px 9px;border-radius:20px;border:1px solid;letter-spacing:.04em}
+.b-purple{border-color:var(--purple);color:var(--purple);background:rgba(167,139,250,.07)}
+.b-teal  {border-color:var(--teal);  color:var(--teal);  background:rgba(45,212,191,.07)}
+.b-coral {border-color:var(--coral); color:var(--coral); background:rgba(248,113,113,.07)}
+.b-amber {border-color:var(--amber); color:var(--amber); background:rgba(251,191,36,.07)}
+.b-pink  {border-color:var(--pink);  color:var(--pink);  background:rgba(244,114,182,.07)}
+
+/* ── SECTIONS ── */
+.section{margin-bottom:3rem}
+.section-num{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted2);display:block;margin-bottom:.5rem}
+h2{font-size:1.35rem;font-weight:600;margin-bottom:.9rem;padding-bottom:.7rem;border-bottom:1px solid var(--border)}
+h3{font-size:1rem;font-weight:600;margin:1.6rem 0 .7rem;color:var(--text)}
+h4{font-size:.85rem;font-weight:600;margin:1.2rem 0 .5rem;color:var(--muted);font-family:var(--mono);letter-spacing:.03em;text-transform:uppercase}
+p{margin-bottom:.9rem;color:var(--text);line-height:1.75}
+p:last-child{margin-bottom:0}
+ul.body-list{margin:.5rem 0 1rem 1.4rem}
+ul.body-list li{color:var(--muted);font-size:13.5px;line-height:1.7;margin-bottom:.3rem}
+ul.body-list li strong{color:var(--text)}
+
+/* ── CODE BLOCKS ── */
+.code-block{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:1rem 0 1.4rem}
+.code-header{display:flex;align-items:center;justify-content:space-between;padding:.55rem 1rem;background:var(--bg3);border-bottom:1px solid var(--border)}
+.code-label{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+.label-ontap {color:var(--teal)}
+.label-client{color:var(--amber)}
+.label-output{color:var(--muted)}
+.label-bad   {color:var(--coral)}
+.label-good  {color:var(--green)}
+.copy-btn{font-family:var(--mono);font-size:10px;color:var(--muted);background:none;border:1px solid var(--border);border-radius:4px;padding:2px 8px;cursor:pointer;transition:all .15s}
+.copy-btn:hover{color:var(--text);border-color:var(--muted)}
+.copy-btn.copied{color:var(--green);border-color:var(--green)}
+pre{padding:1.1rem 1.2rem;font-family:var(--mono);font-size:12.5px;line-height:1.7;overflow-x:auto;tab-size:4}
+.cm{color:var(--muted2)}
+.ck{color:var(--teal)}
+.cv{color:var(--amber)}
+.cs{color:var(--coral)}
+.cg{color:var(--green)}
+.cp{color:var(--purple)}
+.cb{color:var(--blue)}
+.co{color:var(--orange)}
+.cpk{color:var(--pink)}
+
+/* ── CALLOUTS ── */
+.callout{border-radius:10px;padding:1rem 1.1rem;margin:1.2rem 0;border:1px solid;display:flex;gap:.75rem;align-items:flex-start}
+.callout-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.callout-body{font-size:13.5px;line-height:1.65}
+.callout-body strong{display:block;font-size:11px;font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.3rem}
+.c-tip   {background:rgba(45,212,191,.06);border-color:var(--teal-d)}
+.c-tip .callout-body{color:#b2f5ea}
+.c-warn  {background:rgba(251,191,36,.06);border-color:var(--amber-d)}
+.c-warn .callout-body{color:#fde68a}
+.c-danger{background:rgba(248,113,113,.06);border-color:var(--coral-d)}
+.c-danger .callout-body{color:#fecaca}
+.c-info  {background:rgba(96,165,250,.06);border-color:var(--blue-d)}
+.c-info .callout-body{color:#bfdbfe}
+.c-purple{background:rgba(167,139,250,.06);border-color:var(--purple-d)}
+.c-purple .callout-body{color:#ddd6fe}
+
+/* ── COLLISION TYPE CARDS ── */
+.col-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:.85rem;margin:1rem 0 1.4rem}
+.col-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:1.1rem 1.2rem;border-left:3px solid}
+.col-card .cc-tag{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border-radius:3px;display:inline-block;margin-bottom:.5rem}
+.col-card h4{font-size:.95rem;font-family:var(--sans);font-weight:600;letter-spacing:0;text-transform:none;margin:0 0 .4rem}
+.col-card p{font-size:12.5px;color:var(--muted);margin:0;line-height:1.6}
+.cc-domain {border-color:var(--purple)}
+.cc-domain h4{color:var(--purple)}
+.cc-domain .cc-tag{background:rgba(167,139,250,.12);color:var(--purple)}
+.cc-deleg  {border-color:var(--amber)}
+.cc-deleg h4{color:var(--amber)}
+.cc-deleg .cc-tag{background:rgba(251,191,36,.12);color:var(--amber)}
+.cc-lock   {border-color:var(--coral)}
+.cc-lock h4{color:var(--coral)}
+.cc-lock .cc-tag{background:rgba(248,113,113,.12);color:var(--coral)}
+.cc-open   {border-color:var(--teal)}
+.cc-open h4{color:var(--teal)}
+.cc-open .cc-tag{background:rgba(45,212,191,.12);color:var(--teal)}
+.cc-seqid  {border-color:var(--orange)}
+.cc-seqid h4{color:var(--orange)}
+.cc-seqid .cc-tag{background:rgba(251,146,60,.12);color:var(--orange)}
+.cc-stale  {border-color:var(--pink)}
+.cc-stale h4{color:var(--pink)}
+.cc-stale .cc-tag{background:rgba(244,114,182,.12);color:var(--pink)}
+
+/* ── TABLES ── */
+.dtable{width:100%;border-collapse:collapse;margin:1.2rem 0;font-size:13px}
+.dtable th{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:.55rem .8rem;border-bottom:2px solid var(--border);text-align:left;background:var(--bg3)}
+.dtable td{padding:.55rem .8rem;border-bottom:1px solid var(--border);vertical-align:top;line-height:1.55}
+.dtable tr:hover td{background:var(--bg2)}
+.dtable code{font-family:var(--mono);font-size:11.5px;padding:1px 5px;background:var(--bg3);border-radius:3px;border:1px solid var(--border)}
+
+/* ── COMPARE BLOCK (side by side) ── */
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0 1.4rem}
+.compare-panel{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.compare-header{padding:.55rem 1rem;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--border)}
+.compare-header.bad {background:rgba(248,113,113,.08);color:var(--coral)}
+.compare-header.good{background:rgba(74,222,128,.08);color:var(--green)}
+.compare-body{padding:1rem;font-size:12.5px;font-family:var(--mono);color:var(--muted);line-height:1.7}
+.compare-body .hi{color:var(--coral)}
+.compare-body .ok{color:var(--green)}
+@media(max-width:600px){.compare{grid-template-columns:1fr}}
+
+/* ── DIAGRAM WRAP ── */
+.diagram-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:1.2rem;margin:1.2rem 0}
+.diagram-wrap svg{display:block;width:100%}
+
+/* ── RESOLUTION STEPS ── */
+.res-step{display:flex;gap:1rem;margin-bottom:1.2rem;align-items:flex-start}
+.res-num{width:30px;height:30px;border-radius:50%;background:var(--purple-d);border:1px solid var(--purple);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:var(--purple);flex-shrink:0;margin-top:2px}
+.res-body h4{font-size:.9rem;font-family:var(--sans);font-weight:600;text-transform:none;letter-spacing:0;color:var(--text);margin:0 0 .3rem}
+.res-body p{font-size:13px;color:var(--muted);margin:0;line-height:1.6}
+
+/* ── Q&A ── */
+.qa-list{list-style:none}
+.qa-item{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:.8rem}
+.qa-q{display:flex;justify-content:space-between;align-items:center;padding:.85rem 1.1rem;cursor:pointer;background:var(--bg2);font-size:13.5px;font-weight:500;user-select:none;transition:background .15s}
+.qa-q:hover{background:var(--bg3)}
+.qa-q .q-num{font-family:var(--mono);font-size:10px;color:var(--purple);margin-right:.6rem}
+.qa-q .chevron{color:var(--muted);font-size:12px;transition:transform .25s}
+.qa-item.open .chevron{transform:rotate(180deg)}
+.qa-a{display:none;padding:.9rem 1.1rem;background:var(--bg);font-size:13px;color:var(--muted);line-height:1.7;border-top:1px solid var(--border)}
+.qa-item.open .qa-a{display:block}
+
+/* ── ABOUT / FOOTER ── */
+.about-box{border-top:1px solid var(--border);padding:2rem 0 0;margin-top:3rem;display:flex;gap:1.2rem;align-items:flex-start}
+.about-avatar{width:44px;height:44px;border-radius:50%;background:var(--teal-d);border:2px solid var(--teal);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:16px;color:var(--teal);flex-shrink:0}
+.about-text h3{font-size:13px;font-weight:600;margin-bottom:.25rem}
+.about-text p{font-size:12.5px;color:var(--muted);line-height:1.6}
+footer{border-top:1px solid var(--border);padding:1.1rem clamp(1rem,5vw,4rem);text-align:center;font-family:var(--mono);font-size:10px;color:var(--muted2);letter-spacing:.04em}
+
+@media(max-width:768px){aside{display:none}main{padding:1.5rem 0 3rem}.layout{padding:0 1rem}}
+</style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="index.html"><span>~/</span>NetAppKBs</a>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="#s1">Concepts</a>
+    <a href="#s3">Detection</a>
+    <a href="#s5">Resolution</a>
+    <a href="https://github.com/rameshnelluri-netapp/NetAppKBs" target="_blank">GitHub ↗</a>
+  </nav>
+</header>
+
+<div class="layout">
+
+<!-- SIDEBAR TOC -->
+<aside>
+  <div class="toc-group">
+    <div class="toc-part">Part A — Concepts</div>
+    <a class="toc-link active" href="#s1">01 NFSv4 State Model</a>
+    <a class="toc-link toc-sub" href="#s1-state">Stateful vs NFSv3</a>
+    <a class="toc-link toc-sub" href="#s1-lease">Lease &amp; Grace</a>
+    <a class="toc-link" href="#s2">02 Collision Types</a>
+    <a class="toc-link toc-sub" href="#s2-domain">ID Domain Mismatch</a>
+    <a class="toc-link toc-sub" href="#s2-deleg">Delegation Conflict</a>
+    <a class="toc-link toc-sub" href="#s2-lock">Lock State Collision</a>
+    <a class="toc-link toc-sub" href="#s2-open">Open State Conflict</a>
+    <a class="toc-link toc-sub" href="#s2-seqid">Sequence ID Errors</a>
+    <a class="toc-link toc-sub" href="#s2-stale">Stale Filehandle</a>
+  </div>
+  <div class="toc-group">
+    <div class="toc-part">Part B — Detection</div>
+    <a class="toc-link" href="#s3">03 ONTAP CLI</a>
+    <a class="toc-link toc-sub" href="#s3-domain">Domain check</a>
+    <a class="toc-link toc-sub" href="#s3-locks">Lock &amp; deleg view</a>
+    <a class="toc-link toc-sub" href="#s3-trace">NFS trace</a>
+    <a class="toc-link" href="#s4">04 Client-Side</a>
+  </div>
+  <div class="toc-group">
+    <div class="toc-part">Part C — Resolution</div>
+    <a class="toc-link" href="#s5">05 Fix Domain Mismatch</a>
+    <a class="toc-link" href="#s6">06 Clear Lock State</a>
+    <a class="toc-link" href="#s7">07 Delegation Tuning</a>
+    <a class="toc-link" href="#s8">08 Prevention</a>
+    <a class="toc-link" href="#s9">09 Interview Q&amp;A</a>
+  </div>
+</aside>
+
+<main>
+
+<!-- HERO -->
+<div class="hero" id="top">
+  <div class="eyebrow">NFSv4 · Protocol State · ONTAP</div>
+  <h1>NFSv4 <em>Collision</em><br/>in NetApp Filers</h1>
+  <p class="hero-desc">
+    NFSv4 introduced a stateful protocol model — clients hold leases, delegations, and open/lock state
+    on the server. When that state conflicts between clients, or between client and server expectations,
+    a <strong>collision</strong> occurs: stale filehandles, permission denials, hung mounts, or corrupted
+    lock state. This tutorial covers every collision type, how to detect each one with ONTAP CLI,
+    and exactly how to resolve them.
+  </p>
+  <div class="badge-row">
+    <span class="badge b-purple">NFSv4.0 / 4.1 / 4.2</span>
+    <span class="badge b-teal">ONTAP 9.x</span>
+    <span class="badge b-coral">Lock State</span>
+    <span class="badge b-amber">Delegations</span>
+    <span class="badge b-pink">ID Mapping</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 01 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s1">
+  <span class="section-num">Section 01 · Foundation</span>
+  <h2>NFSv4 State Model — Why Collisions Exist</h2>
+
+  <div id="s1-state"></div>
+  <h3>NFSv4 is stateful — NFSv3 was not</h3>
+
+  <p>NFSv3 was a <strong>stateless protocol</strong>. Every RPC carried all the information needed to service it independently. The server held no per-client state — if the server rebooted, clients simply retried their operations and continued as if nothing happened. This made NFSv3 very resilient but also limited: no true locking semantics, no caching guarantees, no delegation.</p>
+
+  <p>NFSv4 is fundamentally <strong>stateful</strong>. The server tracks per-client state including open files, byte-range locks, and delegations — all tied to a time-bounded <strong>lease</strong>. This enables richer semantics: true POSIX locking, client-side caching with consistency guarantees, and cross-server referrals. But it introduces a new class of problem: <strong>state collisions</strong> — situations where two clients disagree about who owns a lock, where a client's state has expired on the server, or where identity translation produces conflicting ownership.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 640 270" role="img">
+      <title>NFSv4 stateful model — client state held on server</title>
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+
+      <!-- ONTAP server -->
+      <rect x="230" y="16" width="180" height="238" rx="12" fill="#1c2333" stroke="#30363d" stroke-width="1"/>
+      <text font-family="JetBrains Mono,monospace" font-size="10" fill="#2dd4bf" x="320" y="34" text-anchor="middle" letter-spacing="1">ONTAP NFSv4 SERVER</text>
+
+      <!-- State items inside server -->
+      <rect x="248" y="46" width="144" height="36" rx="6" fill="#161b22" stroke="#a78bfa" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#a78bfa" font-weight="600" x="320" y="60" text-anchor="middle">Client ID (SETCLIENTID)</text>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#7d8590" x="320" y="74" text-anchor="middle">Unique per client · renewed each lease</text>
+
+      <rect x="248" y="92" width="144" height="36" rx="6" fill="#161b22" stroke="#fbbf24" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#fbbf24" font-weight="600" x="320" y="106" text-anchor="middle">Open State (stateid)</text>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#7d8590" x="320" y="120" text-anchor="middle">Tracks open file handles per client</text>
+
+      <rect x="248" y="138" width="144" height="36" rx="6" fill="#161b22" stroke="#f87171" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#f87171" font-weight="600" x="320" y="152" text-anchor="middle">Lock State (lockid)</text>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#7d8590" x="320" y="166" text-anchor="middle">Byte-range locks · owner tracking</text>
+
+      <rect x="248" y="184" width="144" height="36" rx="6" fill="#161b22" stroke="#60a5fa" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#60a5fa" font-weight="600" x="320" y="198" text-anchor="middle">Delegation (deleg stateid)</text>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#7d8590" x="320" y="212" text-anchor="middle">Read/write cache rights granted</text>
+
+      <!-- Lease timer -->
+      <rect x="248" y="228" width="144" height="22" rx="4" fill="#134e4a" stroke="#2dd4bf" stroke-width="0.5"/>
+      <text font-family="JetBrains Mono,monospace" font-size="10" fill="#2dd4bf" x="320" y="243" text-anchor="middle">Lease: 30s  Grace: 45s</text>
+
+      <!-- Client A -->
+      <rect x="30" y="60" width="130" height="52" rx="8" fill="#1c2333" stroke="#484f58" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="12" fill="#e6edf3" font-weight="600" x="95" y="81" text-anchor="middle">Client A</text>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#7d8590" x="95" y="98" text-anchor="middle">Linux · holds write deleg</text>
+      <line x1="160" y1="86" x2="229" y2="86" stroke="#fbbf24" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+
+      <!-- Client B -->
+      <rect x="30" y="140" width="130" height="52" rx="8" fill="#1c2333" stroke="#484f58" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="12" fill="#e6edf3" font-weight="600" x="95" y="161" text-anchor="middle">Client B</text>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#7d8590" x="95" y="178" text-anchor="middle">Linux · wants open(RDWR)</text>
+      <line x1="160" y1="166" x2="229" y2="166" stroke="#f87171" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+
+      <!-- Collision spark -->
+      <text font-size="22" x="196" y="132">⚡</text>
+      <text font-family="JetBrains Mono,monospace" font-size="9" fill="#f87171" x="170" y="146" letter-spacing=".5">COLLISION</text>
+
+      <!-- Client C — no conflict -->
+      <rect x="480" y="100" width="130" height="52" rx="8" fill="#1c2333" stroke="#484f58" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="12" fill="#e6edf3" font-weight="600" x="545" y="121" text-anchor="middle">Client C</text>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#7d8590" x="545" y="138" text-anchor="middle">Linux · read-only · OK</text>
+      <line x1="411" y1="126" x2="479" y2="126" stroke="#4ade80" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+    </svg>
+  </div>
+
+  <div id="s1-lease"></div>
+  <h3>Lease, Grace period, and why they matter for collisions</h3>
+
+  <p>Every client that connects via NFSv4 is assigned a <strong>Client ID</strong> (via the <code>SETCLIENTID</code> / <code>EXCHANGE_ID</code> operation). All state (open files, locks, delegations) is associated with this Client ID and protected by a <strong>lease timer</strong> — 30 seconds by default in ONTAP.</p>
+
+  <p>The client must renew its lease before it expires, either via an explicit <code>RENEW</code> call or by any other NFSv4 operation. If the lease expires:</p>
+
+  <ul class="body-list">
+    <li><strong>Server perspective:</strong> the client's state is considered abandoned. The server reclaims all locks and delegations held by that Client ID.</li>
+    <li><strong>Client perspective:</strong> if it reconnects after lease expiry, all its stateids are <em>stale</em>. Any operation using an old stateid returns <code>NFS4ERR_EXPIRED</code> or <code>NFS4ERR_BAD_STATEID</code>.</li>
+  </ul>
+
+  <p>The <strong>grace period</strong> (45 seconds by default) is a window after a server restart during which clients can <em>reclaim</em> their previous state before new conflicting state is granted. If a client misses the grace period window, it cannot reclaim its locks and must start fresh — potentially colliding with another client that was granted new state on the same file during that window.</p>
+
+  <div class="callout c-purple">
+    <div class="callout-icon">🔑</div>
+    <div class="callout-body">
+      <strong>Core principle</strong>
+      Every NFSv4 collision — whether a domain mismatch, a delegation conflict, or a lock state error — ultimately comes down to one of two things: <strong>stale or conflicting state</strong> on the server, or <strong>identity translation failure</strong> between the client's numeric UID and the server's user string. Understanding these two root causes explains every symptom described in this tutorial.
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 02 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s2">
+  <span class="section-num">Section 02 · Collision Types</span>
+  <h2>The Six NFSv4 Collision Types</h2>
+
+  <div class="col-grid">
+    <div class="col-card cc-domain">
+      <span class="cc-tag">Identity</span>
+      <h4>ID Domain Mismatch</h4>
+      <p>Client and server use different NFSv4 ID mapping domains. Ownership appears as <code>nobody</code> or <code>65534</code>. Files created on the client appear owned by an unknown user on the server — and vice versa.</p>
+    </div>
+    <div class="col-card cc-deleg">
+      <span class="cc-tag">Caching</span>
+      <h4>Delegation Conflict</h4>
+      <p>Client A holds a write delegation (exclusive cache rights) while Client B attempts to open the same file for writing. Server must recall Client A's delegation — if recall fails or times out, Client B is blocked or gets <code>NFS4ERR_DELAY</code>.</p>
+    </div>
+    <div class="col-card cc-lock">
+      <span class="cc-tag">Locking</span>
+      <h4>Lock State Collision</h4>
+      <p>Two clients attempt incompatible byte-range locks on the same file region. One receives <code>NFS4ERR_LOCK_CONFLICT</code>. Also occurs after a server restart if a client tries to reclaim a lock that another client already acquired during the grace period.</p>
+    </div>
+    <div class="col-card cc-open">
+      <span class="cc-tag">Open State</span>
+      <h4>Open State Conflict</h4>
+      <p>A client holds an open stateid for a file that was deleted or renamed on the server by another client. The server returns <code>NFS4ERR_STALE</code> or <code>NFS4ERR_NOENT</code> on subsequent operations using the old stateid.</p>
+    </div>
+    <div class="col-card cc-seqid">
+      <span class="cc-tag">Sequence</span>
+      <h4>Sequence ID (seqid) Error</h4>
+      <p>NFSv4.0 uses per-owner sequence IDs to order state-changing operations. A retransmitted or out-of-order request with the wrong seqid causes <code>NFS4ERR_BAD_SEQID</code>. Common after network glitches or client-side RPC retransmission storms.</p>
+    </div>
+    <div class="col-card cc-stale">
+      <span class="cc-tag">Filehandle</span>
+      <h4>Stale Filehandle (NFS4ERR_STALE)</h4>
+      <p>A client holds a cached filehandle for a file or directory that was deleted, moved, or the volume was unmounted and remounted. The server no longer recognises the filehandle. Results in <code>Stale file handle</code> errors on the client.</p>
+    </div>
+  </div>
+
+  <!-- ─── DETAIL: ID Domain Mismatch ─── -->
+  <div id="s2-domain"></div>
+  <h3>1 — ID Domain Mismatch (the most common collision)</h3>
+
+  <p>NFSv4 does not transmit numeric UIDs in protocol messages the way NFSv3 does. Instead, it uses a <strong>string identity format</strong>: <code>username@domain</code>. When a client creates a file, it sends the owner as <code>ramesh@example.com</code>. The server translates this to a local UID using its ID mapping service (idmapd or sssd). If the domain strings do not match between client and server, translation fails and ONTAP maps the owner to the <strong>anonymous UID</strong> (default: 65534 / <code>nobody</code>).</p>
+
+  <div class="compare">
+    <div class="compare-panel">
+      <div class="compare-header bad">❌ Mismatch — collision occurs</div>
+      <div class="compare-body">
+        <span class="hi">Client /etc/idmapd.conf:</span><br/>
+        Domain = <span class="hi">localdomain</span><br/><br/>
+        <span class="hi">ONTAP SVM setting:</span><br/>
+        NFSv4 ID Domain = <span class="hi">defaultv4iddomain.com</span><br/><br/>
+        Result: owner string sent as<br/>
+        <span class="hi">ramesh@localdomain</span><br/>
+        Server cannot map → <span class="hi">nobody (65534)</span>
+      </div>
+    </div>
+    <div class="compare-panel">
+      <div class="compare-header good">✓ Match — no collision</div>
+      <div class="compare-body">
+        <span class="ok">Client /etc/idmapd.conf:</span><br/>
+        Domain = <span class="ok">example.com</span><br/><br/>
+        <span class="ok">ONTAP SVM setting:</span><br/>
+        NFSv4 ID Domain = <span class="ok">example.com</span><br/><br/>
+        Result: owner string sent as<br/>
+        <span class="ok">ramesh@example.com</span><br/>
+        Server maps → <span class="ok">UID 1001 (ramesh)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout c-warn">
+    <div class="callout-icon">⚠️</div>
+    <div class="callout-body">
+      <strong>Symptom you will see</strong>
+      All files created by NFS clients appear owned by <code>nobody</code> or <code>65534</code> when viewed from other clients or from the ONTAP CLI with <code>ls -la</code>. Existing files the client previously owned now show as owned by <code>nobody</code>. Write operations on files you own return <code>EPERM</code> even though the export policy grants rwrule.
+    </div>
+  </div>
+
+  <!-- ─── DETAIL: Delegation Conflict ─── -->
+  <div id="s2-deleg"></div>
+  <h3>2 — Delegation Conflict</h3>
+
+  <p>A <strong>delegation</strong> is a grant from the server allowing a client to cache file data and metadata locally without checking back with the server on every operation. A <strong>write delegation</strong> grants exclusive access — the client can read and write the file and cache changes, and the server guarantees no other client will open the file for writing until the delegation is recalled.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 640 260" role="img">
+      <title>Delegation conflict flow — Client B blocked while Client A holds write delegation</title>
+      <defs>
+        <marker id="arr2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+      <!-- Timeline header -->
+      <text font-family="JetBrains Mono,monospace" font-size="9" fill="#7d8590" x="320" y="14" text-anchor="middle" letter-spacing="1">DELEGATION CONFLICT TIMELINE</text>
+
+      <!-- Client A lane -->
+      <text font-family="Inter,sans-serif" font-size="11" fill="#fbbf24" font-weight="600" x="14" y="44">Client A</text>
+      <line x1="80" y1="40" x2="620" y2="40" stroke="#30363d" stroke-width="1"/>
+
+      <!-- Client A: gets delegation -->
+      <rect x="80" y="28" width="100" height="24" rx="4" fill="#221a00" stroke="#fbbf24" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#fbbf24" x="130" y="44" text-anchor="middle">OPEN + get write deleg</text>
+
+      <!-- Client A: working -->
+      <rect x="190" y="28" width="180" height="24" rx="4" fill="#1c1a00" stroke="#484f58" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#7d8590" x="280" y="44" text-anchor="middle">writing locally (no server round-trips)</text>
+
+      <!-- Recall arrow down -->
+      <line x1="372" y1="52" x2="372" y2="88" stroke="#f87171" stroke-width="1" stroke-dasharray="3 2" marker-end="url(#arr2)"/>
+      <text font-family="JetBrains Mono,monospace" font-size="9" fill="#f87171" x="378" y="72">RECALL</text>
+
+      <!-- Client A: return delegation -->
+      <rect x="372" y="28" width="110" height="24" rx="4" fill="#1a0808" stroke="#f87171" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#f87171" x="427" y="44" text-anchor="middle">flush + return delegation</text>
+
+      <!-- Client A: continues with stateid -->
+      <rect x="492" y="28" width="120" height="24" rx="4" fill="#0a1f14" stroke="#4ade80" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#4ade80" x="552" y="44" text-anchor="middle">continues via stateid</text>
+
+      <!-- ONTAP lane -->
+      <text font-family="Inter,sans-serif" font-size="11" fill="#2dd4bf" font-weight="600" x="14" y="104">ONTAP</text>
+      <line x1="80" y1="100" x2="620" y2="100" stroke="#30363d" stroke-width="1"/>
+
+      <rect x="80" y="88" width="100" height="24" rx="4" fill="#0a1f1a" stroke="#2dd4bf" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#2dd4bf" x="130" y="104" text-anchor="middle">grant write deleg → A</text>
+
+      <!-- CB open arrives -->
+      <rect x="190" y="88" width="170" height="24" rx="4" fill="#1a0a0a" stroke="#f87171" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#f87171" x="275" y="104" text-anchor="middle">OPEN from B → must recall A first</text>
+
+      <rect x="372" y="88" width="110" height="24" rx="4" fill="#0a1f1a" stroke="#2dd4bf" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#2dd4bf" x="427" y="104" text-anchor="middle">deleg returned → grant B</text>
+
+      <!-- Client B lane -->
+      <text font-family="Inter,sans-serif" font-size="11" fill="#a78bfa" font-weight="600" x="14" y="164">Client B</text>
+      <line x1="80" y1="160" x2="620" y2="160" stroke="#30363d" stroke-width="1"/>
+
+      <rect x="190" y="148" width="170" height="24" rx="4" fill="#1a0a0a" stroke="#f87171" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#f87171" x="275" y="164" text-anchor="middle">OPEN(RDWR) → NFS4ERR_DELAY ×N</text>
+
+      <rect x="372" y="148" width="240" height="24" rx="4" fill="#0a1f14" stroke="#4ade80" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#4ade80" x="492" y="164" text-anchor="middle">OPEN granted after recall completes</text>
+
+      <!-- Wait brace -->
+      <line x1="190" y1="182" x2="372" y2="182" stroke="#f87171" stroke-width="1"/>
+      <line x1="190" y1="178" x2="190" y2="186" stroke="#f87171" stroke-width="1"/>
+      <line x1="372" y1="178" x2="372" y2="186" stroke="#f87171" stroke-width="1"/>
+      <text font-family="JetBrains Mono,monospace" font-size="9" fill="#f87171" x="281" y="197" text-anchor="middle">Client B blocked (recall in progress)</text>
+
+      <!-- Notes -->
+      <text font-family="Inter,sans-serif" font-size="11" fill="#7d8590" x="80" y="230">If Client A is unreachable, recall times out after lease expiry (30s). ONTAP then forcibly revokes</text>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#7d8590" x="80" y="245">the delegation and Client A gets NFS4ERR_EXPIRED on its next operation.</text>
+    </svg>
+  </div>
+
+  <p>A delegation collision becomes a hard problem when the recall fails — typically because Client A crashed, lost network connectivity, or is overloaded and not processing callbacks. ONTAP waits up to the lease timeout before forcibly revoking the delegation. During this window, Client B is stuck with repeated <code>NFS4ERR_DELAY</code> responses.</p>
+
+  <!-- ─── DETAIL: Lock State Collision ─── -->
+  <div id="s2-lock"></div>
+  <h3>3 — Lock State Collision</h3>
+
+  <p>NFSv4 supports POSIX-style byte-range locking. A <strong>lock state collision</strong> occurs when two clients attempt to hold incompatible locks on overlapping byte ranges of the same file. Common scenarios:</p>
+
+  <ul class="body-list">
+    <li><strong>Two writers:</strong> Client A holds an exclusive write lock on bytes 0–4095. Client B requests an exclusive lock on bytes 0–8191. ONTAP returns <code>NFS4ERR_LOCK_CONFLICT</code> to Client B.</li>
+    <li><strong>Post-restart reclaim conflict:</strong> After a server restart, Client A tries to reclaim a lock it held before the restart. But Client B was granted the same lock during the grace period. Client A gets <code>NFS4ERR_RECLAIM_CONFLICT</code>.</li>
+    <li><strong>Expired lease lock reclaim:</strong> Client A's lease expired while it was disconnected. It reconnects and tries to reclaim its locks, but the server already reclaimed and reassigned them. The client gets <code>NFS4ERR_EXPIRED</code>.</li>
+  </ul>
+
+  <!-- ─── DETAIL: Open State ─── -->
+  <div id="s2-open"></div>
+  <h3>4 — Open State Conflict</h3>
+
+  <p>When a client opens a file via NFSv4, the server assigns a <strong>stateid</strong> — a 128-bit identifier binding the open to a specific client and sequence counter. Subsequent operations (reads, writes, locks) must reference a valid stateid. A collision occurs when:</p>
+
+  <ul class="body-list">
+    <li><strong>File deleted while open:</strong> Client A has the file open. Client B (or a local process on the ONTAP node) deletes the file. Client A's stateid now references a file that no longer exists — ONTAP returns <code>NFS4ERR_STALE</code> on the next operation.</li>
+    <li><strong>Volume remount / junction change:</strong> Admin changes a volume junction path while clients have open stateids against files in that volume. All existing stateids become stale.</li>
+    <li><strong>SVM failover / LIF migration:</strong> In NFSv4.0, a client's session is tied to a specific IP address. If the LIF migrates to a different IP during an HA failover, the client's existing stateids are unknown to the new network path, causing <code>NFS4ERR_STALE_CLIENTID</code>.</li>
+  </ul>
+
+  <!-- ─── DETAIL: SeqID ─── -->
+  <div id="s2-seqid"></div>
+  <h3>5 — Sequence ID (seqid) Error</h3>
+
+  <p>In NFSv4.0, every state-changing operation (OPEN, CLOSE, LOCK, LOCKU, RENAME, REMOVE) carries a <strong>sequence ID</strong> (seqid) that must increment by exactly 1 from the previous operation for the same open-owner. The server tracks the last seen seqid and rejects operations where the seqid is unexpected.</p>
+
+  <ul class="body-list">
+    <li><code>NFS4ERR_BAD_SEQID</code> — the seqid in the request does not match what the server expects. Causes the operation to be dropped entirely.</li>
+    <li><code>NFS4ERR_OLD_STATEID</code> — a stateid's embedded sequence counter is behind the server's current value. Happens when a client retransmits a stale request after the state was updated.</li>
+  </ul>
+
+  <p>NFSv4.1 eliminates per-owner seqids entirely, replacing them with per-session slot sequence numbers — one of the key reasons NFSv4.1 is preferred for enterprise ONTAP deployments.</p>
+
+  <!-- ─── DETAIL: Stale Filehandle ─── -->
+  <div id="s2-stale"></div>
+  <h3>6 — Stale Filehandle</h3>
+
+  <p>A <strong>filehandle</strong> is a server-assigned opaque identifier for a file or directory. NFSv4 clients cache filehandles. A stale filehandle occurs when the server no longer recognises a cached filehandle — the file was deleted, the volume was dismounted, or the SVM was restarted. Symptoms: applications receive <code>ESTALE</code>, mount points appear frozen, <code>ls</code> hangs or returns <code>Stale file handle</code>.</p>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 03 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s3">
+  <span class="section-num">Section 03 · CLI Detection</span>
+  <h2>ONTAP CLI — Detect Every Collision Type</h2>
+
+  <div id="s3-domain"></div>
+  <h3>Check ID domain configuration</h3>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Show current NFSv4 ID domain on SVM</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Show NFSv4 ID mapping domain configured on the SVM</span>
+<span class="ck">vserver nfs show</span> \
+  <span class="cv">-vserver</span> svm1 \
+  <span class="cv">-fields</span>  v4-id-domain
+
+<span class="cm"># Output</span>
+vserver  v4-id-domain
+-------  -------------------
+svm1     defaultv4iddomain.com   <span class="cs">← must match client idmapd.conf Domain=</span>
+
+<span class="cm"># Show full NFS config including ID domain, lease, grace timeouts</span>
+<span class="ck">vserver nfs show</span> <span class="cv">-vserver</span> svm1 <span class="cv">-instance</span> | <span class="ck">grep</span> -E "domain|lease|grace"</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Check files owned by nobody (domain collision symptom)</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Check file ownership — nobody UID 65534 indicates domain mismatch</span>
+<span class="ck">set</span> <span class="cv">-privilege</span> advanced
+<span class="ck">vserver security file-directory show</span> \
+  <span class="cv">-vserver</span>  svm1 \
+  <span class="cv">-path</span>     /vol-app01
+
+<span class="cm"># Show actual UID stored on a file from ONTAP CLI</span>
+<span class="ck">volume file show-inode</span> \
+  <span class="cv">-vserver</span> svm1 \
+  <span class="cv">-volume</span>  vol-app01 \
+  <span class="cv">-path</span>    /testfile.txt
+
+<span class="ck">set</span> <span class="cv">-privilege</span> admin</code></pre>
+  </div>
+
+  <div id="s3-locks"></div>
+  <h3>Inspect lock state, delegations, and open stateids</h3>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Show all NFSv4 locks on the cluster</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Show all active NFSv4 locks — includes lock type, owner, byte range</span>
+<span class="ck">vserver locks show</span> \
+  <span class="cv">-vserver</span>      svm1 \
+  <span class="cv">-protocol</span>     nfsv4
+
+<span class="cm"># Show locks on a specific file path</span>
+<span class="ck">vserver locks show</span> \
+  <span class="cv">-vserver</span>  svm1 \
+  <span class="cv">-path</span>     /vol-app01/dbfile.dat
+
+<span class="cm"># Show with full client detail</span>
+<span class="ck">vserver locks show</span> \
+  <span class="cv">-vserver</span>  svm1 \
+  <span class="cv">-protocol</span> nfsv4 \
+  <span class="cv">-instance</span></code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-output">Sample lock output — two clients holding conflicting lock state</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code>Vserver  Volume      Path                    Lock Type   Client IP
+-------  ----------  ----------------------  ----------  ---------------
+svm1     vol-app01   /vol-app01/dbfile.dat   <span class="cp">write-deleg</span> 10.10.10.55  <span class="cm">← Client A</span>
+svm1     vol-app01   /vol-app01/dbfile.dat   <span class="cs">byte-range</span>  10.10.10.62  <span class="cm">← Client B BLOCKED</span>
+
+Lock Conflict Details:
+  Client A (10.10.10.55): exclusive write delegation, bytes 0-EOF
+  Client B (10.10.10.62): requested write lock bytes 0-4095 → <span class="cs">NFS4ERR_LOCK_CONFLICT</span></code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Show active NFSv4 delegations</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Show all delegations currently granted to NFSv4 clients</span>
+<span class="ck">set</span> <span class="cv">-privilege</span> advanced
+
+<span class="ck">vserver nfs delegation show</span> \
+  <span class="cv">-vserver</span> svm1
+
+<span class="cm"># Output shows: client IP, file path, delegation type (read/write), stateid</span>
+
+<span class="cm"># Revoke a specific delegation (use when recall is stuck)</span>
+<span class="ck">vserver nfs delegation revoke</span> \
+  <span class="cv">-vserver</span> svm1 \
+  <span class="cv">-client</span>  10.10.10.55
+
+<span class="ck">set</span> <span class="cv">-privilege</span> admin</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Show NFSv4 client state (open files, lease info)</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Show all NFSv4 clients with active state on this SVM</span>
+<span class="ck">set</span> <span class="cv">-privilege</span> advanced
+
+<span class="ck">vserver nfs clients show</span> \
+  <span class="cv">-vserver</span> svm1
+
+<span class="cm"># Output includes: client ID, client IP, lease expiry time, open file count</span>
+
+<span class="cm"># Show a specific client's open state in detail</span>
+<span class="ck">vserver nfs clients show</span> \
+  <span class="cv">-vserver</span>   svm1 \
+  <span class="cv">-client-ip</span> 10.10.10.55 \
+  <span class="cv">-instance</span>
+
+<span class="ck">set</span> <span class="cv">-privilege</span> admin</code></pre>
+  </div>
+
+  <div id="s3-trace"></div>
+  <h3>Enable NFS operation tracing</h3>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Trace NFS operations for a specific client</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="ck">set</span> <span class="cv">-privilege</span> advanced
+
+<span class="cm"># Start a trace for a specific client IP — captures all NFSv4 ops</span>
+<span class="ck">debug nfs trace start</span> \
+  <span class="cv">-vserver</span>   svm1 \
+  <span class="cv">-client-ip</span> 10.10.10.55 \
+  <span class="cv">-trace-ops</span> open,close,lock,locku,delegreturn,renew
+
+<span class="cm"># Reproduce the error on the client, then stop the trace</span>
+<span class="ck">debug nfs trace stop</span> <span class="cv">-vserver</span> svm1
+
+<span class="cm"># View captured trace results</span>
+<span class="ck">debug nfs trace show</span> <span class="cv">-vserver</span> svm1
+
+<span class="ck">set</span> <span class="cv">-privilege</span> admin</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Check EMS events for NFSv4 collision-related messages</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Search EMS log for NFSv4 state-related events</span>
+<span class="ck">event log show</span> \
+  <span class="cv">-message-name</span> nfs.* \
+  <span class="cv">-severity</span>     ERROR,WARNING \
+  <span class="cv">-time-range</span>   "06/10/2026 00:00:00","06/11/2026 23:59:59"
+
+<span class="cm"># Specific events to look for:</span>
+<span class="cm">#   nfs.idmap.domain.mismatch    → domain collision</span>
+<span class="cm">#   nfs.deleg.recall.failed      → delegation recall failure</span>
+<span class="cm">#   nfs.lock.conflict            → lock state collision</span>
+<span class="cm">#   nfs.client.lease.expired     → client lease expiry</span>
+<span class="cm">#   nfs.stateid.bad              → stale/bad stateid</span></code></pre>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 04 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s4">
+  <span class="section-num">Section 04 · Client-Side Detection</span>
+  <h2>Client-Side Detection Commands</h2>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-client">Linux Client — Check ID mapping domain configuration</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Check current idmapd domain setting</span>
+<span class="cg">cat</span> /etc/idmapd.conf | grep Domain
+<span class="cm"># Domain = example.com   ← must match ONTAP v4-id-domain</span>
+
+<span class="cm"># Check idmapd service is running</span>
+<span class="cg">systemctl</span> status rpc-idmapd
+<span class="cg">systemctl</span> status nfs-idmapd
+
+<span class="cm"># Flush the ID mapping cache after a config change</span>
+<span class="cg">nfsidmap</span> -c
+
+<span class="cm"># Test ID mapping for a specific user</span>
+<span class="cg">nfsidmap</span> -d     <span class="cm"># show current domain</span>
+<span class="cg">id</span> ramesh        <span class="cm"># verify local UID matches expected</span></code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-client">Linux Client — Check for NFSv4 state errors in kernel log</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Check kernel messages for NFS errors</span>
+<span class="cg">dmesg</span> | grep -i "nfs\|stale\|stateid\|delegation\|lock"
+
+<span class="cm"># Common messages indicating NFSv4 collisions:</span>
+<span class="cm">#   NFS: nfs4_reclaim_open_state: unhandled error 10032</span>
+<span class="cm">#   NFS4: server ... returned error 10010 (NFS4ERR_EXPIRED)</span>
+<span class="cm">#   NFS: nfs4_handle_exception: error = -116 (ESTALE)</span>
+<span class="cm">#   nfs4_reclaim_delegation: server returned NFS4ERR_RECLAIM_CONFLICT</span>
+
+<span class="cm"># Ongoing errors — watch in real time</span>
+<span class="cg">journalctl</span> -k -f | grep -i nfs</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-client">Linux Client — Check active NFS locks and statids</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Show active NFS byte-range locks from the client side</span>
+<span class="cg">cat</span> /proc/locks | grep -i nfs
+
+<span class="cm"># Show NFS client statistics including state errors</span>
+<span class="cg">nfsstat</span> -c       <span class="cm"># client-side NFS stats</span>
+<span class="cg">nfsstat</span> -4       <span class="cm"># NFSv4-specific stats</span>
+<span class="cg">nfsstat</span> -c -4    <span class="cm"># NFSv4 client stats — look for high BAD_STATEID/EXPIRED counts</span>
+
+<span class="cm"># Mount options currently in use — verify vers=4.1 and sec= setting</span>
+<span class="cg">cat</span> /proc/mounts | grep nfs</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-client">Linux Client — Test file ownership after domain fix</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Create a test file and check ownership</span>
+<span class="cg">touch</span> /mnt/vol-app01/domain-test.txt
+<span class="cg">ls</span> -la /mnt/vol-app01/domain-test.txt
+
+<span class="cm"># BEFORE fix (domain mismatch):</span>
+<span class="cs"># -rw-r--r-- 1 nobody nobody 0 Jun 11 10:00 domain-test.txt</span>
+
+<span class="cm"># AFTER fix (domain matched):</span>
+<span class="cg"># -rw-r--r-- 1 ramesh ramesh 0 Jun 11 10:05 domain-test.txt</span>
+
+<span class="cm"># Remount to force fresh filehandle if seeing stale errors</span>
+<span class="cg">umount</span> /mnt/vol-app01
+<span class="cg">mount</span> -t nfs4 -o rw,nfsvers=4.1,sec=sys 10.10.10.20:/vol-app01 /mnt/vol-app01</span></code></pre>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 05 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s5">
+  <span class="section-num">Section 05 · Fix Domain Mismatch</span>
+  <h2>Fix 1 — Resolve ID Domain Mismatch</h2>
+
+  <div class="res-step">
+    <div class="res-num">1</div>
+    <div class="res-body">
+      <h4>Decide on your domain string</h4>
+      <p>Choose one consistent domain string — typically your DNS domain (e.g. <code>example.com</code>). It does not need to be resolvable via DNS — it just needs to be identical on every NFSv4 client and on the ONTAP SVM. Using <code>localdomain</code> on Linux and anything else on ONTAP is the most common misconfiguration.</p>
+    </div>
+  </div>
+
+  <div class="res-step">
+    <div class="res-num">2</div>
+    <div class="res-body">
+      <h4>Update ONTAP SVM domain</h4>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Set the NFSv4 ID domain</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Change the NFSv4 ID mapping domain on the SVM</span>
+<span class="ck">vserver nfs modify</span> \
+  <span class="cv">-vserver</span>      svm1 \
+  <span class="cv">-v4-id-domain</span> example.com
+
+<span class="cm"># Verify the change</span>
+<span class="ck">vserver nfs show</span> <span class="cv">-vserver</span> svm1 <span class="cv">-fields</span> v4-id-domain
+
+<span class="cm"># No restart required — takes effect immediately for new operations</span></code></pre>
+  </div>
+
+  <div class="res-step">
+    <div class="res-num">3</div>
+    <div class="res-body">
+      <h4>Update all Linux clients</h4>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-client">Linux Client — Update idmapd.conf and restart service</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Edit /etc/idmapd.conf — set Domain to match ONTAP</span>
+<span class="cg">vi</span> /etc/idmapd.conf
+
+<span class="cm"># Change or add this line in the [General] section:</span>
+Domain = example.com
+
+<span class="cm"># Restart the idmapd service</span>
+<span class="cg">systemctl</span> restart rpc-idmapd
+
+<span class="cm"># Flush the ID mapping cache</span>
+<span class="cg">nfsidmap</span> -c
+
+<span class="cm"># Remount the NFS filesystem to pick up the new mapping</span>
+<span class="cg">umount</span>  /mnt/vol-app01
+<span class="cg">mount</span>   /mnt/vol-app01
+
+<span class="cm"># Verify file ownership now shows correct user</span>
+<span class="cg">ls</span> -la /mnt/vol-app01/</code></pre>
+  </div>
+
+  <div class="callout c-info">
+    <div class="callout-icon">ℹ️</div>
+    <div class="callout-body">
+      <strong>RHEL / Rocky Linux note</strong>
+      On RHEL 8+ and Rocky Linux, the idmapd service may be replaced by <code>sssd</code> for ID mapping when the system is joined to Active Directory or an LDAP realm. In that case, set the NFSv4 domain in <code>/etc/sssd/sssd.conf</code> under <code>[domain/...]</code> as <code>ldap_idmap_range_size</code> and ensure the SVM domain matches the AD/LDAP domain.
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 06 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s6">
+  <span class="section-num">Section 06 · Clear Lock State</span>
+  <h2>Fix 2 — Clear Stuck Lock State &amp; Delegations</h2>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Break a stuck byte-range lock</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Find the lock holding up other clients</span>
+<span class="ck">vserver locks show</span> <span class="cv">-vserver</span> svm1 <span class="cv">-path</span> /vol-app01/dbfile.dat
+
+<span class="cm"># Break the lock by client IP (use only when client is confirmed dead/unreachable)</span>
+<span class="ck">set</span> <span class="cv">-privilege</span> advanced
+
+<span class="ck">vserver locks break</span> \
+  <span class="cv">-vserver</span>    svm1 \
+  <span class="cv">-volume</span>     vol-app01 \
+  <span class="cv">-path</span>       /vol-app01/dbfile.dat \
+  <span class="cv">-client-ip</span>  10.10.10.55
+
+<span class="ck">set</span> <span class="cv">-privilege</span> admin
+
+<span class="cm"># Verify lock is gone</span>
+<span class="ck">vserver locks show</span> <span class="cv">-vserver</span> svm1 <span class="cv">-path</span> /vol-app01/dbfile.dat</code></pre>
+  </div>
+
+  <div class="callout c-danger">
+    <div class="callout-icon">🚨</div>
+    <div class="callout-body">
+      <strong>Break locks with caution</strong>
+      Breaking an active lock on a live client can cause data corruption if the client is mid-write. Only break locks when you have confirmed the holding client is crashed, network-isolated, or has already given up on the file. Always check with the application owner before breaking a database file lock.
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Revoke a stuck delegation</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="ck">set</span> <span class="cv">-privilege</span> advanced
+
+<span class="cm"># List all delegations</span>
+<span class="ck">vserver nfs delegation show</span> <span class="cv">-vserver</span> svm1
+
+<span class="cm"># Revoke delegation from a specific client that is not responding to recall</span>
+<span class="ck">vserver nfs delegation revoke</span> \
+  <span class="cv">-vserver</span>   svm1 \
+  <span class="cv">-client-ip</span> 10.10.10.55
+
+<span class="cm"># Revoke all delegations on a volume (e.g. before maintenance)</span>
+<span class="ck">vserver nfs delegation revoke</span> \
+  <span class="cv">-vserver</span> svm1 \
+  <span class="cv">-volume</span>  vol-app01
+
+<span class="ck">set</span> <span class="cv">-privilege</span> admin</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Clear all NFSv4 state for a crashed client</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># When a client VM crashed and left orphan state — clear it completely</span>
+<span class="ck">set</span> <span class="cv">-privilege</span> advanced
+
+<span class="cm"># Find the client ID for the crashed client</span>
+<span class="ck">vserver nfs clients show</span> \
+  <span class="cv">-vserver</span>   svm1 \
+  <span class="cv">-client-ip</span> 10.10.10.55
+
+<span class="cm"># Delete the client state (locks + delegations + open stateids)</span>
+<span class="ck">vserver nfs clients delete</span> \
+  <span class="cv">-vserver</span>   svm1 \
+  <span class="cv">-client-ip</span> 10.10.10.55
+
+<span class="ck">set</span> <span class="cv">-privilege</span> admin</code></pre>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 07 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s7">
+  <span class="section-num">Section 07 · Delegation Tuning</span>
+  <h2>Fix 3 — Delegation Tuning to Prevent Conflicts</h2>
+
+  <p>If delegation conflicts are recurring — particularly in environments with many concurrent writers — you can tune or disable delegations on specific SVMs or volumes.</p>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Disable delegations on an SVM</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Disable read AND write delegations on the SVM</span>
+<span class="ck">vserver nfs modify</span> \
+  <span class="cv">-vserver</span>                    svm1 \
+  <span class="cv">-v4.0-read-delegation</span>       disabled \
+  <span class="cv">-v4.0-write-delegation</span>      disabled \
+  <span class="cv">-v4.1-read-delegation</span>       disabled \
+  <span class="cv">-v4.1-write-delegation</span>      disabled
+
+<span class="cm"># Disable only write delegations (keep read for performance)</span>
+<span class="ck">vserver nfs modify</span> \
+  <span class="cv">-vserver</span>               svm1 \
+  <span class="cv">-v4.1-write-delegation</span> disabled
+
+<span class="cm"># Verify</span>
+<span class="ck">vserver nfs show</span> <span class="cv">-vserver</span> svm1 \
+  <span class="cv">-fields</span> v4.0-read-delegation,v4.0-write-delegation,v4.1-read-delegation,v4.1-write-delegation</code></pre>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-ontap">ONTAP CLI — Tune lease and grace timeout</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Increase lease timeout — gives slow clients more time to renew</span>
+<span class="cm"># before their state is considered expired (default: 30s)</span>
+<span class="ck">vserver nfs modify</span> \
+  <span class="cv">-vserver</span>        svm1 \
+  <span class="cv">-v4-lease-seconds</span> 60
+
+<span class="cm"># Increase grace period — gives clients more time to reclaim</span>
+<span class="cm"># state after a server restart (default: 45s, must be &gt; lease)</span>
+<span class="ck">vserver nfs modify</span> \
+  <span class="cv">-vserver</span>         svm1 \
+  <span class="cv">-v4-grace-seconds</span> 90
+
+<span class="cm"># Show current values</span>
+<span class="ck">vserver nfs show</span> <span class="cv">-vserver</span> svm1 \
+  <span class="cv">-fields</span> v4-lease-seconds,v4-grace-seconds</code></pre>
+  </div>
+
+  <div class="callout c-warn">
+    <div class="callout-icon">⚠️</div>
+    <div class="callout-body">
+      <strong>Lease vs Grace — important relationship</strong>
+      Grace timeout must always be greater than lease timeout. If grace &lt; lease, clients whose leases have not yet expired may miss the grace window and be unable to reclaim their state after a server restart — generating <code>NFS4ERR_NO_GRACE</code> errors. ONTAP will reject the modification if you try to set grace &lt; lease.
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 08 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s8">
+  <span class="section-num">Section 08 · Prevention</span>
+  <h2>Prevention Best Practices</h2>
+
+  <table class="dtable">
+    <thead><tr><th>Best Practice</th><th>Why it prevents collisions</th><th>How to implement</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Use NFSv4.1 instead of NFSv4.0</strong></td>
+        <td>Eliminates per-owner seqid entirely. Sessions are more resilient to network interruption. Trunking support on ONTAP reduces LIF migration collision risk.</td>
+        <td>Mount with <code>nfsvers=4.1</code>. Verify with <code>cat /proc/mounts</code>.</td>
+      </tr>
+      <tr>
+        <td><strong>Set identical ID domain on all systems</strong></td>
+        <td>Prevents the most common collision — nobody ownership from domain mismatch.</td>
+        <td>Set <code>Domain=</code> in <code>/etc/idmapd.conf</code> and match <code>-v4-id-domain</code> on ONTAP.</td>
+      </tr>
+      <tr>
+        <td><strong>Disable write delegations on shared write volumes</strong></td>
+        <td>Eliminates delegation recall collisions on volumes with multiple concurrent writers.</td>
+        <td><code>vserver nfs modify -v4.1-write-delegation disabled</code></td>
+      </tr>
+      <tr>
+        <td><strong>Set grace &gt; lease timeout</strong></td>
+        <td>Ensures all clients have time to reclaim state after a server restart before new conflicting state is granted.</td>
+        <td>Set lease=60, grace=90 on SVMs with sensitive workloads.</td>
+      </tr>
+      <tr>
+        <td><strong>Monitor EMS for nfs.* events</strong></td>
+        <td>Early detection of domain mismatches, delegation recall failures, and expired leases before they cause application impact.</td>
+        <td>Configure <code>event notification</code> in ONTAP to alert on <code>nfs.*</code> severity ERROR/WARNING.</td>
+      </tr>
+      <tr>
+        <td><strong>Avoid live LIF migration with NFSv4.0 clients</strong></td>
+        <td>NFSv4.0 ties session state to a specific IP. LIF migration causes the client to see a different server and lose its stateids.</td>
+        <td>Upgrade clients to NFSv4.1 (session-based, not IP-tied) before performing LIF moves.</td>
+      </tr>
+      <tr>
+        <td><strong>Clean up stale client state proactively</strong></td>
+        <td>Crashed VMs and decommissioned hosts leave orphaned locks and delegations that block new clients.</td>
+        <td>After decommissioning a host, run <code>vserver nfs clients delete -client-ip &lt;ip&gt;</code>.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 09 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s9">
+  <span class="section-num">Section 09 · Interview Q&amp;A</span>
+  <h2>Interview &amp; Exam Questions</h2>
+
+  <ul class="qa-list">
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q01</span> What is an NFSv4 collision and why does it not occur in NFSv3?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">An NFSv4 collision is a conflict that arises because NFSv4 is a stateful protocol — the server holds per-client state including open file records (stateids), byte-range locks, and delegations tied to a lease. When two clients disagree about who owns a lock, when a client's state expires, or when identity translation fails between client UID and server user string, a collision occurs. NFSv3 is stateless — every RPC is self-contained and the server holds no per-client state. There is no lease, no delegation, and no stateid to expire or conflict. NFSv3's locking was handled by the separate NLM (Network Lock Manager) protocol which was advisory and much simpler in scope.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q02</span> All files created by Linux NFSv4 clients appear owned by "nobody". What is the cause and fix?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">This is an ID domain mismatch. NFSv4 transmits file ownership as a string in the format <code>username@domain</code>. If the domain configured in the client's <code>/etc/idmapd.conf</code> (e.g. <code>localdomain</code>) does not match the domain configured on the ONTAP SVM's <code>v4-id-domain</code> parameter (e.g. <code>defaultv4iddomain.com</code>), translation fails and ONTAP maps the owner to the anonymous UID 65534 (nobody). Fix: choose one consistent domain string, set <code>Domain=example.com</code> in <code>/etc/idmapd.conf</code> on all clients, restart rpc-idmapd, run <code>nfsidmap -c</code> to flush the cache, then set <code>vserver nfs modify -vserver svm1 -v4-id-domain example.com</code> on ONTAP.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q03</span> What is an NFSv4 delegation and how can it cause a collision?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">A delegation is a grant from the NFSv4 server giving a client the right to cache file data and metadata locally without polling the server. A write delegation grants exclusive cache rights — the server promises no other client will open the file for writing. A collision occurs when a second client tries to open the same file for writing while the first client holds a write delegation. ONTAP must first recall the delegation from Client A (via a callback to the client). If Client A is slow to respond or unreachable, Client B receives repeated NFS4ERR_DELAY responses and is blocked until the recall completes or the lease expires and ONTAP forcibly revokes the delegation.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q04</span> What is the NFSv4 grace period and what happens if a client misses it?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">The grace period is a window after a server restart (default 45 seconds on ONTAP) during which clients can reclaim their previous state — locks, opens, and delegations — before new conflicting state is granted to other clients. During the grace period, the server defers granting new state that could conflict with reclaims. If a client misses the grace period (e.g. was itself restarting or network-isolated during the grace window), it cannot reclaim its previous locks and receives NFS4ERR_RECLAIM_CONFLICT or NFS4ERR_NO_GRACE. It must then start fresh — re-opening files and re-acquiring locks from scratch — potentially finding that another client was granted conflicting state in the meantime.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q05</span> A crashed VM left orphan NFSv4 locks blocking other clients. What do you do on ONTAP?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">First confirm the client is truly dead and not just slow — check connectivity to the VM's IP. Then use the ONTAP CLI in advanced privilege mode: run <code>vserver nfs clients show -vserver svm1 -client-ip &lt;crashed-vm-ip&gt;</code> to confirm it still has active state. Then run <code>vserver nfs clients delete -vserver svm1 -client-ip &lt;crashed-vm-ip&gt;</code> to clear all orphan state (locks, delegations, open stateids) for that client. Alternatively, break individual locks with <code>vserver locks break</code>. Once the state is cleared, the blocking clients will be able to acquire their locks on the next retry.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q06</span> What is the difference between NFS4ERR_EXPIRED, NFS4ERR_BAD_STATEID, and NFS4ERR_STALE?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a"><strong>NFS4ERR_EXPIRED</strong> means the client's lease expired before it could be renewed — all state associated with that Client ID has been reclaimed by the server. The client must re-establish its Client ID and re-acquire all open/lock state from scratch. <strong>NFS4ERR_BAD_STATEID</strong> means the stateid in the request is syntactically valid but does not match any known current stateid on the server — typically because the state was reclaimed, the stateid's sequence counter is wrong, or the wrong stateid was used in a compound operation. <strong>NFS4ERR_STALE</strong> means the filehandle referenced in the request is no longer valid on the server — the file or directory was deleted, the volume was unmounted, or the SVM was restarted. The client must invalidate its cached filehandle and re-lookup the file from the root.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q07</span> Why is NFSv4.1 preferred over NFSv4.0 for enterprise ONTAP deployments?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">NFSv4.1 fixes several collision-prone weaknesses of NFSv4.0. First, it replaces per-owner sequence IDs (seqids) with per-session slot sequences — eliminating NFS4ERR_BAD_SEQID entirely and making retransmissions safe. Second, sessions in NFSv4.1 are identified by a session ID, not a client IP address — so LIF migration during an HA failover does not invalidate the client's state the way it does in NFSv4.0. Third, NFSv4.1 introduces session trunking, allowing a client to use multiple network paths in a single session for both load balancing and redundancy. Fourth, NFSv4.1 is the foundation for pNFS and for NFSv4.2 features like extended attributes and sparse file operations.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q08</span> How do you confirm which NFSv4 operation is causing a collision without a network capture?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">Use <code>debug nfs trace start -vserver svm1 -client-ip &lt;ip&gt; -trace-ops open,close,lock,locku,delegreturn,renew</code> in advanced privilege mode on ONTAP. This captures a record of every specified NFSv4 operation exchanged between the server and that client. After reproducing the error on the client, stop the trace with <code>debug nfs trace stop</code> and view the results with <code>debug nfs trace show</code>. The trace output shows the operation name, the stateid involved, and the error code returned — identifying exactly which operation collided and with what. Also check EMS with <code>event log show -message-name nfs.*</code> which logs delegation recall failures, domain mismatch events, and expired lease warnings automatically.</div>
+    </li>
+  </ul>
+</div>
+
+<!-- ABOUT -->
+<div class="about-box">
+  <div class="about-avatar">R</div>
+  <div class="about-text">
+    <h3>Ramesh Nelluri — NetApp Storage Architect</h3>
+    <p>Storage infrastructure professional specialising in NetApp ONTAP, NAS/SAN protocols, and enterprise data management. These tutorials are built from real-world lab work and production experience.</p>
+  </div>
+</div>
+
+</main>
+</div>
+
+<footer>
+  &copy; 2026 Ramesh Nelluri &nbsp;·&nbsp; NetApp KBs &nbsp;·&nbsp;
+  <a href="index.html" style="color:var(--muted2);text-decoration:none">← Back to home</a>
+</footer>
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(() => {
+    btn.textContent = 'copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+function toggleQA(el) {
+  el.closest('.qa-item').classList.toggle('open');
+}
+const sections = document.querySelectorAll('[id]');
+const links    = document.querySelectorAll('.toc-link');
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      links.forEach(l => l.classList.remove('active'));
+      const a = document.querySelector(`.toc-link[href="#${e.target.id}"]`);
+      if (a) a.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+sections.forEach(s => obs.observe(s));
+</script>
+</body>
+</html>
