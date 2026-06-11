@@ -1,0 +1,1356 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ONTAP Multi-Protocol, Storage Efficiency & Troubleshooting — Deep Dive Tutorial</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Sora:wght@300;400;600;700;800&family=Inter:wght@300;400;500;600&display=swap');
+  :root {
+    --bg-primary:#0d1117;--bg-secondary:#161b22;--bg-card:#1c2333;
+    --accent-blue:#58a6ff;--accent-green:#3fb950;--accent-orange:#f78166;
+    --accent-purple:#bc8cff;--accent-yellow:#e3b341;--accent-teal:#39d3c3;
+    --text-primary:#e6edf3;--text-secondary:#8b949e;--text-muted:#6e7681;
+    --border:#30363d;--border-bright:#484f58;--sidebar-width:290px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}html{scroll-behavior:smooth}
+  body{font-family:'Inter',sans-serif;background:var(--bg-primary);color:var(--text-primary);display:flex;min-height:100vh}
+  #reading-progress{position:fixed;top:0;left:var(--sidebar-width);right:0;height:3px;background:linear-gradient(90deg,var(--accent-teal),var(--accent-blue),var(--accent-purple));transform-origin:left;transform:scaleX(0);z-index:999;transition:transform .1s linear}
+  .sidebar{width:var(--sidebar-width);background:var(--bg-secondary);border-right:1px solid var(--border);position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:100;display:flex;flex-direction:column}
+  .sidebar-header{padding:20px 16px;border-bottom:1px solid var(--border);background:var(--bg-secondary);position:sticky;top:0;z-index:10}
+  .sidebar-logo{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+  .sidebar-logo .logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--accent-purple),var(--accent-blue));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px}
+  .sidebar-logo span{font-family:'Sora',sans-serif;font-weight:700;font-size:14px;color:var(--text-primary);letter-spacing:.5px}
+  .sidebar-subtitle{font-size:11px;color:var(--text-muted);padding-left:42px}
+  .toc-nav{padding:12px 0;flex:1}
+  .toc-section-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-muted);padding:12px 16px 6px}
+  .toc-link{display:flex;align-items:center;gap:8px;padding:7px 16px;font-size:12.5px;color:var(--text-secondary);text-decoration:none;transition:all .2s ease;border-left:2px solid transparent;line-height:1.4}
+  .toc-link:hover{background:var(--bg-card);color:var(--text-primary);border-left-color:var(--accent-purple)}
+  .toc-link.active{background:rgba(188,140,255,.1);color:var(--accent-purple);border-left-color:var(--accent-purple);font-weight:500}
+  .toc-link .toc-num{font-size:10px;font-weight:700;color:var(--text-muted);min-width:18px;font-family:'JetBrains Mono',monospace}
+  .toc-link.sub{padding-left:32px;font-size:12px}
+  .series-nav{padding:12px 16px;border-top:1px solid var(--border)}
+  .series-nav-title{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:8px}
+  .series-link{display:block;padding:5px 8px;font-size:11.5px;color:var(--text-secondary);text-decoration:none;border-radius:5px;transition:all .2s;margin-bottom:2px}
+  .series-link:hover{background:var(--bg-card);color:var(--accent-teal)}
+  .series-link.current{color:var(--accent-purple);font-weight:600}
+  .main-content{margin-left:var(--sidebar-width);flex:1;max-width:calc(100vw - var(--sidebar-width))}
+  .top-header{background:linear-gradient(135deg,#0d1117 0%,#0a0e1a 50%,#0d1117 100%);border-bottom:1px solid var(--border);padding:60px 60px 50px;position:relative;overflow:hidden}
+  .top-header::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 70% 50%,rgba(188,140,255,.07) 0%,transparent 60%),radial-gradient(ellipse at 20% 80%,rgba(88,166,255,.06) 0%,transparent 50%)}
+  .header-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(188,140,255,.12);border:1px solid rgba(188,140,255,.3);border-radius:20px;padding:4px 14px;font-size:12px;color:var(--accent-purple);font-weight:500;margin-bottom:18px;font-family:'JetBrains Mono',monospace}
+  .main-title{font-family:'Sora',sans-serif;font-size:36px;font-weight:800;line-height:1.15;margin-bottom:16px;background:linear-gradient(135deg,#e6edf3 20%,#bc8cff 55%,#58a6ff 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;position:relative}
+  .header-desc{font-size:15px;color:var(--text-secondary);line-height:1.7;max-width:700px;position:relative}
+  .header-meta{display:flex;gap:24px;flex-wrap:wrap;margin-top:20px;position:relative}
+  .meta-chip{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-secondary)}
+  .meta-chip .dot{width:8px;height:8px;border-radius:50%}
+  .prog-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;position:relative}
+  .prog-chip{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace}
+  .content-area{padding:40px 60px 80px;max-width:1020px}
+  .section{margin-bottom:64px;scroll-margin-top:30px}
+  .section-header{display:flex;align-items:flex-start;gap:16px;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+  .section-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;margin-top:2px}
+  .icon-teal{background:rgba(57,211,195,.15);border:1px solid rgba(57,211,195,.3)}
+  .icon-blue{background:rgba(88,166,255,.15);border:1px solid rgba(88,166,255,.3)}
+  .icon-green{background:rgba(63,185,80,.15);border:1px solid rgba(63,185,80,.3)}
+  .icon-orange{background:rgba(247,129,102,.15);border:1px solid rgba(247,129,102,.3)}
+  .icon-purple{background:rgba(188,140,255,.15);border:1px solid rgba(188,140,255,.3)}
+  .icon-yellow{background:rgba(227,179,65,.15);border:1px solid rgba(227,179,65,.3)}
+  .section-title-wrap h2{font-family:'Sora',sans-serif;font-size:24px;font-weight:700;color:var(--text-primary);line-height:1.2}
+  .section-title-wrap .section-num{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text-muted);font-weight:400;margin-bottom:4px}
+  .card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:20px;transition:border-color .2s}
+  .card:hover{border-color:var(--border-bright)}
+  .card-title{font-family:'Sora',sans-serif;font-weight:600;font-size:15px;color:var(--text-primary);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  p{font-size:14.5px;line-height:1.8;color:var(--text-secondary);margin-bottom:14px}
+  .callout{border-radius:10px;padding:16px 20px;margin:20px 0;display:flex;gap:14px;align-items:flex-start}
+  .callout-icon{font-size:18px;margin-top:1px;flex-shrink:0}
+  .callout-content{flex:1}
+  .callout-title{font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+  .callout-text{font-size:13.5px;line-height:1.7;color:var(--text-secondary)}
+  .callout.info{background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.25)}.callout.info .callout-title{color:var(--accent-blue)}
+  .callout.success{background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.25)}.callout.success .callout-title{color:var(--accent-green)}
+  .callout.warning{background:rgba(227,179,65,.08);border:1px solid rgba(227,179,65,.3)}.callout.warning .callout-title{color:var(--accent-yellow)}
+  .callout.danger{background:rgba(247,129,102,.08);border:1px solid rgba(247,129,102,.3)}.callout.danger .callout-title{color:var(--accent-orange)}
+  .callout.tip{background:rgba(188,140,255,.08);border:1px solid rgba(188,140,255,.25)}.callout.tip .callout-title{color:var(--accent-purple)}
+  .callout.teal{background:rgba(57,211,195,.08);border:1px solid rgba(57,211,195,.25)}.callout.teal .callout-title{color:var(--accent-teal)}
+  .code-block{background:#080c10;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:16px 0}
+  .code-header{background:var(--bg-secondary);border-bottom:1px solid var(--border);padding:8px 16px;display:flex;align-items:center;justify-content:space-between}
+  .code-lang{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;font-family:'JetBrains Mono',monospace}
+  .code-dots{display:flex;gap:5px}.code-dots span{width:10px;height:10px;border-radius:50%}
+  .dot-red{background:#ff5f56}.dot-ylw{background:#ffbd2e}.dot-grn{background:#27c93f}
+  .code-body{padding:20px;font-size:12.5px;line-height:1.85;color:#79c0ff;overflow-x:auto;white-space:pre;font-family:'JetBrains Mono',monospace}
+  .code-body .cmd{color:#3fb950}.code-body .comment{color:#6e7681;font-style:italic}
+  .code-body .param{color:#ffa657}.code-body .value{color:#a5d6ff}
+  .code-body .output{color:#8b949e}.code-body .prompt{color:#e3b341}.code-body .hl{color:#39d3c3}
+  .spec-table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px}
+  .spec-table th{background:var(--bg-secondary);color:var(--text-secondary);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.5px;padding:10px 16px;text-align:left;border-bottom:2px solid var(--border)}
+  .spec-table td{padding:11px 16px;border-bottom:1px solid var(--border);color:var(--text-secondary);vertical-align:middle}
+  .spec-table tr:hover td{background:rgba(255,255,255,.02)}
+  .badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11.5px;font-weight:600;font-family:'JetBrains Mono',monospace}
+  .badge-blue{background:rgba(88,166,255,.15);color:var(--accent-blue);border:1px solid rgba(88,166,255,.3)}
+  .badge-green{background:rgba(63,185,80,.15);color:var(--accent-green);border:1px solid rgba(63,185,80,.3)}
+  .badge-orange{background:rgba(247,129,102,.15);color:var(--accent-orange);border:1px solid rgba(247,129,102,.3)}
+  .badge-yellow{background:rgba(227,179,65,.15);color:var(--accent-yellow);border:1px solid rgba(227,179,65,.3)}
+  .badge-teal{background:rgba(57,211,195,.15);color:var(--accent-teal);border:1px solid rgba(57,211,195,.3)}
+  .badge-purple{background:rgba(188,140,255,.15);color:var(--accent-purple);border:1px solid rgba(188,140,255,.3)}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:16px 0}
+  .stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:20px;text-align:center}
+  .stat-num{font-family:'Sora',sans-serif;font-size:28px;font-weight:800;margin-bottom:4px}
+  .stat-label{font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
+  .step-list{list-style:none;margin:12px 0}
+  .step-list li{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid rgba(48,54,61,.5);font-size:13.5px;color:var(--text-secondary);line-height:1.6;align-items:flex-start}
+  .step-list li:last-child{border-bottom:none}
+  .step-num{width:22px;height:22px;border-radius:6px;background:rgba(188,140,255,.15);border:1px solid rgba(188,140,255,.3);color:var(--accent-purple);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;font-family:'JetBrains Mono',monospace}
+  .bullet-list{list-style:none;margin:10px 0}
+  .bullet-list li{padding:6px 0 6px 20px;position:relative;font-size:13.5px;color:var(--text-secondary);line-height:1.6}
+  .bullet-list li::before{content:'▸';position:absolute;left:0;color:var(--accent-purple);font-size:11px;top:8px}
+  h3{font-family:'Sora',sans-serif;font-size:17px;font-weight:600;color:var(--text-primary);margin:24px 0 12px}
+  h4{font-family:'Sora',sans-serif;font-size:14px;font-weight:600;color:var(--accent-purple);margin:18px 0 8px;text-transform:uppercase;letter-spacing:.5px}
+  .diagram-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:24px;margin:20px 0;overflow-x:auto}
+  .diagram-caption{text-align:center;font-size:12px;color:var(--text-muted);margin-top:12px;font-style:italic}
+  .mermaid{display:flex;justify-content:center}
+  .svg-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:24px;margin:20px 0;overflow:hidden}
+  .quiz-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:22px;margin-bottom:16px}
+  .quiz-q{font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:12px}
+  .quiz-a{display:none;background:rgba(188,140,255,.06);border:1px solid rgba(188,140,255,.2);border-radius:8px;padding:14px 16px;margin-top:10px;font-size:13.5px;color:var(--text-secondary);line-height:1.7}
+  .quiz-btn{background:rgba(188,140,255,.1);border:1px solid rgba(188,140,255,.3);color:var(--accent-purple);border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all .2s}
+  .quiz-btn:hover{background:rgba(188,140,255,.2)}
+  .author-card{background:linear-gradient(135deg,#161b22,#1c2333);border:1px solid var(--border);border-radius:16px;padding:32px;margin-top:40px;position:relative;overflow:hidden}
+  .author-card::before{content:'';position:absolute;top:-40px;right:-40px;width:180px;height:180px;background:radial-gradient(circle,rgba(188,140,255,.08),transparent 70%);border-radius:50%}
+  .author-avatar{font-size:48px;margin-bottom:12px}
+  .author-name{font-family:'Sora',sans-serif;font-size:22px;font-weight:700;color:var(--text-primary);margin-bottom:4px}
+  .author-title{font-size:13px;color:var(--accent-purple);margin-bottom:16px;font-family:'JetBrains Mono',monospace}
+  .author-bio{font-size:14px;color:var(--text-secondary);line-height:1.7;margin-bottom:20px}
+  .tech-badges{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
+  .tech-badge{background:rgba(188,140,255,.1);border:1px solid rgba(188,140,255,.25);color:var(--accent-purple);border-radius:20px;padding:3px 12px;font-size:12px;font-family:'JetBrains Mono',monospace}
+  .contact-link{display:inline-flex;align-items:center;gap:8px;background:rgba(188,140,255,.1);border:1px solid rgba(188,140,255,.3);color:var(--accent-purple);border-radius:8px;padding:8px 16px;font-size:13px;text-decoration:none;transition:all .2s;margin-bottom:20px}
+  .contact-link:hover{background:rgba(188,140,255,.2)}
+  .disclaimer{background:rgba(227,179,65,.06);border:1px solid rgba(227,179,65,.25);border-radius:10px;padding:16px 20px;margin-top:20px;font-size:12.5px;color:var(--text-muted);line-height:1.7}
+  @media(max-width:900px){.sidebar{transform:translateX(-100%)}.main-content{margin-left:0;max-width:100vw}.top-header{padding:30px 20px}.content-area{padding:20px}.grid-2,.grid-3{grid-template-columns:1fr}#reading-progress{left:0}}
+</style>
+</head>
+<body>
+<div id="reading-progress"></div>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🔀</div>
+      <span>ONTAP Deep Dive</span>
+    </div>
+    <div class="sidebar-subtitle">Multi-Protocol · Efficiency · Troubleshooting</div>
+  </div>
+  <div class="toc-nav">
+    <div class="toc-section-label">Multi-Protocol Access</div>
+    <a class="toc-link" href="#s1"><span class="toc-num">01</span>Multi-Protocol Overview</a>
+    <a class="toc-link sub" href="#s1"><span class="toc-num">↳</span>Security Style Selection</a>
+    <a class="toc-link sub" href="#s1"><span class="toc-num">↳</span>Unix UID / GID Concepts</a>
+    <a class="toc-link" href="#s2"><span class="toc-num">02</span>User Mapping — NTFS Volume</a>
+    <a class="toc-link sub" href="#s2"><span class="toc-num">↳</span>Unix-to-Windows Mapping</a>
+    <a class="toc-link sub" href="#s2"><span class="toc-num">↳</span>Group & Multi-User Mapping</a>
+    <a class="toc-link" href="#s3"><span class="toc-num">03</span>User Mapping — Unix Volume</a>
+    <a class="toc-link sub" href="#s3"><span class="toc-num">↳</span>Windows-to-Unix Mapping</a>
+    <div class="toc-section-label">Storage Efficiency</div>
+    <a class="toc-link" href="#s4"><span class="toc-num">04</span>Deduplication</a>
+    <a class="toc-link sub" href="#s4"><span class="toc-num">↳</span>Inline vs Post-Process</a>
+    <a class="toc-link sub" href="#s4"><span class="toc-num">↳</span>Cross-Volume Dedup</a>
+    <a class="toc-link" href="#s5"><span class="toc-num">05</span>Compression</a>
+    <a class="toc-link sub" href="#s5"><span class="toc-num">↳</span>Adaptive vs Secondary</a>
+    <a class="toc-link" href="#s6"><span class="toc-num">06</span>Compaction</a>
+    <a class="toc-link" href="#s7"><span class="toc-num">07</span>Configuring Efficiency</a>
+    <div class="toc-section-label">Management Tools</div>
+    <a class="toc-link" href="#s8"><span class="toc-num">08</span>ONTAP Tool Ecosystem</a>
+    <a class="toc-link sub" href="#s8"><span class="toc-num">↳</span>Active IQ Unified Manager</a>
+    <a class="toc-link sub" href="#s8"><span class="toc-num">↳</span>Workflow Automation (WFA)</a>
+    <a class="toc-link sub" href="#s8"><span class="toc-num">↳</span>OnCommand Insight (OCI)</a>
+    <div class="toc-section-label">Troubleshooting</div>
+    <a class="toc-link" href="#s9"><span class="toc-num">09</span>CIFS / SMB Troubleshooting</a>
+    <a class="toc-link" href="#s10"><span class="toc-num">10</span>NFS Troubleshooting</a>
+    <a class="toc-link" href="#s11"><span class="toc-num">11</span>SAN (iSCSI / FCP)</a>
+    <div class="toc-section-label">Reference</div>
+    <a class="toc-link" href="#s12"><span class="toc-num">12</span>CLI Quick Reference</a>
+    <a class="toc-link" href="#s13"><span class="toc-num">13</span>Interview Q&amp;A</a>
+    <a class="toc-link" href="#author"><span class="toc-num">★</span>About the Author</a>
+  </div>
+  <div class="series-nav">
+    <div class="series-nav-title">ONTAP Tutorial Series</div>
+    <a class="series-link" href="#">📋 Series Index</a>
+    <a class="series-link current" href="#">▶ Multi-Protocol & Efficiency</a>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<div class="main-content">
+<header class="top-header">
+  <div class="header-badge">🔀 ONTAP Tutorial · Multi-Protocol, Storage Efficiency &amp; Troubleshooting</div>
+  <h1 class="main-title">ONTAP Multi-Protocol Access,<br>Storage Efficiency &amp; Protocol Troubleshooting</h1>
+  <p class="header-desc">A hands-on technical guide covering multi-protocol volume configuration (NFS + CIFS on the same volume), Unix-to-Windows user identity mapping, storage efficiency techniques (deduplication, compression, compaction), ONTAP management tools ecosystem, and real-world protocol troubleshooting for storage engineers and architects.</p>
+  <div class="header-meta">
+    <div class="meta-chip"><span class="dot" style="background:var(--accent-purple)"></span>Multi-Protocol</div>
+    <div class="meta-chip"><span class="dot" style="background:var(--accent-teal)"></span>User Mapping</div>
+    <div class="meta-chip"><span class="dot" style="background:var(--accent-green)"></span>Storage Efficiency</div>
+    <div class="meta-chip"><span class="dot" style="background:var(--accent-orange)"></span>Troubleshooting</div>
+  </div>
+  <div class="prog-chips">
+    <span class="prog-chip">ONTAP 9.x</span>
+    <span class="prog-chip">CIFS / SMB</span>
+    <span class="prog-chip">NFS</span>
+    <span class="prog-chip">iSCSI</span>
+    <span class="prog-chip">FCP</span>
+    <span class="prog-chip">Deduplication</span>
+    <span class="prog-chip">Compression</span>
+    <span class="prog-chip">Active IQ UM</span>
+    <span class="prog-chip">WFA</span>
+  </div>
+</header>
+
+<div class="content-area">
+
+<!-- ===== SECTION 1 ===== -->
+<section class="section" id="s1">
+  <div class="section-header">
+    <div class="section-icon icon-purple">🔀</div>
+    <div class="section-title-wrap">
+      <div class="section-num">SECTION 01</div>
+      <h2>Multi-Protocol Volume Access — Concepts &amp; Design</h2>
+    </div>
+  </div>
+
+  <p>In most environments, storage volumes are dedicated to a single protocol — a CIFS share for Windows clients or an NFS export for Linux servers. However, there are use cases where both Windows and Linux clients need simultaneous access to the <strong style="color:var(--text-primary)">same volume</strong>. This is called <em>multi-protocol access</em>, and it requires careful planning around security styles, identity mapping, and permission management.</p>
+
+  <h3>When Is Multi-Protocol Access Required?</h3>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">💼 Typical Use Case</div>
+      <p style="font-size:13.5px">A development team has both Windows workstations and Linux build servers that need to share a common project directory — without maintaining two separate copies of the data.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">⚠️ Complexity Warning</div>
+      <p style="font-size:13.5px">Multi-protocol introduces cross-identity permission management. Without proper user mapping, users from one OS cannot access data created by users from the other OS.</p>
+    </div>
+  </div>
+
+  <!-- Architecture Diagram -->
+  <div class="svg-wrap">
+    <svg viewBox="0 0 820 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:820px;display:block;margin:0 auto">
+      <!-- Windows Client -->
+      <rect x="20" y="80" width="140" height="100" rx="10" fill="#1c2333" stroke="#484f58" stroke-width="1.5"/>
+      <text x="90" y="108" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="700" font-family="Sora,sans-serif">Windows</text>
+      <text x="90" y="124" text-anchor="middle" fill="#8b949e" font-size="10" font-family="JetBrains Mono,monospace">win-srv-01</text>
+      <text x="90" y="152" text-anchor="middle" fill="#58a6ff" font-size="20">🖥️</text>
+      <text x="90" y="172" text-anchor="middle" fill="#8b949e" font-size="10" font-family="JetBrains Mono,monospace">AD User: corp\jdoe</text>
+      <!-- Arrow Windows to Volume -->
+      <defs>
+        <marker id="a1" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,9 3.5,0 7" fill="#58a6ff"/></marker>
+        <marker id="a2" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,9 3.5,0 7" fill="#3fb950"/></marker>
+      </defs>
+      <line x1="160" y1="120" x2="290" y2="120" stroke="#58a6ff" stroke-width="2" marker-end="url(#a1)"/>
+      <text x="225" y="110" text-anchor="middle" fill="#58a6ff" font-size="10" font-weight="600" font-family="Sora,sans-serif">CIFS / SMB</text>
+      <!-- Central Volume -->
+      <rect x="290" y="50" width="240" height="160" rx="14" fill="#1c2333" stroke="#bc8cff" stroke-width="2"/>
+      <text x="410" y="82" text-anchor="middle" fill="#e6edf3" font-size="13" font-weight="700" font-family="Sora,sans-serif">Multi-Protocol Volume</text>
+      <text x="410" y="99" text-anchor="middle" fill="#bc8cff" font-size="10" font-family="JetBrains Mono,monospace">Security Style: NTFS or Unix</text>
+      <rect x="315" y="110" width="190" height="30" rx="6" fill="rgba(88,166,255,.12)" stroke="rgba(88,166,255,.3)" stroke-width="1"/>
+      <text x="410" y="130" text-anchor="middle" fill="#58a6ff" font-size="11" font-family="JetBrains Mono,monospace">CIFS Share: \\storage\projects</text>
+      <rect x="315" y="148" width="190" height="30" rx="6" fill="rgba(63,185,80,.12)" stroke="rgba(63,185,80,.3)" stroke-width="1"/>
+      <text x="410" y="168" text-anchor="middle" fill="#3fb950" font-size="11" font-family="JetBrains Mono,monospace">NFS Export: /vol/projects</text>
+      <text x="410" y="196" text-anchor="middle" fill="#bc8cff" font-size="10" font-family="JetBrains Mono,monospace">User Mapping: corp\jdoe ↔ uid=2001</text>
+      <!-- Arrow Volume to Linux -->
+      <line x1="530" y1="130" x2="660" y2="130" stroke="#3fb950" stroke-width="2" marker-end="url(#a2)"/>
+      <text x="595" y="120" text-anchor="middle" fill="#3fb950" font-size="10" font-weight="600" font-family="Sora,sans-serif">NFS v3 / v4</text>
+      <!-- Linux Client -->
+      <rect x="660" y="80" width="140" height="100" rx="10" fill="#1c2333" stroke="#484f58" stroke-width="1.5"/>
+      <text x="730" y="108" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="700" font-family="Sora,sans-serif">Linux Server</text>
+      <text x="730" y="124" text-anchor="middle" fill="#8b949e" font-size="10" font-family="JetBrains Mono,monospace">lnx-app-01</text>
+      <text x="730" y="152" text-anchor="middle" fill="#3fb950" font-size="20">🐧</text>
+      <text x="730" y="172" text-anchor="middle" fill="#8b949e" font-size="10" font-family="JetBrains Mono,monospace">Unix User: uid=2001</text>
+    </svg>
+    <div class="diagram-caption">Figure 1 — Multi-protocol volume architecture: a single ONTAP volume serving both Windows (CIFS) and Linux (NFS) clients simultaneously through user identity mapping</div>
+  </div>
+
+  <h3>Choosing the Right Security Style</h3>
+  <p>The security style of a volume determines <strong style="color:var(--text-primary)">from which side permissions are managed</strong>. This is one of the most important design decisions in multi-protocol deployments and should be based on client input — specifically, which team will own permission management.</p>
+
+  <table class="spec-table">
+    <thead>
+      <tr><th>Security Style</th><th>Permission Management</th><th>Best For</th><th>Limitation</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="badge badge-blue">NTFS</span></td>
+        <td>Windows side only (via ACLs)</td>
+        <td>Environments where Windows teams manage ACLs</td>
+        <td>Unix/Linux cannot modify permissions</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-green">Unix</span></td>
+        <td>Linux/Unix side only (via chmod/chown)</td>
+        <td>Environments where Linux admins own permissions</td>
+        <td>Windows ACL changes are ignored</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-yellow">Mixed</span></td>
+        <td>Determined per file by creator's protocol</td>
+        <td>Flexible but complex environments</td>
+        <td>Harder to predict/audit permissions</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout tip">
+    <div class="callout-icon">💡</div>
+    <div class="callout-content">
+      <div class="callout-title">Architect's Tip — Ask Before You Deploy</div>
+      <div class="callout-text">Before creating a multi-protocol volume, always ask the customer: <em>"Which team will be responsible for managing file permissions — Windows admins or Linux admins?"</em> The answer directly dictates your security style choice. Changing the security style post-deployment is painful and disruptive.</div>
+    </div>
+  </div>
+
+  <h3>Required Information Before Configuration</h3>
+  <p>Gather the following details from the client's Linux/Unix team before beginning any multi-protocol volume setup:</p>
+
+  <div class="card">
+    <div class="card-title">📋 Pre-Configuration Checklist</div>
+    <ul class="bullet-list">
+      <li><strong style="color:var(--text-primary)">Unix Username</strong> — The local OS-level username on the Linux host</li>
+      <li><strong style="color:var(--text-primary)">UID (User ID)</strong> — Numeric identifier for the Unix user (e.g., 2001). Obtained via <code style="color:var(--accent-teal);background:rgba(57,211,195,.08);padding:2px 6px;border-radius:4px">id &lt;username&gt;</code> on the Linux server</li>
+      <li><strong style="color:var(--text-primary)">GID (Group ID)</strong> — Numeric identifier for the primary group of the Unix user</li>
+      <li><strong style="color:var(--text-primary)">Windows AD Username</strong> — The Active Directory domain account to be mapped (e.g., corp\jdoe)</li>
+    </ul>
+  </div>
+
+  <div class="callout info">
+    <div class="callout-icon">ℹ️</div>
+    <div class="callout-content">
+      <div class="callout-title">Why UID and GID Matter</div>
+      <div class="callout-text">Unix-based operating systems identify users and groups by numeric IDs — UID and GID — rather than usernames. The name "jdoe" is human-readable, but the OS internally uses UID=2001 and GID=500 for all permission checks. ONTAP must be aware of these same numeric identifiers to correctly resolve identities during cross-protocol access.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SECTION 2 ===== -->
+<section class="section" id="s2">
+  <div class="section-header">
+    <div class="section-icon icon-blue">🗺️</div>
+    <div class="section-title-wrap">
+      <div class="section-num">SECTION 02</div>
+      <h2>User Mapping for NTFS-Style Volumes (Unix → Windows)</h2>
+    </div>
+  </div>
+
+  <p>When a volume uses NTFS security style, all permission decisions are made from the Windows perspective. To allow a Linux/Unix user to access data in this volume, ONTAP must know which Windows AD account that Unix user corresponds to. This is achieved through <strong style="color:var(--text-primary)">Unix-to-Windows name mapping</strong>.</p>
+
+  <h3>How User Mapping Works</h3>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 820 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:820px;display:block;margin:0 auto">
+      <defs>
+        <marker id="ma1" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,9 3.5,0 7" fill="#bc8cff"/></marker>
+        <marker id="ma2" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,9 3.5,0 7" fill="#e3b341"/></marker>
+      </defs>
+      <!-- Unix User Box -->
+      <rect x="20" y="60" width="160" height="80" rx="10" fill="#1c2333" stroke="#3fb950" stroke-width="1.5"/>
+      <text x="100" y="88" text-anchor="middle" fill="#3fb950" font-size="12" font-weight="700" font-family="Sora,sans-serif">Unix User</text>
+      <text x="100" y="106" text-anchor="middle" fill="#8b949e" font-size="11" font-family="JetBrains Mono,monospace">username: devuser</text>
+      <text x="100" y="122" text-anchor="middle" fill="#8b949e" font-size="11" font-family="JetBrains Mono,monospace">UID:2001 GID:500</text>
+      <!-- Arrow to Mapping Engine -->
+      <line x1="180" y1="100" x2="310" y2="100" stroke="#bc8cff" stroke-width="2" marker-end="url(#ma1)"/>
+      <!-- ONTAP Mapping Engine -->
+      <rect x="310" y="40" width="200" height="120" rx="12" fill="#1c2333" stroke="#bc8cff" stroke-width="2"/>
+      <text x="410" y="70" text-anchor="middle" fill="#bc8cff" font-size="12" font-weight="700" font-family="Sora,sans-serif">ONTAP Name Mapping</text>
+      <text x="410" y="90" text-anchor="middle" fill="#8b949e" font-size="10" font-family="JetBrains Mono,monospace">direction: unix-to-windows</text>
+      <text x="410" y="110" text-anchor="middle" fill="#e3b341" font-size="10" font-family="JetBrains Mono,monospace">pattern: devuser</text>
+      <text x="410" y="126" text-anchor="middle" fill="#e3b341" font-size="10" font-family="JetBrains Mono,monospace">replacement: corp\\jdoe</text>
+      <text x="410" y="148" text-anchor="middle" fill="#8b949e" font-size="10" font-family="Inter,sans-serif">Resolves identity transparently</text>
+      <!-- Arrow to Windows -->
+      <line x1="510" y1="100" x2="640" y2="100" stroke="#e3b341" stroke-width="2" marker-end="url(#ma2)"/>
+      <!-- Windows AD Box -->
+      <rect x="640" y="60" width="160" height="80" rx="10" fill="#1c2333" stroke="#58a6ff" stroke-width="1.5"/>
+      <text x="720" y="88" text-anchor="middle" fill="#58a6ff" font-size="12" font-weight="700" font-family="Sora,sans-serif">Windows AD User</text>
+      <text x="720" y="106" text-anchor="middle" fill="#8b949e" font-size="11" font-family="JetBrains Mono,monospace">corp\jdoe</text>
+      <text x="720" y="122" text-anchor="middle" fill="#8b949e" font-size="11" font-family="JetBrains Mono,monospace">Full Control on share</text>
+    </svg>
+    <div class="diagram-caption">Figure 2 — ONTAP transparently resolves Unix user identity to the mapped Windows AD account for NTFS volume access</div>
+  </div>
+
+  <h3>Step-by-Step: Configuring Unix-to-Windows Mapping</h3>
+  <ol class="step-list">
+    <li><span class="step-num">1</span>Create the Unix user account locally in ONTAP with the same UID/GID from the Linux server</li>
+    <li><span class="step-num">2</span>Create the multi-protocol volume with NTFS security style</li>
+    <li><span class="step-num">3</span>Create a CIFS share on the volume and set Windows-side ACL permissions</li>
+    <li><span class="step-num">4</span>Create an NFS export policy and apply it to the volume</li>
+    <li><span class="step-num">5</span>Create the Unix-to-Windows name mapping to link Unix identity to AD account</li>
+    <li><span class="step-num">6</span>Switch to the Unix user on Linux and verify access to the mounted volume</li>
+  </ol>
+
+  <!-- COMMANDS -->
+  <h4>CLI Commands — Unix User Creation on ONTAP</h4>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-lang">ONTAP CLI — vserver services</span>
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+    </div>
+    <div class="code-body"><span class="comment"># Verify existing Unix users on the SVM</span>
+<span class="cmd">vserver services unix-user show</span>
+
+<span class="comment"># Create Unix user with matching UID and GID from the Linux server</span>
+<span class="cmd">vserver services unix-user create</span> <span class="param">-vserver</span> <span class="value">svm_prod</span> <span class="param">-user</span> <span class="value">devuser</span> <span class="param">-id</span> <span class="value">2001</span> <span class="param">-primary-gid</span> <span class="value">500</span> <span class="param">-full-name</span> <span class="value">"Dev User"</span>
+
+<span class="comment"># Confirm creation</span>
+<span class="cmd">vserver services unix-user show</span></div>
+  </div>
+
+  <h4>CLI Commands — NTFS Volume + Share + Export Policy</h4>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-lang">ONTAP CLI — Volume &amp; Protocol Setup</span>
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+    </div>
+    <div class="code-body"><span class="comment"># Create an NTFS-style volume</span>
+<span class="cmd">volume create</span> <span class="param">-vserver</span> <span class="value">svm_prod</span> <span class="param">-volume</span> <span class="value">vol_shared</span> <span class="param">-size</span> <span class="value">50g</span> <span class="param">-security-style</span> <span class="value">ntfs</span> <span class="param">-junction-path</span> <span class="value">/vol_shared</span> <span class="param">-snapshot-policy</span> <span class="value">none</span>
+
+<span class="comment"># Create a CIFS share pointing to the volume</span>
+<span class="cmd">vserver cifs share create</span> <span class="param">-vserver</span> <span class="value">svm_prod</span> <span class="param">-share-name</span> <span class="value">shared_projects</span> <span class="param">-path</span> <span class="value">/vol_shared</span>
+
+<span class="comment"># Grant Windows user Full Control on the share</span>
+<span class="cmd">vserver cifs share access-control create</span> <span class="param">-vserver</span> <span class="value">svm_prod</span> <span class="param">-share</span> <span class="value">shared_projects</span> <span class="param">-user-or-group</span> <span class="value">corp\jdoe</span> <span class="param">-permission</span> <span class="value">Full_Control</span>
+
+<span class="comment"># Create NFS export policy</span>
+<span class="cmd">vserver export-policy create</span> <span class="param">-vserver</span> <span class="value">svm_prod</span> <span class="param">-policyname</span> <span class="value">shared_export_pol</span>
+
+<span class="comment"># Add export rule — allow Linux client 10.20.30.15</span>
+<span class="cmd">vserver export-policy rule create</span> <span class="param">-vserver</span> <span class="value">svm_prod</span> <span class="param">-policyname</span> <span class="value">shared_export_pol</span> <span class="param">-clientmatch</span> <span class="value">10.20.30.15</span> <span class="param">-rorule</span> <span class="value">any</span> <span class="param">-rwrule</span> <span class="value">any</span> <span class="param">-superuser</span> <span class="value">any</span> <span class="param">-protocol</span> <span class="value">nfs3</span> <span class="param">-ruleindex</span> <span class="value">1</span>
+
+<span class="comment"># Apply export policy to the volume</span>
+<span class="cmd">volume modify</span> <span class="param">-vserver</span> <span class="value">svm_prod</span> <span class="param">-volume</span> <span class="value">vol_shared</span> <span class="param">-policy</span> <span class="value">shared_export_pol</span></div>
+  </div>
+
+  <h4>CLI Commands — Create Unix-to-Windows User Mapping</h4>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-lang">ONTAP CLI — Name Mapping</span>
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+    </div>
+    <div class="code-body"><span class="comment"># Check existing name mappings</span>
+<span class="cmd">vserver name-mapping show</span>
+
+<span class="comment"># Create Unix-to-Windows mapping (pattern=Unix user, replacement=AD user)</span>
+<span class="cmd">vserver name-mapping create</span> <span class="param">-vserver</span> <span class="value">svm_prod</span> <span class="param">-direction</span> <span class="value">unix-wins</span> <span class="param">-position</span> <span class="value">1</span> <span class="param">-pattern</span> <span class="value">devuser</span> <span class="param">-replacement</span> <span class="value">corp\\jdoe</span>
+
+<span class="comment"># Add a second Unix user mapping at position 2</span>
+<span class="cmd">vserver name-mapping create</span> <span class="param">-vserver</span> <span class="value">svm_prod</span> <span class="param">-direction</span> <span class="value">unix-wins</span> <span class="param">-position</span> <span class="value">2</span> <span class="param">-pattern</span> <span class="value">builduser</span> <span class="param">-replacement</span> <span class="value">corp\\jdoe</span>
+
+<span class="comment"># Verify all mappings</span>
+<span class="cmd">vserver name-mapping show</span>
+
+<span class="comment"># On Linux — switch to Unix user and mount the volume</span>
+<span class="prompt">$</span> sudo <span class="value">devuser</span>
+<span class="prompt">$</span> mount <span class="value">10.20.30.5</span>:/vol_shared /mnt/projects
+<span class="prompt">$</span> cd /mnt/projects &amp;&amp; ls -la</div>
+  </div>
+
+  <h3>Multi-User and Group Mapping</h3>
+  <p>Instead of mapping individual users one by one, you can map multiple Unix users to a single Windows AD account, or map an entire AD group. This is common when a team needs shared access.</p>
+
+  <div class="callout warning">
+    <div class="callout-icon">⚠️</div>
+    <div class="callout-content">
+      <div class="callout-title">Critical Rule — One-to-One Direction Only</div>
+      <div class="callout-text">You <strong>can</strong> map multiple Unix users to a single Windows user. However, you <strong>cannot</strong> map a single Unix user to multiple Windows users. Doing so creates a permission conflict — ONTAP cannot determine which Windows identity (and thus which ACL set) should apply. Always maintain a many-to-one mapping direction.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SECTION 3 ===== -->
+<section class="section" id="s3">
+  <div class="section-header">
+    <div class="section-icon icon-green">🐧</div>
+    <div class="section-title-wrap">
+      <div class="section-num">SECTION 03</div>
+      <h2>User Mapping for Unix-Style Volumes (Windows → Unix)</h2>
+    </div>
+  </div>
+
+  <p>When the volume uses <strong style="color:var(--text-primary)">Unix security style</strong>, permissions are controlled from the Linux/Unix side. For a Windows user to access data in this volume through CIFS, ONTAP needs a <strong style="color:var(--text-primary)">Windows-to-Unix mapping</strong> that links the AD account to a local Unix identity on the SVM.</p>
+
+  <h3>Key Differences from NTFS-Style Mapping</h3>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">🖥️ NTFS Volume</div>
+      <ul class="bullet-list">
+        <li>Security managed from Windows</li>
+        <li>Mapping direction: <span class="badge badge-blue">unix-wins</span></li>
+        <li>Unix user → mapped to Windows AD user</li>
+        <li>Unix user gains Windows ACL permissions</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">🐧 Unix Volume</div>
+      <ul class="bullet-list">
+        <li>Security managed from Linux (chmod/chown)</li>
+        <li>Mapping direction: <span class="badge badge-green">wins-unix</span></li>
+        <li>Windows AD user → mapped to Unix user</li>
+        <li>Windows user gains Unix permissions</li>
+      </ul>
+    </div>
+  </div>
+
+  <h4>CLI Commands — Windows-to-Unix Mapping</h4>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-lang">ONTAP CLI — Unix Volume Setup &amp; Mapping</span>
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+    </div>
+    <div class="code-body"><span class="comment"># Create Unix-style volume with Unix permissions specified</span>
+<span class="cmd">volume create</span> <span class="param">-vserver</span> <span class="value">svm_prod</span> <span class="param">-volume</span> <span class="value">vol_linux</span> <span class="param">-size</span> <span class="value">100g</span> <span class="param">-security-style</span> <span class="value">unix</span> <span class="param">-junction-path</span> <span class="value">/vol_linux</span> <span class="param">-unix-permissions</span> <span class="value">0755</span> <span class="param">-user</span> <span class="value">devuser</span> <span class="param">-group</span> <span class="value">devgroup</span>
+
+<span class="comment"># Create CIFS share on Unix volume</span>
+<span class="cmd">vserver cifs share create</span> <span class="param">-vserver</span> <span class="value">svm_prod</span> <span class="param">-share-name</span> <span class="value">linux_share</span> <span class="param">-path</span> <span class="value">/vol_linux</span>
+
+<span class="comment"># Create Windows-to-Unix mapping</span>
+<span class="comment"># pattern = Windows AD user, replacement = Unix user on SVM</span>
+<span class="cmd">vserver name-mapping create</span> <span class="param">-vserver</span> <span class="value">svm_prod</span> <span class="param">-direction</span> <span class="value">wins-unix</span> <span class="param">-position</span> <span class="value">1</span> <span class="param">-pattern</span> <span class="value">corp\\jdoe</span> <span class="param">-replacement</span> <span class="value">devuser</span>
+
+<span class="comment"># Verify mapping</span>
+<span class="cmd">vserver name-mapping show</span></div>
+  </div>
+
+  <div class="callout success">
+    <div class="callout-icon">✅</div>
+    <div class="callout-content">
+      <div class="callout-title">Best Practice — Volume-Level Unix Permissions</div>
+      <div class="callout-text">When creating a Unix-style volume for multi-protocol use, always specify the <code>-unix-permissions</code>, <code>-user</code>, and <code>-group</code> parameters at volume creation time. These set the ownership at the root of the volume and determine what the mapped Windows user can do when accessing via CIFS.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SECTION 4 ===== -->
+<section class="section" id="s4">
+  <div class="section-header">
+    <div class="section-icon icon-teal">♻️</div>
+    <div class="section-title-wrap">
+      <div class="section-num">SECTION 04</div>
+      <h2>Deduplication — Eliminating Redundant Data Blocks</h2>
+    </div>
+  </div>
+
+  <p>Deduplication is the most foundational storage efficiency technique in ONTAP. It operates at the <strong style="color:var(--text-primary)">block level</strong>, scanning stored data for identical blocks and replacing duplicate copies with a single shared instance plus a lightweight pointer. This can dramatically reduce the physical storage footprint, especially for workloads with repetitive data (virtual machine disk files, backup repositories, office documents).</p>
+
+  <h3>How Deduplication Works Internally</h3>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 820 240" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:820px;display:block;margin:0 auto">
+      <!-- Before label -->
+      <text x="200" y="28" text-anchor="middle" fill="#e6edf3" font-size="13" font-weight="700" font-family="Sora,sans-serif">Before Deduplication</text>
+      <!-- Blocks before -->
+      <rect x="30" y="40" width="50" height="50" rx="6" fill="rgba(88,166,255,.2)" stroke="#58a6ff" stroke-width="1.5"/>
+      <text x="55" y="70" text-anchor="middle" fill="#58a6ff" font-size="15" font-weight="700" font-family="JetBrains Mono,monospace">A</text>
+      <rect x="90" y="40" width="50" height="50" rx="6" fill="rgba(63,185,80,.2)" stroke="#3fb950" stroke-width="1.5"/>
+      <text x="115" y="70" text-anchor="middle" fill="#3fb950" font-size="15" font-weight="700" font-family="JetBrains Mono,monospace">B</text>
+      <rect x="150" y="40" width="50" height="50" rx="6" fill="rgba(88,166,255,.2)" stroke="#58a6ff" stroke-width="1.5"/>
+      <text x="175" y="70" text-anchor="middle" fill="#58a6ff" font-size="15" font-weight="700" font-family="JetBrains Mono,monospace">A</text>
+      <rect x="210" y="40" width="50" height="50" rx="6" fill="rgba(247,129,102,.2)" stroke="#f78166" stroke-width="1.5"/>
+      <text x="235" y="70" text-anchor="middle" fill="#f78166" font-size="15" font-weight="700" font-family="JetBrains Mono,monospace">C</text>
+      <rect x="270" y="40" width="50" height="50" rx="6" fill="rgba(63,185,80,.2)" stroke="#3fb950" stroke-width="1.5"/>
+      <text x="295" y="70" text-anchor="middle" fill="#3fb950" font-size="15" font-weight="700" font-family="JetBrains Mono,monospace">B</text>
+      <rect x="330" y="40" width="50" height="50" rx="6" fill="rgba(188,140,255,.2)" stroke="#bc8cff" stroke-width="1.5"/>
+      <text x="355" y="70" text-anchor="middle" fill="#bc8cff" font-size="15" font-weight="700" font-family="JetBrains Mono,monospace">D</text>
+      <text x="200" y="115" text-anchor="middle" fill="#8b949e" font-size="11" font-family="JetBrains Mono,monospace">6 blocks × 20MB = 120MB used</text>
+      <!-- Arrow -->
+      <defs><marker id="dedup" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,9 3.5,0 7" fill="#39d3c3"/></marker></defs>
+      <line x1="430" y1="70" x2="490" y2="70" stroke="#39d3c3" stroke-width="3" marker-end="url(#dedup)"/>
+      <text x="460" y="58" text-anchor="middle" fill="#39d3c3" font-size="10" font-weight="600" font-family="Sora,sans-serif">DEDUP</text>
+      <text x="460" y="88" text-anchor="middle" fill="#39d3c3" font-size="10" font-family="JetBrains Mono,monospace">scans &amp; removes</text>
+      <!-- After label -->
+      <text x="660" y="28" text-anchor="middle" fill="#e6edf3" font-size="13" font-weight="700" font-family="Sora,sans-serif">After Deduplication</text>
+      <!-- Unique Blocks after -->
+      <rect x="510" y="40" width="50" height="50" rx="6" fill="rgba(88,166,255,.2)" stroke="#58a6ff" stroke-width="1.5"/>
+      <text x="535" y="70" text-anchor="middle" fill="#58a6ff" font-size="15" font-weight="700" font-family="JetBrains Mono,monospace">A</text>
+      <rect x="570" y="40" width="50" height="50" rx="6" fill="rgba(63,185,80,.2)" stroke="#3fb950" stroke-width="1.5"/>
+      <text x="595" y="70" text-anchor="middle" fill="#3fb950" font-size="15" font-weight="700" font-family="JetBrains Mono,monospace">B</text>
+      <rect x="630" y="40" width="50" height="50" rx="6" fill="rgba(247,129,102,.2)" stroke="#f78166" stroke-width="1.5"/>
+      <text x="655" y="70" text-anchor="middle" fill="#f78166" font-size="15" font-weight="700" font-family="JetBrains Mono,monospace">C</text>
+      <rect x="690" y="40" width="50" height="50" rx="6" fill="rgba(188,140,255,.2)" stroke="#bc8cff" stroke-width="1.5"/>
+      <text x="715" y="70" text-anchor="middle" fill="#bc8cff" font-size="15" font-weight="700" font-family="JetBrains Mono,monospace">D</text>
+      <!-- Pointers for duplicate A -->
+      <line x1="535" y1="90" x2="535" y2="130" stroke="#58a6ff" stroke-width="1" stroke-dasharray="4,2"/>
+      <rect x="490" y="130" width="90" height="30" rx="4" fill="rgba(88,166,255,.08)" stroke="rgba(88,166,255,.3)" stroke-width="1"/>
+      <text x="535" y="150" text-anchor="middle" fill="#58a6ff" font-size="9" font-family="JetBrains Mono,monospace">→ pointer (saved 20MB)</text>
+      <line x1="595" y1="90" x2="595" y2="130" stroke="#3fb950" stroke-width="1" stroke-dasharray="4,2"/>
+      <rect x="548" y="130" width="94" height="30" rx="4" fill="rgba(63,185,80,.08)" stroke="rgba(63,185,80,.3)" stroke-width="1"/>
+      <text x="595" y="150" text-anchor="middle" fill="#3fb950" font-size="9" font-family="JetBrains Mono,monospace">→ pointer (saved 20MB)</text>
+      <text x="625" y="196" text-anchor="middle" fill="#39d3c3" font-size="11" font-weight="600" font-family="Sora,sans-serif">4 blocks × 20MB = 80MB  |  Space saved: 40MB (33%)</text>
+    </svg>
+    <div class="diagram-caption">Figure 3 — Deduplication replaces duplicate blocks with shared pointers. Duplicate A and B blocks are each collapsed to a single shared copy.</div>
+  </div>
+
+  <h3>Inline vs Post-Process Deduplication</h3>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">⚡ Inline Deduplication</div>
+      <p style="font-size:13.5px">Runs <strong style="color:var(--text-primary)">during write operations</strong>. Data is scanned and deduplicated as it arrives, so duplicate blocks are never written to disk. Recommended for <span class="badge badge-teal">AFF (All-Flash)</span> systems which have the IOPS headroom to handle concurrent write + scan workloads.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">📅 Post-Process Deduplication</div>
+      <p style="font-size:13.5px">Runs <strong style="color:var(--text-primary)">as a background scheduled job</strong>. Data is written first, then scanned later. Recommended for <span class="badge badge-orange">FAS (Hybrid/HDD)</span> systems where running deduplication inline would impact write performance.</p>
+    </div>
+  </div>
+
+  <h3>Cross-Volume (Aggregate-Level) Deduplication</h3>
+  <p>Standard deduplication only scans blocks within a single volume. Cross-volume deduplication extends this to identify identical blocks <strong style="color:var(--text-primary)">across all volumes within the same aggregate</strong>, yielding significantly higher space savings in environments with multiple volumes hosting similar data (e.g., multiple VM datastores).</p>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+graph TD
+    A["🗄️ Aggregate<br/>aggr_flash_01"] --> V1["Volume: app_data_01<br/>[Block: X, Y, Z]"]
+    A --> V2["Volume: app_data_02<br/>[Block: X, W, Z]"]
+    A --> V3["Volume: app_data_03<br/>[Block: P, X, Q]"]
+    V1 --> D["🔍 Cross-Volume Dedup Engine<br/>Finds: Block X repeated 3×<br/>Block Z repeated 2×"]
+    V2 --> D
+    V3 --> D
+    D --> R["✅ Single shared copy of X and Z<br/>Pointers in all 3 volumes<br/>Massive aggregate-level savings"]
+
+    style A fill:#1c2333,stroke:#bc8cff,color:#e6edf3
+    style D fill:#1c2333,stroke:#39d3c3,color:#e6edf3
+    style R fill:#1c2333,stroke:#3fb950,color:#e6edf3
+    </div>
+    <div class="diagram-caption">Figure 4 — Cross-volume deduplication scans all volumes in an aggregate and eliminates duplicate blocks across volume boundaries</div>
+  </div>
+
+  <div class="callout info">
+    <div class="callout-icon">ℹ️</div>
+    <div class="callout-content">
+      <div class="callout-title">Cross-Volume Dedup — AFF Only</div>
+      <div class="callout-text">Cross-volume deduplication (both inline and background variants) is recommended only for AFF arrays. The additional computation required to track and compare blocks across multiple volumes simultaneously is too intensive for HDD-based FAS controllers.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SECTION 5 ===== -->
+<section class="section" id="s5">
+  <div class="section-header">
+    <div class="section-icon icon-yellow">🗜️</div>
+    <div class="section-title-wrap">
+      <div class="section-num">SECTION 05</div>
+      <h2>Compression — Reducing Block Size</h2>
+    </div>
+  </div>
+
+  <p>Compression reduces the physical size of data blocks before they are stored. Think of it as applying ZIP-level compression at the storage controller layer, transparently and automatically. When data is read back, the controller decompresses it on the fly — the application sees uncompressed data with no code changes needed.</p>
+
+  <h3>Two Compression Types in ONTAP</h3>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">🚀 Adaptive Compression</div>
+      <ul class="bullet-list">
+        <li>Default for <span class="badge badge-teal">AFF systems</span></li>
+        <li>Optimized for performance — minimal latency impact</li>
+        <li>Achieves moderate compression ratios</li>
+        <li>Works well with random I/O workloads</li>
+        <li>Can be run inline or post-process</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">📦 Secondary Compression</div>
+      <ul class="bullet-list">
+        <li>Default for <span class="badge badge-orange">FAS systems</span></li>
+        <li>Higher compression ratios than adaptive</li>
+        <li>More CPU-intensive — better suited to sequential I/O</li>
+        <li>Typically run as post-process (background)</li>
+        <li>Can be enabled on AFF but not recommended</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout warning">
+    <div class="callout-icon">⚠️</div>
+    <div class="callout-content">
+      <div class="callout-title">Changing Compression Type Is Disruptive</div>
+      <div class="callout-text">Switching from secondary compression to adaptive compression on a volume that already has data requires: (1) uncompressing all existing data, (2) disabling compression, (3) changing the type, and (4) re-running compression from scratch. This operation is I/O intensive and should be planned during a maintenance window. Plan your compression type correctly from the start.</div>
+    </div>
+  </div>
+
+  <h3>Inline vs Post-Process Compression</h3>
+  <p>Like deduplication, compression can be run either inline (during writes) or as a scheduled background process. The same performance trade-off applies: AFF systems are suited for inline, while FAS systems should use post-process to avoid impacting production workloads.</p>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart LR
+    A["📥 Incoming<br/>Data Block<br/>(4KB)"] --> B{Controller<br/>Type?}
+    B -->|"AFF"| C["⚡ Inline Compression<br/>(Adaptive)<br/>During Write"]
+    B -->|"FAS"| D["📅 Post-Process<br/>(Secondary)<br/>Background Schedule"]
+    C --> E["💾 Compressed Block<br/>Written to Flash<br/>~2KB saved"]
+    D --> F["💾 Full Block Written<br/>First, Then Compressed<br/>Later by Scheduler"]
+    E --> G["📊 Space Savings<br/>Visible Immediately"]
+    F --> G
+
+    style A fill:#1c2333,stroke:#bc8cff,color:#e6edf3
+    style B fill:#1c2333,stroke:#e3b341,color:#e6edf3
+    style C fill:#1c2333,stroke:#39d3c3,color:#e6edf3
+    style D fill:#1c2333,stroke:#f78166,color:#e6edf3
+    style G fill:#1c2333,stroke:#3fb950,color:#e6edf3
+    </div>
+    <div class="diagram-caption">Figure 5 — Compression path decision based on array type. AFF uses inline adaptive compression; FAS uses scheduled post-process secondary compression.</div>
+  </div>
+</section>
+
+<!-- ===== SECTION 6 ===== -->
+<section class="section" id="s6">
+  <div class="section-header">
+    <div class="section-icon icon-orange">📦</div>
+    <div class="section-title-wrap">
+      <div class="section-num">SECTION 06</div>
+      <h2>Compaction — Eliminating Wasted Block Space</h2>
+    </div>
+  </div>
+
+  <p>Even after deduplication and compression, there can be wasted space within blocks due to partially-filled 4KB block allocations. Compaction is a background process that addresses this inefficiency by identifying and merging partial blocks.</p>
+
+  <h3>The Problem: Partial Block Waste</h3>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 820 210" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:820px;display:block;margin:0 auto">
+      <text x="200" y="22" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="700" font-family="Sora,sans-serif">Before Compaction</text>
+      <!-- Block 1: 4KB full -->
+      <rect x="20" y="35" width="60" height="140" rx="6" fill="rgba(88,166,255,.2)" stroke="#58a6ff" stroke-width="1.5"/>
+      <text x="50" y="60" text-anchor="middle" fill="#8b949e" font-size="9" font-family="JetBrains Mono,monospace">4KB</text>
+      <rect x="24" y="65" width="52" height="104" rx="3" fill="rgba(88,166,255,.4)"/>
+      <text x="50" y="122" text-anchor="middle" fill="#58a6ff" font-size="10" font-family="JetBrains Mono,monospace">File A</text>
+      <text x="50" y="185" text-anchor="middle" fill="#3fb950" font-size="9" font-family="JetBrains Mono,monospace">FULL</text>
+      <!-- Block 2: partial (2KB used) -->
+      <rect x="90" y="35" width="60" height="140" rx="6" fill="rgba(247,129,102,.15)" stroke="#f78166" stroke-width="1.5"/>
+      <text x="120" y="60" text-anchor="middle" fill="#8b949e" font-size="9" font-family="JetBrains Mono,monospace">4KB</text>
+      <rect x="94" y="105" width="52" height="64" rx="3" fill="rgba(247,129,102,.4)"/>
+      <text x="120" y="137" text-anchor="middle" fill="#f78166" font-size="9" font-family="JetBrains Mono,monospace">File A</text>
+      <text x="120" y="153" text-anchor="middle" fill="#f78166" font-size="9" font-family="JetBrains Mono,monospace">2KB</text>
+      <text x="120" y="185" text-anchor="middle" fill="#f78166" font-size="9" font-family="JetBrains Mono,monospace">2KB waste</text>
+      <!-- Block 3: partial (1KB used) -->
+      <rect x="160" y="35" width="60" height="140" rx="6" fill="rgba(227,179,65,.15)" stroke="#e3b341" stroke-width="1.5"/>
+      <text x="190" y="60" text-anchor="middle" fill="#8b949e" font-size="9" font-family="JetBrains Mono,monospace">4KB</text>
+      <rect x="164" y="140" width="52" height="29" rx="3" fill="rgba(227,179,65,.4)"/>
+      <text x="190" y="158" text-anchor="middle" fill="#e3b341" font-size="9" font-family="JetBrains Mono,monospace">1KB</text>
+      <text x="190" y="185" text-anchor="middle" fill="#e3b341" font-size="9" font-family="JetBrains Mono,monospace">3KB waste</text>
+      <!-- Arrow Compaction -->
+      <defs><marker id="comp" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0,9 3.5,0 7" fill="#39d3c3"/></marker></defs>
+      <line x1="295" y1="105" x2="355" y2="105" stroke="#39d3c3" stroke-width="3" marker-end="url(#comp)"/>
+      <text x="325" y="90" text-anchor="middle" fill="#39d3c3" font-size="10" font-weight="600" font-family="Sora,sans-serif">COMPACTION</text>
+      <text x="325" y="122" text-anchor="middle" fill="#39d3c3" font-size="9" font-family="JetBrains Mono,monospace">merges partials</text>
+      <text x="550" y="22" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="700" font-family="Sora,sans-serif">After Compaction</text>
+      <!-- Block 1: still full -->
+      <rect x="380" y="35" width="60" height="140" rx="6" fill="rgba(88,166,255,.2)" stroke="#58a6ff" stroke-width="1.5"/>
+      <rect x="384" y="65" width="52" height="104" rx="3" fill="rgba(88,166,255,.4)"/>
+      <text x="410" y="122" text-anchor="middle" fill="#58a6ff" font-size="10" font-family="JetBrains Mono,monospace">File A</text>
+      <text x="410" y="185" text-anchor="middle" fill="#3fb950" font-size="9" font-family="JetBrains Mono,monospace">FULL</text>
+      <!-- Block 2: merged partials -->
+      <rect x="450" y="35" width="60" height="140" rx="6" fill="rgba(63,185,80,.2)" stroke="#3fb950" stroke-width="1.5"/>
+      <rect x="454" y="105" width="52" height="64" rx="3" fill="rgba(247,129,102,.4)"/>
+      <text x="480" y="137" text-anchor="middle" fill="#f78166" font-size="9" font-family="JetBrains Mono,monospace">2KB</text>
+      <rect x="454" y="140" width="52" height="29" rx="3" fill="rgba(227,179,65,.4)"/>
+      <text x="480" y="158" text-anchor="middle" fill="#e3b341" font-size="9" font-family="JetBrains Mono,monospace">1KB</text>
+      <text x="480" y="185" text-anchor="middle" fill="#3fb950" font-size="9" font-family="JetBrains Mono,monospace">1 block freed</text>
+    </svg>
+    <div class="diagram-caption">Figure 6 — Compaction merges two partial blocks (File A tail + small file) into a single block, freeing one entire 4KB block</div>
+  </div>
+
+  <div class="callout teal">
+    <div class="callout-icon">🔧</div>
+    <div class="callout-content">
+      <div class="callout-title">Compaction Is Always a Background Process</div>
+      <div class="callout-text">Unlike deduplication and compression, compaction does not have an inline mode. It always runs as a background scan. ONTAP introduced compaction starting around version 9.3 to address the growing problem of partial block waste in environments storing large numbers of small files.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📊 Efficiency Techniques at a Glance</div>
+    <table class="spec-table">
+      <thead>
+        <tr><th>Technique</th><th>What It Targets</th><th>Run Mode</th><th>AFF Default</th><th>FAS Default</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="badge badge-blue">Deduplication</span></td><td>Identical data blocks</td><td>Inline or Post-Process</td><td>Inline</td><td>Post-Process</td></tr>
+        <tr><td><span class="badge badge-yellow">Compression</span></td><td>Large compressible blocks</td><td>Inline or Post-Process</td><td>Inline (Adaptive)</td><td>Post-Process (Secondary)</td></tr>
+        <tr><td><span class="badge badge-orange">Compaction</span></td><td>Partially filled 4KB blocks</td><td>Background only</td><td>Enabled</td><td>Manual enable</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ===== SECTION 7 ===== -->
+<section class="section" id="s7">
+  <div class="section-header">
+    <div class="section-icon icon-teal">⚙️</div>
+    <div class="section-title-wrap">
+      <div class="section-num">SECTION 07</div>
+      <h2>Configuring Storage Efficiency on ONTAP Volumes</h2>
+    </div>
+  </div>
+
+  <p>ONTAP provides granular control over which efficiency features are enabled on each volume, when they run, and how they run. The settings can be applied via direct CLI parameters or through reusable efficiency policies.</p>
+
+  <div class="callout danger">
+    <div class="callout-icon">🔴</div>
+    <div class="callout-content">
+      <div class="callout-title">Dependency Order — Deduplication Is Required First</div>
+      <div class="callout-text">Compression and compaction <strong>cannot be enabled</strong> unless deduplication is also enabled. Deduplication is the prerequisite for all other efficiency techniques. However, you can enable deduplication alone without compression or compaction.</div>
+    </div>
+  </div>
+
+  <h3>Execution Order When All Three Are Enabled</h3>
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart LR
+    W["💾 Data Written<br/>to Volume"] --> C["Step 1️⃣<br/>Compression<br/>Reduce block size"]
+    C --> P["Step 2️⃣<br/>Compaction<br/>Merge partial blocks"]
+    P --> D["Step 3️⃣<br/>Deduplication<br/>Eliminate duplicate blocks"]
+    D --> S["📊 Final Space<br/>Savings Achieved"]
+
+    style W fill:#1c2333,stroke:#8b949e,color:#e6edf3
+    style C fill:#1c2333,stroke:#e3b341,color:#e6edf3
+    style P fill:#1c2333,stroke:#f78166,color:#e6edf3
+    style D fill:#1c2333,stroke:#39d3c3,color:#e6edf3
+    style S fill:#1c2333,stroke:#3fb950,color:#e6edf3
+    </div>
+    <div class="diagram-caption">Figure 7 — ONTAP runs efficiency operations in a specific order: Compression → Compaction → Deduplication. Deduplication runs last because deduplicated blocks cannot be further compressed.</div>
+  </div>
+
+  <h4>CLI Commands — Enable and Configure Efficiency</h4>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-lang">ONTAP CLI — Storage Efficiency</span>
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+    </div>
+    <div class="code-body"><span class="comment"># Check current efficiency status on all volumes</span>
+<span class="cmd">volume efficiency show</span>
+
+<span class="comment"># Enable efficiency on a specific volume</span>
+<span class="cmd">volume efficiency on</span> <span class="param">-vserver</span> <span class="value">svm_prod</span> <span class="param">-volume</span> <span class="value">vol_data</span>
+
+<span class="comment"># Configure efficiency — inline dedup + inline compression + compaction</span>
+<span class="cmd">volume efficiency modify</span> <span class="param">-vserver</span> <span class="value">svm_prod</span> <span class="param">-volume</span> <span class="value">vol_data</span> <span class="param">-inline-deduplication</span> <span class="value">true</span> <span class="param">-compression</span> <span class="value">true</span> <span class="param">-inline-compression</span> <span class="value">true</span> <span class="param">-data-compaction</span> <span class="value">true</span> <span class="param">-schedule</span> <span class="value">daily</span>
+
+<span class="comment"># Set compression type (advanced privilege required)</span>
+<span class="prompt">::></span> <span class="cmd">set advanced</span>
+<span class="cmd">volume efficiency modify</span> <span class="param">-vserver</span> <span class="value">svm_prod</span> <span class="param">-volume</span> <span class="value">vol_data</span> <span class="param">-compression-type</span> <span class="value">adaptive</span>
+
+<span class="comment"># Check space savings from efficiency</span>
+<span class="cmd">volume show</span> <span class="param">-fields</span> <span class="value">dedup-space-saved,dedup-space-saved-percent,compression-space-saved,compression-space-saved-percent</span>
+
+<span class="comment"># Run efficiency scan on existing (old) data manually</span>
+<span class="cmd">volume efficiency start</span> <span class="param">-vserver</span> <span class="value">svm_prod</span> <span class="param">-volume</span> <span class="value">vol_data</span> <span class="param">-scan-old-data</span> <span class="value">true</span> <span class="param">-deduplicate</span> <span class="value">true</span> <span class="param">-compression</span> <span class="value">true</span></div>
+  </div>
+
+  <h3>Creating Efficiency Policies</h3>
+  <p>Instead of configuring efficiency options per-volume, you can create reusable efficiency <em>policies</em> and apply them across multiple volumes. Policies can be schedule-based (run at a fixed time) or threshold-based (run when volume utilization reaches a defined level).</p>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-lang">ONTAP CLI — Efficiency Policy</span>
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+    </div>
+    <div class="code-body"><span class="comment"># View existing efficiency policies</span>
+<span class="cmd">volume efficiency policy show</span>
+
+<span class="comment"># Create a schedule-based efficiency policy</span>
+<span class="cmd">volume efficiency policy create</span> <span class="param">-vserver</span> <span class="value">svm_prod</span> <span class="param">-policy</span> <span class="value">eff_nightly</span> <span class="param">-type</span> <span class="value">scheduled</span> <span class="param">-schedule</span> <span class="value">daily</span> <span class="param">-duration</span> <span class="value">6</span> <span class="param">-enabled</span> <span class="value">true</span>
+
+<span class="comment"># Create a threshold-based policy (triggers at 80% volume fill)</span>
+<span class="cmd">volume efficiency policy create</span> <span class="param">-vserver</span> <span class="value">svm_prod</span> <span class="param">-policy</span> <span class="value">eff_threshold80</span> <span class="param">-type</span> <span class="value">threshold</span> <span class="param">-start-threshold-percent</span> <span class="value">80</span> <span class="param">-enabled</span> <span class="value">true</span>
+
+<span class="comment"># Apply policy to a volume</span>
+<span class="cmd">volume efficiency modify</span> <span class="param">-vserver</span> <span class="value">svm_prod</span> <span class="param">-volume</span> <span class="value">vol_data</span> <span class="param">-policy</span> <span class="value">eff_nightly</span></div>
+  </div>
+
+  <div class="callout success">
+    <div class="callout-icon">✅</div>
+    <div class="callout-content">
+      <div class="callout-title">Best Practice — Run Efficiency During Off-Business Hours</div>
+      <div class="callout-text">Post-process efficiency operations — especially on FAS arrays — can consume significant CPU and I/O. Always schedule them during non-business hours (e.g., 11 PM to 5 AM). Set a <code>-duration</code> limit to ensure the job stops before business hours resume, regardless of whether it has completed. Any unprocessed data will be picked up in the next run.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SECTION 8 ===== -->
+<section class="section" id="s8">
+  <div class="section-header">
+    <div class="section-icon icon-blue">🛠️</div>
+    <div class="section-title-wrap">
+      <div class="section-num">SECTION 08</div>
+      <h2>ONTAP Management Tools Ecosystem</h2>
+    </div>
+  </div>
+
+  <p>NetApp provides a suite of management and monitoring tools designed for different operational roles — from day-to-day cluster administration to datacenter-wide infrastructure visibility. Understanding which tool to use for which task is essential for efficient operations.</p>
+
+  <div class="svg-wrap">
+    <svg viewBox="0 0 820 280" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:820px;display:block;margin:0 auto">
+      <!-- System Manager -->
+      <rect x="20" y="30" width="170" height="100" rx="10" fill="#1c2333" stroke="#58a6ff" stroke-width="1.5"/>
+      <text x="105" y="58" text-anchor="middle" fill="#58a6ff" font-size="13" font-weight="700" font-family="Sora,sans-serif">System Manager</text>
+      <text x="105" y="76" text-anchor="middle" fill="#8b949e" font-size="10" font-family="Inter,sans-serif">GUI Cluster Management</text>
+      <text x="105" y="92" text-anchor="middle" fill="#8b949e" font-size="10" font-family="Inter,sans-serif">~90% of CLI tasks via UI</text>
+      <text x="105" y="108" text-anchor="middle" fill="#58a6ff" font-size="10" font-family="JetBrains Mono,monospace">Single Cluster</text>
+      <!-- Active IQ UM -->
+      <rect x="210" y="30" width="170" height="100" rx="10" fill="#1c2333" stroke="#39d3c3" stroke-width="1.5"/>
+      <text x="295" y="55" text-anchor="middle" fill="#39d3c3" font-size="12" font-weight="700" font-family="Sora,sans-serif">Active IQ</text>
+      <text x="295" y="71" text-anchor="middle" fill="#39d3c3" font-size="12" font-weight="700" font-family="Sora,sans-serif">Unified Manager</text>
+      <text x="295" y="89" text-anchor="middle" fill="#8b949e" font-size="10" font-family="Inter,sans-serif">Monitor all clusters</text>
+      <text x="295" y="105" text-anchor="middle" fill="#8b949e" font-size="10" font-family="Inter,sans-serif">Alerts, Reports, Performance</text>
+      <!-- WFA -->
+      <rect x="400" y="30" width="170" height="100" rx="10" fill="#1c2333" stroke="#bc8cff" stroke-width="1.5"/>
+      <text x="485" y="58" text-anchor="middle" fill="#bc8cff" font-size="13" font-weight="700" font-family="Sora,sans-serif">WFA</text>
+      <text x="485" y="74" text-anchor="middle" fill="#8b949e" font-size="10" font-family="Inter,sans-serif">Workflow Automation</text>
+      <text x="485" y="90" text-anchor="middle" fill="#8b949e" font-size="10" font-family="Inter,sans-serif">Automate provisioning</text>
+      <text x="485" y="106" text-anchor="middle" fill="#8b949e" font-size:10" font-family="Inter,sans-serif">Reduce human error</text>
+      <!-- OCI -->
+      <rect x="590" y="30" width="200" height="100" rx="10" fill="#1c2333" stroke="#f78166" stroke-width="1.5"/>
+      <text x="690" y="55" text-anchor="middle" fill="#f78166" font-size="12" font-weight="700" font-family="Sora,sans-serif">OnCommand Insight</text>
+      <text x="690" y="71" text-anchor="middle" fill="#f78166" font-size="12" font-weight="700" font-family="Sora,sans-serif">(OCI)</text>
+      <text x="690" y="89" text-anchor="middle" fill="#8b949e" font-size="10" font-family="Inter,sans-serif">Datacenter-wide visibility</text>
+      <text x="690" y="105" text-anchor="middle" fill="#8b949e" font-size="10" font-family="Inter,sans-serif">EMC, HP, Pure, IBM + NetApp</text>
+      <!-- Bottom labels -->
+      <text x="105" y="160" text-anchor="middle" fill="#8b949e" font-size="10" font-family="JetBrains Mono,monospace">Scope: 1 Cluster</text>
+      <text x="295" y="160" text-anchor="middle" fill="#8b949e" font-size="10" font-family="JetBrains Mono,monospace">Scope: All Clusters</text>
+      <text x="485" y="160" text-anchor="middle" fill="#8b949e" font-size="10" font-family="JetBrains Mono,monospace">Scope: Workflows</text>
+      <text x="690" y="160" text-anchor="middle" fill="#8b949e" font-size="10" font-family="JetBrains Mono,monospace">Scope: Entire DC</text>
+      <!-- Use case row -->
+      <text x="410" y="210" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="600" font-family="Sora,sans-serif">Broader the scope → more integration complexity required</text>
+    </svg>
+    <div class="diagram-caption">Figure 8 — ONTAP management tool ecosystem, from single-cluster GUI administration to full datacenter infrastructure monitoring</div>
+  </div>
+
+  <h3>Active IQ Unified Manager (AIQUM)</h3>
+  <p>Previously known as OnCommand Unified Manager, Active IQ Unified Manager is the central monitoring platform for multi-cluster ONTAP environments. It consolidates health, performance, and capacity data across all registered clusters into a single pane of glass.</p>
+
+  <div class="card">
+    <div class="card-title">📊 AIQUM Capabilities</div>
+    <div class="grid-2">
+      <ul class="bullet-list">
+        <li>Centralized dashboard for all cluster health</li>
+        <li>Event management — volume fill, hardware failures</li>
+        <li>Performance monitoring — latency, IOPS, throughput</li>
+        <li>Report generation (CSV, PDF, Excel)</li>
+      </ul>
+      <ul class="bullet-list">
+        <li>Volume explorer — browse files without node shell</li>
+        <li>Workload analysis and QoS visibility</li>
+        <li>vCenter integration for VM monitoring</li>
+        <li>Storage provisioning via integrated workflows</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <div class="callout-icon">📌</div>
+    <div class="callout-content">
+      <div class="callout-title">Tool Name History</div>
+      <div class="callout-text">Before version 9.5 of Active IQ UM, this tool was called <strong>OnCommand Unified Manager</strong>. It was also previously split into two separate products — OnCommand Manager (health) and OnCommand Performance Manager — which were merged into a single Unified Manager starting with version 7.2.</div>
+    </div>
+  </div>
+
+  <h3>Workflow Automation (WFA)</h3>
+  <p>WFA is a workflow engine that allows storage teams to define multi-step provisioning procedures once and execute them with minimal manual input thereafter. This eliminates repetitive CLI commands and dramatically reduces the risk of configuration mistakes.</p>
+
+  <div class="card">
+    <div class="card-title">⚙️ How WFA Adds Value</div>
+    <ol class="step-list">
+      <li><span class="step-num">1</span>Define a workflow once with all required steps (volume creation, security style, share creation, ACL setup, export policy)</li>
+      <li><span class="step-num">2</span>Encode your organization's standards into the workflow as non-negotiable defaults</li>
+      <li><span class="step-num">3</span>Operations teams execute the workflow by filling in only the variable inputs (volume name, size, SVM name)</li>
+      <li><span class="step-num">4</span>WFA executes every step in sequence and emails a completion report with all the details</li>
+    </ol>
+  </div>
+
+  <div class="callout tip">
+    <div class="callout-icon">💡</div>
+    <div class="callout-content">
+      <div class="callout-title">WFA Skills for Your Resume</div>
+      <div class="callout-text">Configuring WFA workflows requires scripting knowledge (Perl, Shell, or Python) along with SQL for the internal data source queries. Organizations using WFA heavily often delegate all day-to-day storage provisioning to operations teams via WFA, with storage architects only involved for complex or non-standard requests.</div>
+    </div>
+  </div>
+
+  <h3>OnCommand Insight (OCI) — Datacenter Intelligence</h3>
+  <p>OCI is not an ONTAP-exclusive tool. It is a datacenter-wide infrastructure monitoring platform that can collect performance and capacity data from <strong style="color:var(--text-primary)">heterogeneous storage arrays</strong> (NetApp, Dell EMC, HPE, Pure Storage, IBM), network switches (Brocade, Cisco), and servers. This makes it invaluable in large environments with multi-vendor infrastructure.</p>
+
+  <div class="grid-3">
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--accent-teal)">Multi</div>
+      <div class="stat-label">Vendor Storage Support</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--accent-blue)">360°</div>
+      <div class="stat-label">Infrastructure Visibility</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--accent-purple)">1 Pane</div>
+      <div class="stat-label">All DC Monitoring</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SECTION 9 ===== -->
+<section class="section" id="s9">
+  <div class="section-header">
+    <div class="section-icon icon-orange">🔧</div>
+    <div class="section-title-wrap">
+      <div class="section-num">SECTION 09</div>
+      <h2>CIFS / SMB Troubleshooting Guide</h2>
+    </div>
+  </div>
+
+  <p>CIFS is the most complex protocol to troubleshoot in ONTAP environments due to its dependency on Active Directory, Kerberos authentication, DNS resolution, antivirus scanning, and Windows ACL semantics. Here is a structured approach to the most common issue categories.</p>
+
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart TD
+    A["📛 CIFS Issue Reported"] --> B{Issue Type?}
+    B -->|"Share Not Accessible"| C["🔑 Check CIFS Share Permissions<br/>Does user have ACL access?"]
+    B -->|"Cannot Write Data"| G["📋 Check Inode Utilization<br/>volume show -fields files"]
+    B -->|"Performance Issue"| K["📊 Check Volume Latency<br/>Active IQ Unified Manager"]
+    C --> D{"Ping Test<br/>from Client"}
+    D -->|"Fails"| E["🔥 Firewall Blocking?<br/>Check network path"]
+    D -->|"Passes"| F["🌐 Check DC Communication<br/>vserver services dns check"]
+    F -->|"DC unreachable"| F2["Fix network/firewall<br/>between SVM and AD DC"]
+    G --> H{"Inodes Full?"}
+    H -->|"Yes"| I["Increase inodes<br/>or expand volume"]
+    H -->|"No"| J["🛡️ Check Antivirus Scanner<br/>vserver vscan show"]
+    J --> J2["Disable vscan on share<br/>Test write — if OK, fix AV server"]
+    K --> L{"Latency High?"}
+    L -->|"Yes"| M["Check Node / Aggregate<br/>Utilization & CPU"]
+    L -->|"No"| N["🛡️ Disable Antivirus<br/>Test Performance"]
+    N -->|"Improved"| O["AV Server is culprit<br/>Work with security team"]
+    N -->|"No change"| P["Escalate to Network Team<br/>Packet drops / SMB version mismatch"]
+
+    style A fill:#1c2333,stroke:#f78166,color:#e6edf3
+    style B fill:#1c2333,stroke:#e3b341,color:#e6edf3
+    </div>
+    <div class="diagram-caption">Figure 9 — CIFS troubleshooting decision tree covering share access, write failures, and performance issues</div>
+  </div>
+
+  <h3>Checking Domain Controller Connectivity</h3>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-lang">ONTAP CLI — CIFS Diagnostics</span>
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+    </div>
+    <div class="code-body"><span class="comment"># Check DNS and communication to domain controller</span>
+<span class="cmd">vserver services dns check</span> <span class="param">-vserver</span> <span class="value">svm_prod</span>
+
+<span class="comment"># Check antivirus (vscan) status</span>
+<span class="cmd">vserver vscan show</span>
+
+<span class="comment"># Check scanner pool configuration</span>
+<span class="cmd">vserver vscan scanner-pool show</span>
+
+<span class="comment"># Temporarily disable antivirus on a share for testing</span>
+<span class="comment"># (re-enable after testing is complete)</span>
+<span class="cmd">vserver vscan</span> <span class="param">-vserver</span> <span class="value">svm_prod</span> <span class="param">-status</span> <span class="value">false</span>
+
+<span class="comment"># Check inode utilization</span>
+<span class="cmd">volume show</span> <span class="param">-fields</span> <span class="value">files,files-used</span>
+
+<span class="comment"># Alternate inode check method</span>
+<span class="cmd">df</span> <span class="param">-i</span> <span class="value">vol_shared</span>
+
+<span class="comment"># Check node CPU utilization from node shell (advanced)</span>
+<span class="cmd">system node run</span> <span class="param">-node</span> <span class="value">storage-node-01</span>
+<span class="hl">node> stat -c count10 -x 1</span></div>
+  </div>
+
+  <div class="callout warning">
+    <div class="callout-icon">⚠️</div>
+    <div class="callout-content">
+      <div class="callout-title">Multi-Protocol + CIFS — Always Check User Mapping First</div>
+      <div class="callout-text">If the problematic share sits on a multi-protocol volume, the very first thing to verify is whether the user mapping is correctly configured. A missing or misconfigured name mapping is one of the most common causes of access denied errors in multi-protocol environments.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SECTION 10 ===== -->
+<section class="section" id="s10">
+  <div class="section-header">
+    <div class="section-icon icon-green">🐧</div>
+    <div class="section-title-wrap">
+      <div class="section-num">SECTION 10</div>
+      <h2>NFS Troubleshooting Guide</h2>
+    </div>
+  </div>
+
+  <p>NFS troubleshooting is generally more straightforward than CIFS because NFS has no Active Directory dependency, no antivirus involvement, and simpler authentication. The three most common NFS issue categories follow a clear diagnostic path.</p>
+
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-title">❌ Cannot Mount</div>
+      <ul class="bullet-list">
+        <li>Wrong client IP in export rule</li>
+        <li>Incorrect NFS version in rule</li>
+        <li>Export policy not applied to volume</li>
+        <li>NFS service disabled on SVM</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">🔒 Access Denied</div>
+      <ul class="bullet-list">
+        <li>RW rule missing or misconfigured</li>
+        <li>Authentication mismatch (sys vs Kerberos)</li>
+        <li>NFS version mismatch (v3 vs v4.1)</li>
+        <li>Superuser not allowed when needed</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">🐌 Performance</div>
+      <ul class="bullet-list">
+        <li>High volume latency (check AIQUM)</li>
+        <li>Node or aggregate overutilization</li>
+        <li>Efficiency jobs running in business hours</li>
+        <li>Network packet drops / LIF congestion</li>
+      </ul>
+    </div>
+  </div>
+
+  <h4>CLI Commands — NFS Diagnostics</h4>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-lang">ONTAP CLI — NFS Diagnostics</span>
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+    </div>
+    <div class="code-body"><span class="comment"># Verify NFS service is running on SVM</span>
+<span class="cmd">vserver nfs show</span>
+
+<span class="comment"># Check export policy and rules</span>
+<span class="cmd">vserver export-policy show</span>
+<span class="cmd">vserver export-policy rule show</span> <span class="param">-policyname</span> <span class="value">shared_export_pol</span>
+
+<span class="comment"># Verify which policy is applied to a volume</span>
+<span class="cmd">volume show</span> <span class="param">-fields</span> <span class="value">policy</span>
+
+<span class="comment"># Test mount from Linux client</span>
+<span class="prompt">$</span> mount <span class="param">-t</span> <span class="value">nfs</span> <span class="value">10.20.30.5</span>:/vol_shared /mnt/test
+
+<span class="comment"># Network ping test from SVM LIF</span>
+<span class="cmd">network ping</span> <span class="param">-lif</span> <span class="value">svm_prod_nfs_lif</span> <span class="param">-destination</span> <span class="value">10.20.30.15</span></div>
+  </div>
+
+  <div class="callout success">
+    <div class="callout-icon">✅</div>
+    <div class="callout-content">
+      <div class="callout-title">NFS Performance — No Antivirus Involvement</div>
+      <div class="callout-text">Unlike CIFS, NFS does not use antivirus scanning. If you've ruled out storage-side issues (latency, node utilization, aggregate saturation) and the performance problem persists, escalate directly to the network team. NFS performance issues that survive storage-side analysis are almost always network-related (packet loss, MTU mismatch, or duplex mismatch).</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SECTION 11 ===== -->
+<section class="section" id="s11">
+  <div class="section-header">
+    <div class="section-icon icon-purple">💾</div>
+    <div class="section-title-wrap">
+      <div class="section-num">SECTION 11</div>
+      <h2>SAN Troubleshooting — iSCSI &amp; FCP</h2>
+    </div>
+  </div>
+
+  <p>SAN troubleshooting is more deterministic than NAS because block storage protocols have a smaller set of failure modes. The most common issues are LUN visibility failures and performance degradation, each with a clear investigation path.</p>
+
+  <h3>LUN Not Visible — Diagnostic Flow</h3>
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart TD
+    A["💾 LUN Not Visible<br/>on Server"] --> B{Protocol?}
+    B -->|"iSCSI"| C["✅ Check IQN in iGroup<br/>Correct initiator IQN added?"]
+    B -->|"FCP"| D["✅ Check WWPNs in iGroup<br/>Correct HBA WWPNs used?"]
+    C --> E["iSCSI Software<br/>Installed on Server?"]
+    E --> F["Authentication<br/>Config Match?"]
+    D --> G["Check Fabric Zoning<br/>Brocade/Cisco Switch"]
+    G --> H["Zoning Active in<br/>Running Config?"]
+    F --> I["Check Multipathing<br/>MPIO / PowerPath"]
+    H --> I
+    I --> J{"Multipathing<br/>Configured Correctly?"}
+    J -->|"No"| K["Fix MPIO config<br/>Only one MP software"]
+    J -->|"Yes"| L["Check HBA Firmware<br/>vs ONTAP IMT Compatibility"]
+    L --> M["Upgrade HBA Firmware<br/>Reboot Server → LUN visible"]
+
+    style A fill:#1c2333,stroke:#bc8cff,color:#e6edf3
+    style B fill:#1c2333,stroke:#e3b341,color:#e6edf3
+    </div>
+    <div class="diagram-caption">Figure 10 — SAN LUN visibility troubleshooting decision tree for iSCSI and FCP protocols</div>
+  </div>
+
+  <h3>Multipathing — The Hidden Culprit</h3>
+  <p>Without proper multipathing configuration, a server OS will interpret a single LUN presented across four redundant paths as four separate LUNs. This causes data corruption risks and device discovery failures. Always ensure the correct multipathing software is installed and only one multipathing framework is active per server.</p>
+
+  <div class="callout danger">
+    <div class="callout-icon">🚫</div>
+    <div class="callout-content">
+      <div class="callout-title">Never Run Two Multipathing Solutions Simultaneously</div>
+      <div class="callout-text">Running two multipathing frameworks (e.g., IBM MPIO and EMC PowerPath) simultaneously on the same server will cause device discovery conflicts and unpredictable LUN access behavior. Always confirm with the server team that exactly one multipathing solution is active before investigating storage-side configurations.</div>
+    </div>
+  </div>
+
+  <h3>FCP Performance — Switch and Port-Level Checks</h3>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-lang">Fabric Switch CLI — FCP Diagnostics</span>
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+    </div>
+    <div class="code-body"><span class="comment"># Check SFP RX/TX power on switch port</span>
+<span class="comment"># (Brocade example)</span>
+<span class="cmd">sfpshow</span> <span class="value">12</span>  <span class="comment"># port 12</span>
+
+<span class="comment"># Check port error counters</span>
+<span class="cmd">porterrshow</span>
+
+<span class="comment"># On ONTAP — check FCP LIF statistics</span>
+<span class="cmd">network interface show</span> <span class="param">-role</span> <span class="value">data</span> <span class="param">-data-protocol</span> <span class="value">fcp</span>
+
+<span class="comment"># Move volume to different aggregate to resolve node overutilization</span>
+<span class="cmd">volume move start</span> <span class="param">-vserver</span> <span class="value">svm_prod</span> <span class="param">-volume</span> <span class="value">vol_db</span> <span class="param">-destination-aggregate</span> <span class="value">aggr_node02_ssd</span></div>
+  </div>
+</section>
+
+<!-- ===== SECTION 12 ===== -->
+<section class="section" id="s12">
+  <div class="section-header">
+    <div class="section-icon icon-yellow">📋</div>
+    <div class="section-title-wrap">
+      <div class="section-num">SECTION 12</div>
+      <h2>CLI Quick Reference</h2>
+    </div>
+  </div>
+
+  <table class="spec-table">
+    <thead>
+      <tr><th>Command</th><th>Purpose</th><th>Category</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code style="color:var(--accent-teal)">vserver services unix-user create</code></td><td>Create local Unix user on SVM with UID/GID</td><td><span class="badge badge-purple">Multi-Proto</span></td></tr>
+      <tr><td><code style="color:var(--accent-teal)">vserver name-mapping create</code></td><td>Create identity mapping between Unix and Windows users</td><td><span class="badge badge-purple">Multi-Proto</span></td></tr>
+      <tr><td><code style="color:var(--accent-teal)">vserver name-mapping show</code></td><td>Display all configured name mappings on SVM</td><td><span class="badge badge-purple">Multi-Proto</span></td></tr>
+      <tr><td><code style="color:var(--accent-teal)">volume efficiency on</code></td><td>Enable efficiency on a volume</td><td><span class="badge badge-green">Efficiency</span></td></tr>
+      <tr><td><code style="color:var(--accent-teal)">volume efficiency modify</code></td><td>Configure dedup, compression, compaction settings</td><td><span class="badge badge-green">Efficiency</span></td></tr>
+      <tr><td><code style="color:var(--accent-teal)">volume efficiency start -scan-old-data true</code></td><td>Run efficiency scan on existing pre-existing data</td><td><span class="badge badge-green">Efficiency</span></td></tr>
+      <tr><td><code style="color:var(--accent-teal)">volume efficiency policy create</code></td><td>Create reusable efficiency policy</td><td><span class="badge badge-green">Efficiency</span></td></tr>
+      <tr><td><code style="color:var(--accent-teal)">volume show -fields dedup-space-saved</code></td><td>View space savings from deduplication</td><td><span class="badge badge-green">Efficiency</span></td></tr>
+      <tr><td><code style="color:var(--accent-teal)">vserver services dns check</code></td><td>Test SVM communication to DNS / Domain Controller</td><td><span class="badge badge-orange">Troubleshoot</span></td></tr>
+      <tr><td><code style="color:var(--accent-teal)">vserver vscan show</code></td><td>Check antivirus scanning configuration and status</td><td><span class="badge badge-orange">Troubleshoot</span></td></tr>
+      <tr><td><code style="color:var(--accent-teal)">vserver vscan scanner-pool show</code></td><td>Display antivirus scanner pool configuration</td><td><span class="badge badge-orange">Troubleshoot</span></td></tr>
+      <tr><td><code style="color:var(--accent-teal)">volume show -fields files,files-used</code></td><td>Check inode utilization on volumes</td><td><span class="badge badge-orange">Troubleshoot</span></td></tr>
+      <tr><td><code style="color:var(--accent-teal)">network ping -lif &lt;lif&gt; -destination &lt;ip&gt;</code></td><td>Ping test from SVM LIF to client/server</td><td><span class="badge badge-orange">Troubleshoot</span></td></tr>
+      <tr><td><code style="color:var(--accent-teal)">system node run -node &lt;node&gt;</code></td><td>Enter node shell for advanced diagnostics</td><td><span class="badge badge-orange">Troubleshoot</span></td></tr>
+      <tr><td><code style="color:var(--accent-teal)">volume move start</code></td><td>Move volume to a different aggregate (non-disruptive)</td><td><span class="badge badge-blue">Operations</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ===== SECTION 13 ===== -->
+<section class="section" id="s13">
+  <div class="section-header">
+    <div class="section-icon icon-green">🎓</div>
+    <div class="section-title-wrap">
+      <div class="section-num">SECTION 13</div>
+      <h2>Scenario-Based Interview Q&amp;A</h2>
+    </div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q">Q1: A client wants a single storage volume accessible simultaneously from both Windows servers (via SMB) and Linux hosts (via NFS). What are the key design decisions you need to make before provisioning this volume?</div>
+    <button class="quiz-btn" onclick="this.nextElementSibling.style.display='block';this.style.display='none'">Reveal Answer</button>
+    <div class="quiz-a">The two critical design decisions are: (1) <strong>Security style</strong> — determine which team manages permissions. If Windows admins own ACLs, use NTFS security style. If Linux admins manage permissions via chmod/chown, use Unix security style. Mixed security style is also possible but adds complexity. (2) <strong>Identity mapping direction</strong> — for NTFS volumes, you need Unix-to-Windows (unix-wins) name mappings so Linux users can access Windows-owned data. For Unix volumes, you need Windows-to-Unix (wins-unix) mappings. Before provisioning, collect Unix usernames, UIDs, GIDs, and their corresponding Windows AD accounts. Always gather this from the client before starting configuration.</div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q">Q2: You created a Unix-to-Windows name mapping on an NTFS volume, but the Linux user still gets permission denied when trying to access the mounted path. What do you check first?</div>
+    <button class="quiz-btn" onclick="this.nextElementSibling.style.display='block';this.style.display='none'">Reveal Answer</button>
+    <div class="quiz-a">First verify the name mapping itself: run <code>vserver name-mapping show</code> and confirm the direction is <code>unix-wins</code> and that the pattern matches the exact Unix username. Second, confirm the Unix user exists on the SVM via <code>vserver services unix-user show</code> and that the UID/GID match what's on the Linux host. Third, confirm you are testing as the mapped user — not as root (root is not automatically mapped). Finally, verify the Windows AD account referenced in the mapping actually has access to the CIFS share via the share ACL. A common mistake is mapping the Unix user to a Windows account that itself lacks permissions.</div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q">Q3: Why must deduplication be enabled before compression or compaction can be turned on? What happens operationally if you only enabled deduplication first and now want to add compression?</div>
+    <button class="quiz-btn" onclick="this.nextElementSibling.style.display='block';this.style.display='none'">Reveal Answer</button>
+    <div class="quiz-a">Deduplication is a prerequisite for compression and compaction in ONTAP because of the operational sequence: compression runs first, then compaction, and deduplication runs last. Blocks that have already been deduplicated exist as shared shared metadata pointers — they cannot be independently compressed afterward. If you enabled only deduplication on an existing volume and now want compression, you must: (1) undo the deduplication to restore duplicate blocks, (2) disable dedup, (3) enable compression, and (4) re-run all efficiency from scratch. ONTAP 9.7+ reportedly allows compression on already-deduplicated blocks, but in practice the behavior depends on specific versions and should be tested before assuming it will work in a production environment.</div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q">Q4: A Windows user reports that they can browse to a CIFS share and view files, but cannot copy any new data into it. What is your troubleshooting sequence?</div>
+    <button class="quiz-btn" onclick="this.nextElementSibling.style.display='block';this.style.display='none'">Reveal Answer</button>
+    <div class="quiz-a">When a user can access a share but cannot write, the issue is not connectivity or share discovery — it's a write-level blocking. Check in this order: (1) <strong>Permissions</strong> — verify the user's share ACL includes write/full control and that the underlying NTFS permissions on the volume/qtree also grant write access. (2) <strong>Inode exhaustion</strong> — run <code>volume show -fields files,files-used</code>. A volume can have plenty of free space but no remaining inodes to create new files. (3) <strong>Antivirus scanning</strong> — run <code>vserver vscan show</code>. If the AV server is unreachable, ONTAP may block writes that cannot be scanned. Test by temporarily disabling vscan on the share and retrying the copy. If writing succeeds after disabling vscan, escalate to the security team responsible for the AV scanner.</div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q">Q5: What is the difference between Active IQ Unified Manager, WFA, and OnCommand Insight? When would you recommend each?</div>
+    <button class="quiz-btn" onclick="this.nextElementSibling.style.display='block';this.style.display='none'">Reveal Answer</button>
+    <div class="quiz-a"><strong>Active IQ Unified Manager (AIQUM)</strong> is a multi-cluster health and performance monitoring tool. Use it for centralized alerting, capacity reporting, event management, and ONTAP-specific visibility across all registered clusters. <strong>Workflow Automation (WFA)</strong> is a provisioning automation engine. Use it to standardize and automate repetitive storage tasks, enforce organizational standards, and reduce human error in multi-step provisioning workflows. <strong>OnCommand Insight (OCI)</strong> is a datacenter-level infrastructure monitoring platform. Use it when the environment includes heterogeneous storage from multiple vendors (NetApp, EMC, HP, Pure, IBM), switches, and servers and you need a single platform for capacity planning and performance analysis across all of them. OCI is particularly valuable for large enterprises with mixed-vendor data centers.</div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q">Q6: An NFS client is unable to mount a volume. The Linux team confirms the mount command is correct. How do you diagnose this from the storage side?</div>
+    <button class="quiz-btn" onclick="this.nextElementSibling.style.display='block';this.style.display='none'">Reveal Answer</button>
+    <div class="quiz-a">From the storage side, check: (1) <strong>Export policy rules</strong> — run <code>vserver export-policy rule show</code> and verify the client's IP address is listed under <code>clientmatch</code>. A typo here is the #1 cause. (2) <strong>Policy application</strong> — run <code>volume show -fields policy</code> to confirm the export policy is applied to the correct volume. (3) <strong>NFS version</strong> — verify the rule specifies the NFS version the client is trying to use. If the rule says nfs3 but the client mounts with nfs4.1, the mount will fail. (4) <strong>Authentication mechanism</strong> — if the rule specifies Kerberos but the client uses sys (AUTH_SYS), the mount will be rejected. (5) <strong>Connectivity test</strong> — run <code>network ping -lif &lt;lif&gt; -destination &lt;client_ip&gt;</code> from the SVM to confirm layer 3 reachability to the client.</div>
+  </div>
+</section>
+
+<!-- ===== AUTHOR ===== -->
+<div class="author-card" id="author">
+  <div class="author-avatar">🏗️</div>
+  <div class="author-name">Mohammed Abdul</div>
+  <div class="author-title">Data Protection Architect · Hybrid Cloud Specialist</div>
+  <div class="author-bio">Mohammed Abdul is a Data Protection Architect with more than 10 years of experience in Hybrid Cloud and has worked with global clients across various industries. With extensive expertise in enterprise backup and recovery solutions, Mohammed specializes in AWS, Azure, GCP, Commvault, Veeam, NetBackup, and NetApp technologies, helping organizations design and implement robust data protection strategies.</div>
+  <div class="tech-badges">
+    <span class="tech-badge">AWS</span>
+    <span class="tech-badge">Azure</span>
+    <span class="tech-badge">GCP</span>
+    <span class="tech-badge">Commvault</span>
+    <span class="tech-badge">Veeam</span>
+    <span class="tech-badge">NetBackup</span>
+    <span class="tech-badge">NetApp ONTAP</span>
+    <span class="tech-badge">Data Protection</span>
+    <span class="tech-badge">Hybrid Cloud</span>
+  </div>
+  <a href="mailto:abdul.md.20000102@gmail.com" class="contact-link">📧 abdul.md.20000102@gmail.com</a>
+  <div class="disclaimer">
+    <strong style="color:var(--accent-yellow)">📋 Disclaimer:</strong> This content is for educational purposes and tutorial material only. Always refer to official NetApp documentation and follow your organization's procedures for production implementations. The author is not affiliated with or endorsed by NetApp, Inc. NetApp® and ONTAP® are registered trademarks of NetApp, Inc. All references are made purely for learning and knowledge sharing.
+  </div>
+</div>
+
+</div><!-- /content-area -->
+</div><!-- /main-content -->
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      background: '#1c2333',
+      primaryColor: '#1c2333',
+      primaryTextColor: '#e6edf3',
+      primaryBorderColor: '#bc8cff',
+      lineColor: '#58a6ff',
+      secondaryColor: '#161b22',
+      tertiaryColor: '#0d1117',
+      edgeLabelBackground: '#1c2333',
+      noteBkgColor: '#161b22',
+      noteTextColor: '#8b949e',
+    }
+  });
+
+  // Reading progress bar
+  window.addEventListener('scroll', () => {
+    const doc = document.documentElement;
+    const scrolled = doc.scrollTop / (doc.scrollHeight - doc.clientHeight);
+    document.getElementById('reading-progress').style.transform = `scaleX(${scrolled})`;
+  });
+
+  // Active TOC highlight
+  const sections = document.querySelectorAll('.section');
+  const tocLinks = document.querySelectorAll('.toc-link');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        tocLinks.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector(`.toc-link[href="#${e.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { threshold: 0.2 });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
