@@ -1,0 +1,1436 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetApp Tutorial 19 — SVM DR, Node Shell & ONTAP Upgrade Planning</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Sora:wght@300;400;600;700;800&family=Inter:wght@300;400;500;600&display=swap');
+  :root {
+    --bg-primary:#0b0f1a;--bg-secondary:#111827;--bg-card:#1a2235;
+    --accent-blue:#60a5fa;--accent-green:#34d399;--accent-orange:#fb923c;
+    --accent-purple:#a78bfa;--accent-yellow:#fbbf24;--accent-teal:#2dd4bf;
+    --accent-rose:#f472b6;
+    --text-primary:#f1f5f9;--text-secondary:#94a3b8;--text-muted:#64748b;
+    --border:#1e293b;--border-bright:#334155;--sidebar-width:295px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{font-family:'Inter',sans-serif;background:var(--bg-primary);color:var(--text-primary);display:flex;min-height:100vh}
+  #reading-progress{position:fixed;top:0;left:var(--sidebar-width);right:0;height:3px;background:linear-gradient(90deg,var(--accent-teal),var(--accent-blue),var(--accent-purple),var(--accent-rose));transform-origin:left;transform:scaleX(0);z-index:999;transition:transform .1s linear}
+
+  /* SIDEBAR */
+  .sidebar{width:var(--sidebar-width);background:var(--bg-secondary);border-right:1px solid var(--border);position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:100;display:flex;flex-direction:column}
+  .sidebar-header{padding:20px 16px;border-bottom:1px solid var(--border);background:var(--bg-secondary);position:sticky;top:0;z-index:10}
+  .sidebar-logo{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+  .sidebar-logo .logo-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--accent-teal),var(--accent-blue));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px}
+  .sidebar-logo span{font-family:'Sora',sans-serif;font-weight:700;font-size:13.5px;color:var(--text-primary);letter-spacing:.4px}
+  .sidebar-subtitle{font-size:11px;color:var(--text-muted);padding-left:44px}
+  .toc-nav{padding:10px 0;flex:1}
+  .toc-section-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.3px;color:var(--text-muted);padding:14px 16px 5px}
+  .toc-link{display:flex;align-items:center;gap:8px;padding:7px 16px;font-size:12.5px;color:var(--text-secondary);text-decoration:none;transition:all .2s ease;border-left:2px solid transparent;line-height:1.4}
+  .toc-link:hover{background:rgba(45,212,191,.06);color:var(--text-primary);border-left-color:var(--accent-teal)}
+  .toc-link.active{background:rgba(45,212,191,.1);color:var(--accent-teal);border-left-color:var(--accent-teal);font-weight:500}
+  .toc-link .toc-num{font-size:10px;font-weight:700;color:var(--text-muted);min-width:20px;font-family:'JetBrains Mono',monospace}
+  .toc-link.sub{padding-left:34px;font-size:12px}
+  .series-nav{padding:12px 16px;border-top:1px solid var(--border)}
+  .series-nav-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:8px}
+  .series-link{display:block;padding:5px 8px;font-size:11.5px;color:var(--text-secondary);text-decoration:none;border-radius:5px;transition:all .2s;margin-bottom:2px}
+  .series-link:hover{background:var(--bg-card);color:var(--accent-teal)}
+  .series-link.current{color:var(--accent-teal);font-weight:600}
+
+  /* MAIN */
+  .main-content{margin-left:var(--sidebar-width);flex:1;max-width:calc(100vw - var(--sidebar-width))}
+  .top-header{background:linear-gradient(135deg,#0b0f1a 0%,#0f172a 50%,#0b0f1a 100%);border-bottom:1px solid var(--border);padding:60px 60px 50px;position:relative;overflow:hidden}
+  .top-header::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 75% 40%,rgba(45,212,191,.07) 0%,transparent 55%),radial-gradient(ellipse at 15% 85%,rgba(96,165,250,.06) 0%,transparent 50%),radial-gradient(ellipse at 50% 10%,rgba(167,139,250,.04) 0%,transparent 40%)}
+  .header-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(45,212,191,.1);border:1px solid rgba(45,212,191,.3);border-radius:20px;padding:4px 14px;font-size:12px;color:var(--accent-teal);font-weight:500;margin-bottom:18px;font-family:'JetBrains Mono',monospace}
+  .main-title{font-family:'Sora',sans-serif;font-size:34px;font-weight:800;line-height:1.15;margin-bottom:16px;background:linear-gradient(135deg,#f1f5f9 15%,#2dd4bf 50%,#60a5fa 85%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;position:relative}
+  .header-desc{font-size:15px;color:var(--text-secondary);line-height:1.7;max-width:720px;position:relative}
+  .header-meta{display:flex;gap:24px;flex-wrap:wrap;margin-top:20px;position:relative}
+  .meta-chip{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-secondary)}
+  .meta-chip .dot{width:8px;height:8px;border-radius:50%}
+  .prog-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;position:relative}
+  .prog-chip{background:rgba(255,255,255,.04);border:1px solid var(--border-bright);border-radius:6px;padding:3px 10px;font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace}
+
+  /* CONTENT AREA */
+  .content-area{padding:40px 60px 80px;max-width:1020px}
+  .section{margin-bottom:64px;scroll-margin-top:30px}
+  .section-header{display:flex;align-items:flex-start;gap:16px;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+  .section-icon{width:46px;height:46px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0;margin-top:2px}
+  .icon-teal{background:rgba(45,212,191,.15);border:1px solid rgba(45,212,191,.3)}
+  .icon-blue{background:rgba(96,165,250,.15);border:1px solid rgba(96,165,250,.3)}
+  .icon-green{background:rgba(52,211,153,.15);border:1px solid rgba(52,211,153,.3)}
+  .icon-orange{background:rgba(251,146,60,.15);border:1px solid rgba(251,146,60,.3)}
+  .icon-purple{background:rgba(167,139,250,.15);border:1px solid rgba(167,139,250,.3)}
+  .icon-yellow{background:rgba(251,191,36,.15);border:1px solid rgba(251,191,36,.3)}
+  .icon-rose{background:rgba(244,114,182,.15);border:1px solid rgba(244,114,182,.3)}
+  .section-title-wrap h2{font-family:'Sora',sans-serif;font-size:23px;font-weight:700;color:var(--text-primary);line-height:1.2}
+  .section-title-wrap .section-num{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text-muted);font-weight:400;margin-bottom:4px}
+
+  /* CARDS */
+  .card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:20px;transition:border-color .2s}
+  .card:hover{border-color:var(--border-bright)}
+  .card-title{font-family:'Sora',sans-serif;font-weight:600;font-size:15px;color:var(--text-primary);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  p{font-size:14.5px;line-height:1.8;color:var(--text-secondary);margin-bottom:14px}
+  
+  /* CALLOUTS */
+  .callout{border-radius:10px;padding:16px 20px;margin:20px 0;display:flex;gap:14px;align-items:flex-start}
+  .callout-icon{font-size:18px;margin-top:1px;flex-shrink:0}
+  .callout-content{flex:1}
+  .callout-title{font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+  .callout-text{font-size:13.5px;line-height:1.7;color:var(--text-secondary)}
+  .callout.info{background:rgba(96,165,250,.07);border:1px solid rgba(96,165,250,.22)}.callout.info .callout-title{color:var(--accent-blue)}
+  .callout.success{background:rgba(52,211,153,.07);border:1px solid rgba(52,211,153,.22)}.callout.success .callout-title{color:var(--accent-green)}
+  .callout.warning{background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.28)}.callout.warning .callout-title{color:var(--accent-yellow)}
+  .callout.danger{background:rgba(251,146,60,.07);border:1px solid rgba(251,146,60,.28)}.callout.danger .callout-title{color:var(--accent-orange)}
+  .callout.tip{background:rgba(167,139,250,.07);border:1px solid rgba(167,139,250,.22)}.callout.tip .callout-title{color:var(--accent-purple)}
+  .callout.teal{background:rgba(45,212,191,.07);border:1px solid rgba(45,212,191,.22)}.callout.teal .callout-title{color:var(--accent-teal)}
+  .callout.rose{background:rgba(244,114,182,.07);border:1px solid rgba(244,114,182,.22)}.callout.rose .callout-title{color:var(--accent-rose)}
+
+  /* CODE BLOCKS */
+  .code-block{background:#060a12;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:16px 0}
+  .code-header{background:var(--bg-secondary);border-bottom:1px solid var(--border);padding:8px 16px;display:flex;align-items:center;justify-content:space-between}
+  .code-lang{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;font-family:'JetBrains Mono',monospace}
+  .code-dots{display:flex;gap:5px}.code-dots span{width:10px;height:10px;border-radius:50%}
+  .dot-red{background:#ff5f56}.dot-ylw{background:#ffbd2e}.dot-grn{background:#27c93f}
+  .code-body{padding:20px;font-size:12.5px;line-height:1.9;color:#7dd3fc;overflow-x:auto;white-space:pre;font-family:'JetBrains Mono',monospace}
+  .code-body .cmd{color:#4ade80}.code-body .comment{color:#475569;font-style:italic}
+  .code-body .param{color:#fb923c}.code-body .value{color:#93c5fd}
+  .code-body .output{color:#64748b}.code-body .prompt{color:#fbbf24}.code-body .hl{color:#2dd4bf}
+  .code-body .warn{color:#f472b6}
+
+  /* TABLES */
+  .spec-table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px}
+  .spec-table th{background:var(--bg-secondary);color:var(--text-secondary);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.5px;padding:10px 16px;text-align:left;border-bottom:2px solid var(--border)}
+  .spec-table td{padding:11px 16px;border-bottom:1px solid var(--border);color:var(--text-secondary);vertical-align:middle}
+  .spec-table tr:hover td{background:rgba(255,255,255,.02)}
+
+  /* BADGES */
+  .badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11.5px;font-weight:600;font-family:'JetBrains Mono',monospace}
+  .badge-blue{background:rgba(96,165,250,.15);color:var(--accent-blue);border:1px solid rgba(96,165,250,.3)}
+  .badge-green{background:rgba(52,211,153,.15);color:var(--accent-green);border:1px solid rgba(52,211,153,.3)}
+  .badge-orange{background:rgba(251,146,60,.15);color:var(--accent-orange);border:1px solid rgba(251,146,60,.3)}
+  .badge-yellow{background:rgba(251,191,36,.15);color:var(--accent-yellow);border:1px solid rgba(251,191,36,.3)}
+  .badge-teal{background:rgba(45,212,191,.15);color:var(--accent-teal);border:1px solid rgba(45,212,191,.3)}
+  .badge-purple{background:rgba(167,139,250,.15);color:var(--accent-purple);border:1px solid rgba(167,139,250,.3)}
+  .badge-rose{background:rgba(244,114,182,.15);color:var(--accent-rose);border:1px solid rgba(244,114,182,.3)}
+
+  /* GRIDS */
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:16px 0}
+  .stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:20px;text-align:center}
+  .stat-num{font-family:'Sora',sans-serif;font-size:28px;font-weight:800;margin-bottom:4px}
+  .stat-label{font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
+
+  /* STEP LISTS */
+  .step-list{list-style:none;margin:12px 0}
+  .step-list li{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid rgba(30,41,59,.6);font-size:13.5px;color:var(--text-secondary);line-height:1.6;align-items:flex-start}
+  .step-list li:last-child{border-bottom:none}
+  .step-num{width:22px;height:22px;border-radius:6px;background:rgba(45,212,191,.15);border:1px solid rgba(45,212,191,.3);color:var(--accent-teal);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;font-family:'JetBrains Mono',monospace}
+  .bullet-list{list-style:none;margin:10px 0}
+  .bullet-list li{padding:6px 0 6px 20px;position:relative;font-size:13.5px;color:var(--text-secondary);line-height:1.6}
+  .bullet-list li::before{content:'▸';position:absolute;left:0;color:var(--accent-teal);font-size:11px;top:8px}
+
+  h3{font-family:'Sora',sans-serif;font-size:17px;font-weight:600;color:var(--text-primary);margin:24px 0 12px}
+  h4{font-family:'Sora',sans-serif;font-size:13.5px;font-weight:700;color:var(--accent-teal);margin:18px 0 8px;text-transform:uppercase;letter-spacing:.6px}
+
+  /* DIAGRAMS */
+  .diagram-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:24px;margin:20px 0;overflow-x:auto}
+  .diagram-caption{text-align:center;font-size:12px;color:var(--text-muted);margin-top:12px;font-style:italic}
+  .mermaid{display:flex;justify-content:center}
+  .svg-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:24px;margin:20px 0;overflow:hidden}
+
+  /* QUIZ */
+  .quiz-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:22px;margin-bottom:16px}
+  .quiz-q{font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:12px}
+  .quiz-a{display:none;background:rgba(45,212,191,.06);border:1px solid rgba(45,212,191,.2);border-radius:8px;padding:14px 16px;margin-top:10px;font-size:13.5px;color:var(--text-secondary);line-height:1.7}
+  .quiz-btn{background:rgba(45,212,191,.1);border:1px solid rgba(45,212,191,.3);color:var(--accent-teal);border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all .2s}
+  .quiz-btn:hover{background:rgba(45,212,191,.2)}
+
+  /* AUTHOR CARD */
+  .author-card{background:linear-gradient(135deg,#111827,#1a2235);border:1px solid var(--border);border-radius:16px;padding:32px;margin-top:40px;position:relative;overflow:hidden}
+  .author-card::before{content:'';position:absolute;top:-40px;right:-40px;width:180px;height:180px;background:radial-gradient(circle,rgba(45,212,191,.08),transparent 70%);border-radius:50%}
+  .author-avatar{font-size:48px;margin-bottom:12px}
+  .author-name{font-family:'Sora',sans-serif;font-size:22px;font-weight:700;color:var(--text-primary);margin-bottom:4px}
+  .author-title{font-size:13px;color:var(--accent-teal);margin-bottom:16px;font-family:'JetBrains Mono',monospace}
+  .author-bio{font-size:14px;color:var(--text-secondary);line-height:1.7;margin-bottom:20px}
+  .tech-badges{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
+  .tech-badge{background:rgba(45,212,191,.1);border:1px solid rgba(45,212,191,.25);color:var(--accent-teal);border-radius:20px;padding:3px 12px;font-size:12px;font-family:'JetBrains Mono',monospace}
+  .contact-link{display:inline-flex;align-items:center;gap:8px;background:rgba(45,212,191,.1);border:1px solid rgba(45,212,191,.3);color:var(--accent-teal);border-radius:8px;padding:8px 16px;font-size:13px;text-decoration:none;transition:all .2s;margin-bottom:20px}
+  .contact-link:hover{background:rgba(45,212,191,.2)}
+
+  /* RESPONSIVE */
+  @media(max-width:900px){
+    .sidebar{transform:translateX(-100%)}
+    .main-content{margin-left:0;max-width:100vw}
+    .top-header{padding:30px 20px}
+    .content-area{padding:20px}
+    .grid-2,.grid-3{grid-template-columns:1fr}
+    #reading-progress{left:0}
+  }
+
+  /* UPGRADE FLOW NODE STYLES */
+  .flow-box{background:var(--bg-card);border:1.5px solid var(--border);border-radius:8px;padding:10px 16px;font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--text-secondary);display:inline-block;text-align:center;min-width:120px}
+  .flow-box.active{border-color:var(--accent-teal);color:var(--accent-teal);background:rgba(45,212,191,.07)}
+  .flow-box.warn{border-color:var(--accent-yellow);color:var(--accent-yellow);background:rgba(251,191,36,.07)}
+  .flow-box.good{border-color:var(--accent-green);color:var(--accent-green);background:rgba(52,211,153,.07)}
+  .flow-box.danger{border-color:var(--accent-orange);color:var(--accent-orange);background:rgba(251,146,60,.07)}
+</style>
+</head>
+<body>
+<div id="reading-progress"></div>
+
+<!-- ═══ SIDEBAR ═══ -->
+<nav class="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🛡️</div>
+      <span>ONTAP Deep Dive</span>
+    </div>
+    <div class="sidebar-subtitle">SVM DR · Node Shell · Upgrade</div>
+  </div>
+  <div class="toc-nav">
+    <div class="toc-section-label">Part A — SVM DR & Networking</div>
+    <a class="toc-link" href="#s1"><span class="toc-num">01</span>IP Subnet Management</a>
+    <a class="toc-link sub" href="#s1-sub1"><span class="toc-num">↳</span>Creating &amp; Using Subnets</a>
+    <a class="toc-link sub" href="#s1-sub2"><span class="toc-num">↳</span>LIF Auto-Assignment</a>
+    <a class="toc-link" href="#s2"><span class="toc-num">02</span>Cluster &amp; SVM Peering</a>
+    <a class="toc-link sub" href="#s2-sub1"><span class="toc-num">↳</span>Intercluster LIFs</a>
+    <a class="toc-link sub" href="#s2-sub2"><span class="toc-num">↳</span>Cluster Peering</a>
+    <a class="toc-link" href="#s3"><span class="toc-num">03</span>SVM Disaster Recovery</a>
+    <a class="toc-link sub" href="#s3-sub1"><span class="toc-num">↳</span>SVM DR Architecture</a>
+    <a class="toc-link sub" href="#s3-sub2"><span class="toc-num">↳</span>Identity Preserve</a>
+    <a class="toc-link sub" href="#s3-sub3"><span class="toc-num">↳</span>Failover &amp; Failback</a>
+    <a class="toc-link sub" href="#s3-sub4"><span class="toc-num">↳</span>Volume Protection Levels</a>
+    <a class="toc-link" href="#s4"><span class="toc-num">04</span>Node Shell &amp; Data Inspection</a>
+    <a class="toc-link sub" href="#s4-sub1"><span class="toc-num">↳</span>Accessing Node Shell</a>
+    <a class="toc-link sub" href="#s4-sub2"><span class="toc-num">↳</span>Reading Volume Data</a>
+
+    <div class="toc-section-label">Part B — ONTAP Upgrade</div>
+    <a class="toc-link" href="#s5"><span class="toc-num">05</span>Upgrade Overview</a>
+    <a class="toc-link sub" href="#s5-sub1"><span class="toc-num">↳</span>Selecting Target Version</a>
+    <a class="toc-link sub" href="#s5-sub2"><span class="toc-num">↳</span>Release Notes &amp; Risks</a>
+    <a class="toc-link" href="#s6"><span class="toc-num">06</span>Hardware Compatibility</a>
+    <a class="toc-link sub" href="#s6-sub1"><span class="toc-num">↳</span>Using NetApp HWU</a>
+    <a class="toc-link" href="#s7"><span class="toc-num">07</span>Software Compatibility</a>
+    <a class="toc-link sub" href="#s7-sub1"><span class="toc-num">↳</span>Host &amp; HBA Checks</a>
+    <a class="toc-link sub" href="#s7-sub2"><span class="toc-num">↳</span>Switch Compatibility</a>
+    <a class="toc-link" href="#s8"><span class="toc-num">08</span>Upgrade Advisor &amp; Types</a>
+    <a class="toc-link sub" href="#s8-sub1"><span class="toc-num">↳</span>ActiveIQ Advisor</a>
+    <a class="toc-link sub" href="#s8-sub2"><span class="toc-num">↳</span>DU / NDU / ANDU</a>
+    <a class="toc-link sub" href="#s8-sub3"><span class="toc-num">↳</span>Rolling vs Batch</a>
+    <a class="toc-link" href="#s9"><span class="toc-num">09</span>Interview Q&amp;A</a>
+    <a class="toc-link" href="#about"><span class="toc-num">✦</span>About the Author</a>
+  </div>
+  <div class="series-nav">
+    <div class="series-nav-title">Tutorial Series</div>
+    <a class="series-link" href="#">Tutorial 17 — SnapVault &amp; Backup Policies</a>
+    <a class="series-link" href="#">Tutorial 18 — SnapMirror Deep Dive</a>
+    <a class="series-link current" href="#">Tutorial 19 — SVM DR &amp; ONTAP Upgrade ◀</a>
+    <a class="series-link" href="#">Tutorial 20 — ONTAP Upgrade Lab</a>
+  </div>
+</nav>
+
+<!-- ═══ MAIN ═══ -->
+<div class="main-content">
+<div class="top-header">
+  <div class="header-badge">📘 Tutorial 19 · Advanced ONTAP Operations</div>
+  <h1 class="main-title">SVM Disaster Recovery, Node Shell<br>& ONTAP Upgrade Planning</h1>
+  <p class="header-desc">A comprehensive walkthrough of IP subnet management, SVM-level replication and failover, internal node shell data inspection, and the complete pre-upgrade checklist for ONTAP version upgrades — from hardware and software compatibility to Upgrade Advisor and upgrade procedures.</p>
+  <div class="header-meta">
+    <span class="meta-chip"><span class="dot" style="background:var(--accent-teal)"></span>ONTAP 9.x</span>
+    <span class="meta-chip"><span class="dot" style="background:var(--accent-blue)"></span>SVM DR / SnapMirror</span>
+    <span class="meta-chip"><span class="dot" style="background:var(--accent-purple)"></span>Non-Disruptive Upgrade</span>
+    <span class="meta-chip"><span class="dot" style="background:var(--accent-yellow)"></span>~90 min read</span>
+  </div>
+  <div class="prog-chips">
+    <span class="prog-chip">network subnet create</span>
+    <span class="prog-chip">vserver peer create</span>
+    <span class="prog-chip">snapmirror create -type XDP</span>
+    <span class="prog-chip">system node run</span>
+    <span class="prog-chip">ANDU / NDU / DU</span>
+    <span class="prog-chip">hwu.netapp.com</span>
+    <span class="prog-chip">ActiveIQ Upgrade Advisor</span>
+  </div>
+</div>
+
+<div class="content-area">
+
+<!-- ══════════════════════════════════════════
+     SECTION 1 — IP Subnet Management
+══════════════════════════════════════════ -->
+<section class="section" id="s1">
+  <div class="section-header">
+    <div class="section-icon icon-teal">🌐</div>
+    <div class="section-title-wrap">
+      <div class="section-num">Section 01 · Networking Foundation</div>
+      <h2>IP Subnet Management</h2>
+    </div>
+  </div>
+
+  <p>Managing network interfaces in ONTAP usually involves manually specifying IP addresses, subnet masks, and gateways each time. A smarter approach is to define an <strong>IP Subnet</strong> — a named pool of reserved addresses tied to a specific broadcast domain. Once a subnet exists, ONTAP can automatically assign addresses from the pool when creating LIFs, eliminating repetitive manual entry.</p>
+
+  <div id="s1-sub1"></div>
+  <h3>Creating a Named Subnet</h3>
+  <p>A subnet is associated with exactly one broadcast domain. You cannot assign the same subnet to multiple broadcast domains. The subnet holds a range of IPs (e.g. 10.50.10.101–10.50.10.109) along with the prefix length and default gateway.</p>
+
+  <div class="code-block">
+    <div class="code-header">
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+      <span class="code-lang">ONTAP CLI — Create Subnet</span>
+    </div>
+    <div class="code-body"><span class="comment"># Create a named subnet for data LIFs</span>
+<span class="prompt">::></span> <span class="cmd">network subnet create</span> \
+      -subnet-name <span class="value">prod-data-pool</span> \
+      -broadcast-domain <span class="value">Default</span> \
+      -subnet <span class="value">10.50.10.0/24</span> \
+      -ip-ranges <span class="value">10.50.10.101-10.50.10.109</span> \
+      -gateway <span class="value">10.50.10.1</span>
+
+<span class="comment"># Verify subnet was created</span>
+<span class="prompt">::></span> <span class="cmd">network subnet show</span>
+<span class="output">Subnet Name     Broadcast Domain   Subnet              Gateway         Available  IP Range
+prod-data-pool  Default            10.50.10.0/24       10.50.10.1      9          10.50.10.101-10.50.10.109</span>
+
+<span class="comment"># Delete an existing subnet if needed</span>
+<span class="prompt">::></span> <span class="cmd">network subnet delete</span> -subnet-name <span class="value">old-subnet</span></div>
+  </div>
+
+  <div class="callout teal">
+    <span class="callout-icon">💡</span>
+    <div class="callout-content">
+      <div class="callout-title">Design Tip</div>
+      <div class="callout-text">Name your subnets by purpose (e.g., <code>prod-data-pool</code>, <code>mgmt-pool</code>, <code>ic-pool</code>). This makes it immediately obvious which IP range serves which function — especially useful in large environments with multiple VLANs and broadcast domains.</div>
+    </div>
+  </div>
+
+  <div id="s1-sub2"></div>
+  <h3>Auto-Assigning IPs via Subnet</h3>
+  <p>When creating a LIF, instead of specifying an explicit IP address, simply reference the subnet name. ONTAP picks the next available IP from the pool and assigns it automatically. This reduces configuration errors and speeds up provisioning.</p>
+
+  <div class="code-block">
+    <div class="code-header">
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+      <span class="code-lang">ONTAP CLI — Create LIF Using Subnet</span>
+    </div>
+    <div class="code-body"><span class="comment"># Create a data LIF — IP auto-assigned from subnet pool</span>
+<span class="prompt">::></span> <span class="cmd">network interface create</span> \
+      -vserver <span class="value">svm-prod</span> \
+      -lif <span class="value">data-lif-01</span> \
+      -service-policy <span class="value">default-data-files</span> \
+      -role <span class="value">data</span> \
+      -home-node <span class="value">cluster-node1</span> \
+      -home-port <span class="value">e0d</span> \
+      -subnet-name <span class="value">prod-data-pool</span> \
+      -status-admin <span class="value">up</span>
+
+<span class="comment"># Verify — ONTAP assigned 10.50.10.101 automatically</span>
+<span class="prompt">::></span> <span class="cmd">network interface show</span> -vserver svm-prod
+<span class="output">LIF           Role    Status   Address           Subnet           Home Port
+data-lif-01   data    up/up    10.50.10.101/24   prod-data-pool   e0d</span>
+
+<span class="comment"># Check remaining pool — 8 IPs left after first LIF allocated</span>
+<span class="prompt">::></span> <span class="cmd">network subnet show</span> -subnet-name prod-data-pool
+<span class="output">Available: 8</span></div>
+  </div>
+
+  <!-- Subnet Architecture SVG -->
+  <div class="svg-wrap">
+    <svg viewBox="0 0 720 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:720px;display:block;margin:0 auto">
+      <defs>
+        <linearGradient id="subGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#2dd4bf" stop-opacity=".2"/>
+          <stop offset="100%" stop-color="#60a5fa" stop-opacity=".2"/>
+        </linearGradient>
+      </defs>
+      <!-- Broadcast Domain Box -->
+      <rect x="10" y="20" width="700" height="160" rx="10" fill="url(#subGrad)" stroke="#2dd4bf" stroke-width="1.2" stroke-dasharray="6,4"/>
+      <text x="350" y="42" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="11" fill="#2dd4bf">Broadcast Domain: Default  (VLAN 100)</text>
+      <!-- Pool box -->
+      <rect x="40" y="60" width="250" height="100" rx="8" fill="#1a2235" stroke="#334155" stroke-width="1"/>
+      <text x="165" y="78" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#94a3b8">Subnet: prod-data-pool</text>
+      <text x="165" y="94" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#64748b">10.50.10.0/24  GW: 10.50.10.1</text>
+      <!-- IP slots -->
+      <rect x="55" y="103" width="56" height="22" rx="4" fill="#0f172a" stroke="#4ade80" stroke-width="1"/>
+      <text x="83" y="118" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#4ade80">.101 ✓</text>
+      <rect x="116" y="103" width="56" height="22" rx="4" fill="#0f172a" stroke="#4ade80" stroke-width="1"/>
+      <text x="144" y="118" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#4ade80">.102 ✓</text>
+      <rect x="177" y="103" width="56" height="22" rx="4" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+      <text x="205" y="118" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#475569">.103</text>
+      <rect x="238" y="103" width="42" height="22" rx="4" fill="#0f172a" stroke="#334155" stroke-width="1" stroke-dasharray="3,2"/>
+      <text x="259" y="118" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#475569">...</text>
+      <text x="165" y="148" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#64748b">10.50.10.101 – 10.50.10.109</text>
+      <!-- Arrow to LIF -->
+      <line x1="295" y1="110" x2="360" y2="110" stroke="#2dd4bf" stroke-width="1.5" marker-end="url(#arr)"/>
+      <defs><marker id="arr" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0 0, 7 3.5, 0 7" fill="#2dd4bf"/></marker></defs>
+      <text x="327" y="105" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#64748b">auto-assign</text>
+      <!-- LIF Boxes -->
+      <rect x="362" y="70" width="130" height="36" rx="6" fill="#1a2235" stroke="#60a5fa" stroke-width="1"/>
+      <text x="427" y="84" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#60a5fa">data-lif-01</text>
+      <text x="427" y="97" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#94a3b8">10.50.10.101</text>
+      <rect x="362" y="115" width="130" height="36" rx="6" fill="#1a2235" stroke="#60a5fa" stroke-width="1"/>
+      <text x="427" y="129" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#60a5fa">data-lif-02</text>
+      <text x="427" y="142" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#94a3b8">10.50.10.102</text>
+      <!-- Node labels -->
+      <rect x="520" y="70" width="160" height="36" rx="6" fill="#1a2235" stroke="#a78bfa" stroke-width="1"/>
+      <text x="600" y="84" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#a78bfa">cluster-node1 (e0d)</text>
+      <text x="600" y="97" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#94a3b8">Home Port</text>
+      <rect x="520" y="115" width="160" height="36" rx="6" fill="#1a2235" stroke="#a78bfa" stroke-width="1"/>
+      <text x="600" y="129" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#a78bfa">cluster-node2 (e0d)</text>
+      <text x="600" y="142" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#94a3b8">Home Port</text>
+      <line x1="492" y1="88" x2="520" y2="88" stroke="#475569" stroke-width="1"/>
+      <line x1="492" y1="133" x2="520" y2="133" stroke="#475569" stroke-width="1"/>
+    </svg>
+    <div class="diagram-caption">Figure 1.1 — IP Subnet pool within a Broadcast Domain. LIFs receive IPs automatically from the reserved pool.</div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════════════════
+     SECTION 2 — Cluster & SVM Peering
+══════════════════════════════════════════ -->
+<section class="section" id="s2">
+  <div class="section-header">
+    <div class="section-icon icon-blue">🔗</div>
+    <div class="section-title-wrap">
+      <div class="section-num">Section 02 · Replication Prerequisites</div>
+      <h2>Cluster &amp; SVM Peering</h2>
+    </div>
+  </div>
+
+  <p>Before establishing any replication relationship (including SVM DR), both clusters must have dedicated intercluster LIFs and a verified cluster peering relationship. SVM peering then defines which source and destination SVMs are allowed to exchange data via SnapMirror.</p>
+
+  <div id="s2-sub1"></div>
+  <h3>Intercluster LIF Configuration</h3>
+  <p>Intercluster LIFs carry replication traffic between two ONTAP clusters. Each node participating in replication should have at least one intercluster LIF. These LIFs can also draw addresses from an existing subnet pool if the subnet's broadcast domain is shared with the intercluster ports.</p>
+
+  <div class="code-block">
+    <div class="code-header">
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+      <span class="code-lang">ONTAP CLI — Intercluster LIFs</span>
+    </div>
+    <div class="code-body"><span class="comment"># Create intercluster LIF on Cluster A, Node 1</span>
+<span class="prompt">::></span> <span class="cmd">network interface create</span> \
+      -vserver <span class="value">cluster-alpha</span> \
+      -lif <span class="value">ic-lif-a1</span> \
+      -service-policy <span class="value">default-intercluster</span> \
+      -home-node <span class="value">node-alpha-01</span> \
+      -home-port <span class="value">e0e</span> \
+      -subnet-name <span class="value">prod-data-pool</span>
+
+<span class="comment"># Create intercluster LIF on Cluster A, Node 2</span>
+<span class="prompt">::></span> <span class="cmd">network interface create</span> \
+      -vserver <span class="value">cluster-alpha</span> \
+      -lif <span class="value">ic-lif-a2</span> \
+      -service-policy <span class="value">default-intercluster</span> \
+      -home-node <span class="value">node-alpha-02</span> \
+      -home-port <span class="value">e0e</span> \
+      -subnet-name <span class="value">prod-data-pool</span>
+
+<span class="comment"># Both IPs assigned from pool: 10.50.10.103 and .104</span></div>
+  </div>
+
+  <div id="s2-sub2"></div>
+  <h3>Establishing Cluster Peering</h3>
+
+  <div class="code-block">
+    <div class="code-header">
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+      <span class="code-lang">ONTAP CLI — Cluster Peer Create &amp; SVM Peer</span>
+    </div>
+    <div class="code-body"><span class="comment">## On Cluster A — generate a passphrase and initiate peering</span>
+<span class="prompt">cluster-alpha::></span> <span class="cmd">cluster peer create</span> \
+      -peer-addrs <span class="value">10.60.10.201,10.60.10.202</span> \
+      -ipspace <span class="value">Default</span> \
+      -generate-passphrase <span class="value">true</span>
+<span class="output">Passphrase: NTAP-XK7P2-QR4M9</span>
+
+<span class="comment">## On Cluster B — accept peering with the passphrase</span>
+<span class="prompt">cluster-beta::></span> <span class="cmd">cluster peer create</span> \
+      -peer-addrs <span class="value">10.50.10.103,10.50.10.104</span> \
+      -passphrase <span class="value">NTAP-XK7P2-QR4M9</span>
+
+<span class="comment">## Verify</span>
+<span class="prompt">::></span> <span class="cmd">cluster peer show</span>
+<span class="output">Peer Cluster Name   Availability   Auth Status
+cluster-beta        Available      ok</span>
+
+<span class="comment">## Create SVM Peering (Cluster A side)</span>
+<span class="prompt">cluster-alpha::></span> <span class="cmd">vserver peer create</span> \
+      -vserver <span class="value">svm-prod</span> \
+      -peer-vserver <span class="value">svm-prod-dr</span> \
+      -peer-cluster <span class="value">cluster-beta</span> \
+      -applications <span class="value">snapmirror</span>
+
+<span class="comment">## Accept on Cluster B</span>
+<span class="prompt">cluster-beta::></span> <span class="cmd">vserver peer accept</span> \
+      -vserver <span class="value">svm-prod-dr</span>
+
+<span class="prompt">::></span> <span class="cmd">vserver peer show</span>
+<span class="output">Peer SVM       Peer Cluster   Peering State
+svm-prod-dr    cluster-alpha  peered</span></div>
+  </div>
+
+  <div class="callout warning">
+    <span class="callout-icon">⚠️</span>
+    <div class="callout-content">
+      <div class="callout-title">SVM Type Must Be "DP Destination"</div>
+      <div class="callout-text">When creating the destination SVM for SVM DR on the target cluster, you must explicitly set its <strong>subtype to <code>dp-destination</code></strong> during vserver creation. A regular SVM (default subtype) cannot serve as an SVM DR destination. This is a common setup mistake — the SnapMirror relationship will refuse to initialize if the destination SVM was not created with the correct subtype.</div>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+      <span class="code-lang">ONTAP CLI — Create DP-Destination SVM</span>
+    </div>
+    <div class="code-body"><span class="comment"># On Cluster B — create the DR destination SVM with correct subtype</span>
+<span class="prompt">cluster-beta::></span> <span class="cmd">vserver create</span> \
+      -vserver <span class="value">svm-prod-dr</span> \
+      -subtype <span class="value">dp-destination</span> \
+      -allowed-protocols <span class="value">cifs,nfs</span> \
+      -rootvolume-security-style <span class="value">ntfs</span>
+
+<span class="comment"># Confirm subtype is dp-destination</span>
+<span class="prompt">::></span> <span class="cmd">vserver show</span> -vserver svm-prod-dr -fields subtype
+<span class="output">vserver         subtype
+svm-prod-dr     dp-destination</span></div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════════════════
+     SECTION 3 — SVM Disaster Recovery
+══════════════════════════════════════════ -->
+<section class="section" id="s3">
+  <div class="section-header">
+    <div class="section-icon icon-orange">🚨</div>
+    <div class="section-title-wrap">
+      <div class="section-num">Section 03 · High Availability</div>
+      <h2>SVM Disaster Recovery (SVM DR)</h2>
+    </div>
+  </div>
+
+  <p>SVM DR (also referred to as vServer-level SnapMirror) replicates an entire SVM — including all its volumes, share configurations, NFS exports, network interfaces, and metadata — to a destination SVM on a remote cluster. Unlike volume-level SnapMirror, SVM DR enables a <em>transparent failover</em>: clients reconnect without needing to change IP addresses or DNS names.</p>
+
+  <div id="s3-sub1"></div>
+  <h3>SVM DR Architecture</h3>
+
+  <!-- Architecture Diagram -->
+  <div class="svg-wrap">
+    <svg viewBox="0 0 760 310" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:760px;display:block;margin:0 auto">
+      <defs>
+        <marker id="arrow2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><polygon points="0 0, 8 4, 0 8" fill="#2dd4bf"/></marker>
+        <marker id="arrowR" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><polygon points="0 0, 8 4, 0 8" fill="#f472b6"/></marker>
+        <marker id="arrowG" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><polygon points="0 0, 8 4, 0 8" fill="#34d399"/></marker>
+      </defs>
+
+      <!-- Cluster A box -->
+      <rect x="10" y="20" width="330" height="270" rx="12" fill="#111827" stroke="#60a5fa" stroke-width="1.5"/>
+      <text x="175" y="44" text-anchor="middle" font-family="Sora,sans-serif" font-weight="700" font-size="13" fill="#60a5fa">Cluster Alpha (Primary)</text>
+
+      <!-- SVM Prod box -->
+      <rect x="30" y="55" width="290" height="215" rx="8" fill="#1a2235" stroke="#334155" stroke-width="1"/>
+      <text x="175" y="74" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#94a3b8">SVM: svm-prod  (Active)</text>
+
+      <!-- Volumes in Cluster A -->
+      <rect x="45" y="82" width="72" height="32" rx="5" fill="#0f172a" stroke="#4ade80" stroke-width="1"/>
+      <text x="81" y="102" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#4ade80">vol-app01</text>
+      <rect x="126" y="82" width="72" height="32" rx="5" fill="#0f172a" stroke="#4ade80" stroke-width="1"/>
+      <text x="162" y="102" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#4ade80">vol-app02</text>
+      <rect x="207" y="82" width="72" height="32" rx="5" fill="#0f172a" stroke="#4ade80" stroke-width="1"/>
+      <text x="243" y="102" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#4ade80">vol-app03</text>
+
+      <!-- Configs in Cluster A -->
+      <rect x="45" y="125" width="80" height="28" rx="5" fill="#1a2235" stroke="#fbbf24" stroke-width="1"/>
+      <text x="85" y="143" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#fbbf24">CIFS Config</text>
+      <rect x="135" y="125" width="80" height="28" rx="5" fill="#1a2235" stroke="#fbbf24" stroke-width="1"/>
+      <text x="175" y="143" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#fbbf24">NFS Exports</text>
+      <rect x="225" y="125" width="80" height="28" rx="5" fill="#1a2235" stroke="#fbbf24" stroke-width="1"/>
+      <text x="265" y="143" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#fbbf24">Subnets/LIFs</text>
+
+      <!-- IC LIFs -->
+      <rect x="60" y="165" width="245" height="30" rx="5" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+      <text x="182" y="185" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#64748b">IC LIFs: 10.50.10.103 | 10.50.10.104</text>
+
+      <!-- Data LIFs Cluster A -->
+      <rect x="60" y="205" width="245" height="30" rx="5" fill="#0f172a" stroke="#a78bfa" stroke-width="1"/>
+      <text x="182" y="225" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#a78bfa">Data LIFs: 10.50.10.101 | 10.50.10.102  ✅ UP</text>
+
+      <!-- Clients -->
+      <rect x="30" y="247" width="130" height="28" rx="5" fill="#1a2235" stroke="#60a5fa" stroke-width="1"/>
+      <text x="95" y="265" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#60a5fa">🖥️ Clients</text>
+      <line x1="95" y1="247" x2="130" y2="235" stroke="#475569" stroke-width="1" stroke-dasharray="3,2"/>
+
+      <!-- SnapMirror Arrow -->
+      <line x1="340" y1="155" x2="420" y2="155" stroke="#2dd4bf" stroke-width="2" marker-end="url(#arrow2)"/>
+      <text x="380" y="148" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#2dd4bf">XDP SnapMirror</text>
+      <text x="380" y="170" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#64748b">5-min schedule</text>
+
+      <!-- Cluster B box -->
+      <rect x="420" y="20" width="330" height="270" rx="12" fill="#111827" stroke="#fb923c" stroke-width="1.5" stroke-dasharray="6,3"/>
+      <text x="585" y="44" text-anchor="middle" font-family="Sora,sans-serif" font-weight="700" font-size="13" fill="#fb923c">Cluster Beta (DR Site)</text>
+
+      <!-- SVM DR box -->
+      <rect x="440" y="55" width="290" height="215" rx="8" fill="#1a2235" stroke="#334155" stroke-width="1"/>
+      <text x="585" y="74" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#94a3b8">SVM: svm-prod-dr  (Standby)</text>
+
+      <!-- Volumes in Cluster B -->
+      <rect x="455" y="82" width="72" height="32" rx="5" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+      <text x="491" y="102" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#475569">vol-app01</text>
+      <rect x="536" y="82" width="72" height="32" rx="5" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+      <text x="572" y="102" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#475569">vol-app02</text>
+      <rect x="617" y="82" width="72" height="32" rx="5" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+      <text x="653" y="102" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#475569">vol-app03</text>
+
+      <!-- Configs DR -->
+      <rect x="455" y="125" width="80" height="28" rx="5" fill="#1a2235" stroke="#475569" stroke-width="1"/>
+      <text x="495" y="143" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#475569">CIFS Config</text>
+      <rect x="545" y="125" width="80" height="28" rx="5" fill="#1a2235" stroke="#475569" stroke-width="1"/>
+      <text x="585" y="143" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#475569">NFS Exports</text>
+      <rect x="635" y="125" width="70" height="28" rx="5" fill="#1a2235" stroke="#475569" stroke-width="1"/>
+      <text x="670" y="143" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#475569">LIFs (DOWN)</text>
+
+      <!-- IC LIFs B -->
+      <rect x="470" y="165" width="245" height="30" rx="5" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+      <text x="592" y="185" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#64748b">IC LIFs: 10.60.10.201 | 10.60.10.202</text>
+
+      <!-- Data LIFs Cluster B (down) -->
+      <rect x="470" y="205" width="245" height="30" rx="5" fill="#0f172a" stroke="#f472b6" stroke-width="1" stroke-dasharray="4,2"/>
+      <text x="592" y="225" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#f472b6">Same Data LIF IPs  ⬇️ DOWN (until failover)</text>
+    </svg>
+    <div class="diagram-caption">Figure 3.1 — SVM DR architecture. All data, configuration, and LIF metadata replicates from source to DR site. LIFs on DR are down until failover activates them.</div>
+  </div>
+
+  <div id="s3-sub2"></div>
+  <h3>Identity Preserve: The Critical Parameter</h3>
+  <p>The <code>-identity-preserve true</code> flag is what distinguishes SVM DR from plain volume SnapMirror. When enabled, ONTAP replicates not just volume data but also the SVM's full configuration — CIFS setup, NFS exports, subnets, DNS mappings, and all LIFs (with their original IP addresses). This is what makes transparent client failover possible.</p>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span style="color:var(--accent-green)">✅</span> Identity Preserve: TRUE</div>
+      <ul class="bullet-list">
+        <li>Copies CIFS/SMB configuration to DR site</li>
+        <li>Replicates NFS export policies</li>
+        <li>Creates same LIFs (same IPs) on destination</li>
+        <li>Copies subnet associations and DNS config</li>
+        <li>Clients reconnect to same IP — no changes needed</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title"><span style="color:var(--accent-orange)">⚠️</span> Identity Preserve: FALSE</div>
+      <ul class="bullet-list">
+        <li>Only volume data is replicated</li>
+        <li>No protocol configuration copied</li>
+        <li>No LIFs created at DR site</li>
+        <li>Manual reconfiguration required post-failover</li>
+        <li>Clients must update DNS/IP after failover</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+      <span class="code-lang">ONTAP CLI — Create SVM DR Relationship</span>
+    </div>
+    <div class="code-body"><span class="comment"># Establish SVM-level SnapMirror (XDP type — no volume in paths)</span>
+<span class="prompt">cluster-alpha::></span> <span class="cmd">snapmirror create</span> \
+      -source-path <span class="value">svm-prod:</span> \
+      -destination-path <span class="value">svm-prod-dr:</span> \
+      -type <span class="value">XDP</span> \
+      -policy <span class="value">MirrorAllSnapshots</span> \
+      -schedule <span class="value">5min</span> \
+      -throttle <span class="value">unlimited</span> \
+      -identity-preserve <span class="value">true</span>
+
+<span class="comment"># Initialize the relationship (triggers baseline transfer)</span>
+<span class="prompt">::></span> <span class="cmd">snapmirror initialize</span> \
+      -destination-path <span class="value">svm-prod-dr:</span>
+
+<span class="comment"># Monitor transfer progress</span>
+<span class="prompt">::></span> <span class="cmd">snapmirror show</span>
+<span class="output">Source SVM   Dest SVM      State       Status       Healthy
+svm-prod     svm-prod-dr   Snapmirrored  Idle        true</span></div>
+  </div>
+
+  <div id="s3-sub3"></div>
+  <h3>Failover &amp; Failback Procedure</h3>
+
+  <!-- Mermaid Failover Flow -->
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart LR
+    A["🔴 Disaster Detected\nCluster Alpha down"] --> B["Quiesce SVM DR\nsnapmirror quiesce"]
+    B --> C["Break SnapMirror\nsnapmirror break"]
+    C --> D["Start DR SVM\nvserver start svm-prod-dr"]
+    D --> E["Data LIFs come UP\nSame IPs as source"]
+    E --> F["✅ Clients reconnect\nNo IP change needed"]
+    F --> G["Fix Cluster Alpha\nTroubleshoot issue"]
+    G --> H["Reverse Replicate\nAlpha ← Beta"]
+    H --> I["Resync to Alpha\nsnapmirror resync"]
+    I --> J["Stop DR SVM\nvserver stop svm-prod-dr"]
+    J --> K["✅ Normal Operation\nRestored to primary"]
+
+    style A fill:#1a0a0a,stroke:#f472b6,color:#f472b6
+    style F fill:#0a1a0a,stroke:#34d399,color:#34d399
+    style K fill:#0a1a0a,stroke:#34d399,color:#34d399
+    </div>
+    <div class="diagram-caption">Figure 3.2 — SVM DR failover and failback sequence.</div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-header">
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+      <span class="code-lang">ONTAP CLI — Failover Commands</span>
+    </div>
+    <div class="code-body"><span class="comment">## ── FAILOVER (on Cluster Beta / DR site) ──</span>
+
+<span class="comment"># Step 1: Quiesce the relationship</span>
+<span class="prompt">cluster-beta::></span> <span class="cmd">snapmirror quiesce</span> -destination-path <span class="value">svm-prod-dr:</span>
+
+<span class="comment"># Step 2: Break (converts DP volumes to RW)</span>
+<span class="prompt">::></span> <span class="cmd">snapmirror break</span> -destination-path <span class="value">svm-prod-dr:</span>
+<span class="output">[Job 289] Job is queued: SnapMirror break for destination "svm-prod-dr:"</span>
+
+<span class="comment"># Step 3: Bring DR SVM online</span>
+<span class="prompt">::></span> <span class="cmd">vserver start</span> -vserver <span class="value">svm-prod-dr</span>
+<span class="output">svm-prod-dr  Operational State: running</span>
+
+<span class="comment"># Data LIFs auto-promote to UP state. Source LIFs go DOWN automatically.</span>
+<span class="prompt">::></span> <span class="cmd">network interface show</span> -vserver svm-prod-dr
+<span class="output">LIF          Status    Address
+data-lif-01  up/up     10.50.10.101  &lt;-- same IP as source!</span>
+
+
+<span class="comment">## ── FAILBACK (after primary is restored) ──</span>
+
+<span class="comment"># Establish reverse replication: Beta → Alpha</span>
+<span class="prompt">cluster-beta::></span> <span class="cmd">snapmirror resync</span> -destination-path <span class="value">svm-prod:</span>
+
+<span class="comment"># Once synced, stop DR SVM and restart primary</span>
+<span class="prompt">::></span> <span class="cmd">vserver stop</span> -vserver <span class="value">svm-prod-dr</span>
+<span class="prompt">::></span> <span class="cmd">vserver start</span> -vserver <span class="value">svm-prod</span></div>
+  </div>
+
+  <div class="callout success">
+    <span class="callout-icon">✅</span>
+    <div class="callout-content">
+      <div class="callout-title">Key Advantage of SVM DR</div>
+      <div class="callout-text">Unlike volume-level SnapMirror failover (where clients must update their mount point IPs or DNS entries), SVM DR preserves the exact same LIF IP addresses at the DR site. End users and applications remain unaware of the failover — data continues to be accessible at the same address with no client-side changes required.</div>
+    </div>
+  </div>
+
+  <div id="s3-sub4"></div>
+  <h3>Volume Protection Levels Within SVM DR</h3>
+  <p>When adding new volumes to an SVM enrolled in SVM DR, you can control whether each volume participates in replication. By default, new volumes are <strong>protected</strong> and will be included in the next replication cycle. Volumes marked <strong>unprotected</strong> are excluded.</p>
+
+  <div class="code-block">
+    <div class="code-header">
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+      <span class="code-lang">ONTAP CLI — Volume Protection in SVM DR</span>
+    </div>
+    <div class="code-body"><span class="comment"># vol-scratch is excluded from SVM DR replication</span>
+<span class="prompt">::></span> <span class="cmd">volume create</span> -vserver <span class="value">svm-prod</span> -volume <span class="value">vol-scratch</span> \
+      -aggregate <span class="value">aggr1_node1</span> -size <span class="value">10g</span> \
+      -junction-path <span class="value">/vol-scratch</span> \
+      -vserver-dr-protection <span class="value">unprotected</span>
+
+<span class="comment"># vol-archive IS included in SVM DR — default is protected</span>
+<span class="prompt">::></span> <span class="cmd">volume create</span> -vserver <span class="value">svm-prod</span> -volume <span class="value">vol-archive</span> \
+      -aggregate <span class="value">aggr2_node2</span> -size <span class="value">10g</span> \
+      -junction-path <span class="value">/vol-archive</span> \
+      -vserver-dr-protection <span class="value">protected</span>
+
+<span class="comment"># Manually trigger replication to check which volumes replicate</span>
+<span class="prompt">::></span> <span class="cmd">snapmirror update</span> -destination-path <span class="value">svm-prod-dr:</span>
+<span class="prompt">::></span> <span class="cmd">volume show</span> -vserver svm-prod-dr
+<span class="output"># vol-archive created on DR — vol-scratch NOT present (excluded)</span></div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════════════════
+     SECTION 4 — Node Shell & Data Inspection
+══════════════════════════════════════════ -->
+<section class="section" id="s4">
+  <div class="section-header">
+    <div class="section-icon icon-purple">🔍</div>
+    <div class="section-title-wrap">
+      <div class="section-num">Section 04 · Internal Diagnostics</div>
+      <h2>Node Shell &amp; Volume Data Inspection</h2>
+    </div>
+  </div>
+
+  <p>ONTAP provides a low-level node shell environment that allows storage administrators to inspect volume contents directly at the operating system level — without requiring client-side NFS or CIFS access. This is particularly useful when share-level permissions are preventing access to data that needs to be verified.</p>
+
+  <div class="callout warning">
+    <span class="callout-icon">⚠️</span>
+    <div class="callout-content">
+      <div class="callout-title">Administrative Access Only</div>
+      <div class="callout-text">Node shell access bypasses standard access control and should be strictly limited to storage administrators. All actions in node shell are logged and auditable. Use only for diagnostic purposes — never for routine data access.</div>
+    </div>
+  </div>
+
+  <div id="s4-sub1"></div>
+  <h3>Navigating to Node Shell</h3>
+  <p>To browse volume contents at the node level, you first need to determine which physical node hosts the volume's aggregate, then log into that node's shell. The path convention inside the node shell uses <code>/vol/</code> as the root for volumes instead of the cluster-level junction path.</p>
+
+  <!-- Mermaid node shell flow -->
+  <div class="diagram-wrap">
+    <div class="mermaid">
+flowchart TD
+    A["Cluster CLI\nvolume show -volume &lt;name&gt;"] --> B["Identify Aggregate\naggr show -fields use-only-node"]
+    B --> C["Know target node\ne.g. cluster-node2"]
+    C --> D["Login to Node Shell\nsystem node run -node cluster-node2"]
+    D --> E["Inside Node Shell\nwall status — list volumes on this node"]
+    E --> F["Switch to Advanced Mode\npriv set advanced"]
+    F --> G["List directory contents\nls /vol/&lt;volume-name&gt;/"]
+    G --> H["Read text file\nrdfile /vol/&lt;volume-name&gt;/&lt;filename.txt&gt;"]
+
+    style D fill:#1a0f2e,stroke:#a78bfa,color:#a78bfa
+    style H fill:#0a1a0a,stroke:#34d399,color:#34d399
+    </div>
+    <div class="diagram-caption">Figure 4.1 — Node shell access workflow for volume data inspection.</div>
+  </div>
+
+  <div id="s4-sub2"></div>
+  <h3>Step-by-Step: Reading Volume Contents</h3>
+
+  <div class="code-block">
+    <div class="code-header">
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+      <span class="code-lang">ONTAP CLI → Node Shell — Data Inspection</span>
+    </div>
+    <div class="code-body"><span class="comment">## Step 1 — Locate the volume's hosting aggregate and node</span>
+<span class="prompt">::></span> <span class="cmd">volume show</span> -volume <span class="value">vol-app03</span> -fields <span class="value">aggregate</span>
+<span class="output">Volume      Aggregate
+vol-app03   aggr2_node2</span>
+
+<span class="prompt">::></span> <span class="cmd">aggr show</span> -aggregate <span class="value">aggr2_node2</span> -fields <span class="value">use-only-node</span>
+<span class="output">Aggregate       Use-Only-Node
+aggr2_node2     cluster-node2</span>
+
+<span class="comment">## Step 2 — Log into the target node shell</span>
+<span class="prompt">::></span> <span class="cmd">system node run</span> -node <span class="value">cluster-node2</span>
+<span class="output">Type 'exit' or 'Ctrl-D' to return to the system prompt.</span>
+
+<span class="comment">## Step 3 — List volumes available on this node</span>
+<span class="prompt">node-shell&gt;</span> <span class="cmd">vol status</span>
+<span class="output">  Volume    Aggregate    State     Status         Options
+  vol-app02 aggr2_node2  online    raid_dp, flex  create_ucode=on
+  vol-app03 aggr2_node2  online    raid_dp, flex  create_ucode=on</span>
+
+<span class="comment">## Step 4 — Switch to advanced privilege mode</span>
+<span class="prompt">node-shell&gt;</span> <span class="cmd">priv set advanced</span>
+<span class="output">Warning: These commands are potentially dangerous.
+priv: Advanced mode is now enabled.</span>
+
+<span class="comment">## Step 5 — List contents (note: /vol prefix required in node shell)</span>
+<span class="prompt">node-shell*&gt;</span> <span class="cmd">ls</span> <span class="value">/vol/vol-app03/</span>
+<span class="output">bin  docs  include  lib  reports  software  src</span>
+
+<span class="prompt">node-shell*&gt;</span> <span class="cmd">ls</span> <span class="value">/vol/vol-app03/reports/</span>
+<span class="output">q1-results.txt  q2-results.txt  summary.txt</span>
+
+<span class="comment">## Step 6 — Read a text file</span>
+<span class="prompt">node-shell*&gt;</span> <span class="cmd">rdfile</span> <span class="value">/vol/vol-app03/reports/summary.txt</span>
+<span class="output">Q3 Production Report - Storage Utilization
+Total Capacity Used: 7.2 TB
+Peak IOPs: 48,220
+...</span>
+
+<span class="comment">## Return to admin mode and exit</span>
+<span class="prompt">node-shell*&gt;</span> <span class="cmd">priv set admin</span>
+<span class="prompt">node-shell&gt;</span> exit
+<span class="prompt">::></span></div>
+  </div>
+
+  <div class="callout danger">
+    <span class="callout-icon">🚫</span>
+    <div class="callout-content">
+      <div class="callout-title">Read-Only Diagnostic Use Only</div>
+      <div class="callout-text">While node shell <em>technically</em> permits certain file write operations, this should <strong>never</strong> be used in production environments to modify data. All writes bypass standard auditing and data integrity checksums. Use node shell exclusively for reading and verification. Any unauthorized modifications will be traceable and constitute a policy violation.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📁 Path Comparison: Cluster CLI vs Node Shell</div>
+    <table class="spec-table">
+      <thead><tr><th>Context</th><th>Command</th><th>Path Example</th></tr></thead>
+      <tbody>
+        <tr><td>Cluster CLI</td><td><code>volume show</code></td><td><code>Junction: /vol-app03</code></td></tr>
+        <tr><td>Node Shell (admin)</td><td><code>vol status</code></td><td>Shows volume name without path prefix</td></tr>
+        <tr><td>Node Shell (advanced)</td><td><code>ls /vol/vol-app03/</code></td><td><code>/vol/</code> prefix required</td></tr>
+        <tr><td>Node Shell (advanced)</td><td><code>rdfile /vol/vol-app03/file.txt</code></td><td>Full path with <code>/vol/</code> prefix</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:8px;font-size:13px;color:var(--text-muted)">Note: Binary files (Word, Excel, PDF) display garbled output in node shell. Only plain text (.txt) files are human-readable through rdfile.</p>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════════════════
+     SECTION 5 — ONTAP Upgrade Overview
+══════════════════════════════════════════ -->
+<section class="section" id="s5">
+  <div class="section-header">
+    <div class="section-icon icon-yellow">⬆️</div>
+    <div class="section-title-wrap">
+      <div class="section-num">Section 05 · Part B — ONTAP Upgrade</div>
+      <h2>ONTAP Upgrade: Overview &amp; Version Selection</h2>
+    </div>
+  </div>
+
+  <p>ONTAP upgrades are operationally straightforward, but the <strong>pre-upgrade preparation</strong> is where most of the complexity lies. Getting the version selection, compatibility checks, and risk assessment right before touching a single controller is what separates a smooth upgrade from a production incident.</p>
+
+  <div class="grid-3">
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--accent-teal)">3</div>
+      <div class="stat-label">Upgrade Types</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--accent-blue)">5+</div>
+      <div class="stat-label">Pre-checks Required</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color:var(--accent-green)">~30m</div>
+      <div class="stat-label">Per Controller (min)</div>
+    </div>
+  </div>
+
+  <div id="s5-sub1"></div>
+  <h3>Step 1: Selecting the Target Version</h3>
+  <p>Version selection is not arbitrary. The goal is to move to a release that resolves current security risks and bugs in your environment while also satisfying hardware limits across all your platforms. Most organizations follow an <strong>N-1 strategy</strong> — upgrading to one release behind the latest, which offers the most thorough patch history and stability.</p>
+
+  <div class="card">
+    <div class="card-title">📌 Version Selection Decision Framework</div>
+    <ul class="step-list">
+      <li><span class="step-num">1</span><div><strong>Identify existing risks</strong> — Use ActiveIQ to find high/medium/low risks in your environment and note which ONTAP versions resolve them.</div></li>
+      <li><span class="step-num">2</span><div><strong>Apply N-1 strategy as baseline</strong> — Most enterprises target one version behind latest (e.g. if 9.13 is current, target 9.12.1P5).</div></li>
+      <li><span class="step-num">3</span><div><strong>Always pick highest patch</strong> — Within your chosen release line, always pick the latest patch (e.g. 9.10.1P7 over 9.10.1P3). Later patches fix bugs found in earlier ones.</div></li>
+      <li><span class="step-num">4</span><div><strong>Check hardware ceiling</strong> — Confirm all your hardware models support the chosen version (see Section 6).</div></li>
+      <li><span class="step-num">5</span><div><strong>Validate upgrade path</strong> — Ensure there is a direct upgrade path. Some older versions require an intermediate hop.</div></li>
+    </ul>
+  </div>
+
+  <div id="s5-sub2"></div>
+  <h3>Step 2: Release Notes &amp; Risk Assessment</h3>
+  <p>Before selecting your target version, review the official ONTAP release notes. They document every enhancement, bug fix, known issue, and resolved security risk for that release — and crucially, which versions introduced or resolved each item. Search for <em>NetApp ONTAP release notes</em> and open the HTML version for the target release family.</p>
+
+  <div class="callout info">
+    <span class="callout-icon">📖</span>
+    <div class="callout-content">
+      <div class="callout-title">Where to Find Release Notes</div>
+      <div class="callout-text">Navigate to <strong>docs.netapp.com → ONTAP → Release Notes</strong> and select your target version line. The release notes list enhancements by category (SAN, NAS, Security, Replication, etc.) and include a dedicated resolved issues section with bug IDs. This document should be reviewed thoroughly before any upgrade project begins.</div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════════════════
+     SECTION 6 — Hardware Compatibility
+══════════════════════════════════════════ -->
+<section class="section" id="s6">
+  <div class="section-header">
+    <div class="section-icon icon-rose">🖥️</div>
+    <div class="section-title-wrap">
+      <div class="section-num">Section 06 · Pre-Upgrade Check #1</div>
+      <h2>Hardware Compatibility Verification</h2>
+    </div>
+  </div>
+
+  <p>Not all NetApp hardware platforms support all ONTAP versions. Older controller models have a maximum supported ONTAP version ceiling. Before planning your upgrade, you must verify that every hardware model in your environment can run the target ONTAP release.</p>
+
+  <div id="s6-sub1"></div>
+  <h3>Using the NetApp Hardware Universe (HWU)</h3>
+  <p>The Hardware Universe at <strong>hwu.netapp.com</strong> is the definitive tool for hardware-to-ONTAP version compatibility. You can select multiple platform models simultaneously and check which ONTAP versions they all support.</p>
+
+  <!-- HWU Workflow SVG -->
+  <div class="svg-wrap">
+    <svg viewBox="0 0 700 140" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:700px;display:block;margin:0 auto">
+      <defs>
+        <marker id="flowArr" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+          <polygon points="0 0, 7 3.5, 0 7" fill="#60a5fa"/>
+        </marker>
+      </defs>
+      <!-- Step boxes -->
+      <rect x="10" y="40" width="100" height="50" rx="7" fill="#1a2235" stroke="#60a5fa" stroke-width="1.2"/>
+      <text x="60" y="61" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#60a5fa">hwu.netapp.com</text>
+      <text x="60" y="76" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#64748b">Open site</text>
+
+      <line x1="110" y1="65" x2="135" y2="65" stroke="#60a5fa" stroke-width="1.4" marker-end="url(#flowArr)"/>
+
+      <rect x="135" y="40" width="120" height="50" rx="7" fill="#1a2235" stroke="#a78bfa" stroke-width="1.2"/>
+      <text x="195" y="60" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#a78bfa">Select Platforms</text>
+      <text x="195" y="75" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#64748b">All models in env</text>
+
+      <line x1="255" y1="65" x2="280" y2="65" stroke="#60a5fa" stroke-width="1.4" marker-end="url(#flowArr)"/>
+
+      <rect x="280" y="40" width="120" height="50" rx="7" fill="#1a2235" stroke="#fbbf24" stroke-width="1.2"/>
+      <text x="340" y="60" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#fbbf24">Select ONTAP Ver</text>
+      <text x="340" y="75" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#64748b">Target version</text>
+
+      <line x1="400" y1="65" x2="425" y2="65" stroke="#60a5fa" stroke-width="1.4" marker-end="url(#flowArr)"/>
+
+      <rect x="425" y="40" width="120" height="50" rx="7" fill="#1a2235" stroke="#34d399" stroke-width="1.2"/>
+      <text x="485" y="60" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#34d399">View Results</text>
+      <text x="485" y="75" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#64748b">Grayed = not supported</text>
+
+      <line x1="545" y1="65" x2="570" y2="65" stroke="#60a5fa" stroke-width="1.4" marker-end="url(#flowArr)"/>
+
+      <rect x="570" y="40" width="115" height="50" rx="7" fill="#1a2235" stroke="#fb923c" stroke-width="1.2"/>
+      <text x="627" y="60" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#fb923c">Plan Upgrade</text>
+      <text x="627" y="75" text-anchor="middle" font-family="Inter,sans-serif" font-size="9" fill="#64748b">Per platform if needed</text>
+
+      <!-- Labels -->
+      <text x="350" y="120" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" fill="#64748b">hwu.netapp.com → Platform → Show Specifications → OS/ONTAP Version → Show Results</text>
+    </svg>
+    <div class="diagram-caption">Figure 6.1 — Hardware Universe (HWU) workflow for ONTAP version compatibility checking.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📊 Example: Hardware Version Ceiling Reference</div>
+    <table class="spec-table">
+      <thead><tr><th>Platform</th><th>Max ONTAP Version</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>FAS 9500 / AFF A900</td><td><span class="badge badge-green">9.12+</span></td><td>Latest gen — supports all current releases</td></tr>
+        <tr><td>FAS 8300 / AFF A400</td><td><span class="badge badge-blue">9.9.x</span></td><td>Mid-gen — check patch ceiling</td></tr>
+        <tr><td>FAS 8020 / AFF A200</td><td><span class="badge badge-yellow">9.8.x</span></td><td>Cannot go beyond 9.8P5</td></tr>
+        <tr><td>FAS 2554 / FAS 2552</td><td><span class="badge badge-orange">9.8.x max</span></td><td>9.9 is grayed out in HWU</td></tr>
+        <tr><td>FAS 3250 (legacy)</td><td><span class="badge badge-orange">9.1 max</span></td><td>End of upgrade path — plan hardware refresh</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:8px;font-size:13px;color:var(--text-muted)">In HWU, a grayed-out ONTAP version means the selected platform does not support it. Never plan an upgrade to a version where any platform in your environment shows it grayed out.</p>
+  </div>
+
+  <div class="callout tip">
+    <span class="callout-icon">🎯</span>
+    <div class="callout-content">
+      <div class="callout-title">Interview / Exam Tip</div>
+      <div class="callout-text">When asked "how do you determine the maximum ONTAP version a platform supports?" — the answer is <strong>hwu.netapp.com</strong>. Select the platform → show specifications → filter by OS/ONTAP version. Grayed versions = not supported. This tool is the first stop for any upgrade planning activity.</div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════════════════
+     SECTION 7 — Software Compatibility
+══════════════════════════════════════════ -->
+<section class="section" id="s7">
+  <div class="section-header">
+    <div class="section-icon icon-green">🔧</div>
+    <div class="section-title-wrap">
+      <div class="section-num">Section 07 · Pre-Upgrade Check #2</div>
+      <h2>Software Compatibility Checks</h2>
+    </div>
+  </div>
+
+  <p>After confirming hardware supports your target ONTAP version, you must verify that every piece of software <em>connecting to</em> your NetApp storage is also compatible. This is more complex than hardware checking — it spans server operating systems, HBA drivers and firmware, SAN switches, multipathing software, and management tools.</p>
+
+  <!-- Software compat diagram -->
+  <div class="svg-wrap">
+    <svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:700px;display:block;margin:0 auto">
+      <!-- Central ONTAP -->
+      <rect x="285" y="100" width="130" height="50" rx="8" fill="#1a2235" stroke="#2dd4bf" stroke-width="2"/>
+      <text x="350" y="122" text-anchor="middle" font-family="Sora,sans-serif" font-size="12" font-weight="700" fill="#2dd4bf">ONTAP</text>
+      <text x="350" y="138" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#94a3b8">Target Version</text>
+      <!-- Nodes around it -->
+      <!-- Server OS -->
+      <rect x="30" y="20" width="120" height="45" rx="7" fill="#1a2235" stroke="#60a5fa" stroke-width="1"/>
+      <text x="90" y="39" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#60a5fa">Server OS</text>
+      <text x="90" y="53" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#64748b">Win/RHEL/Oracle</text>
+      <line x1="150" y1="43" x2="285" y2="118" stroke="#60a5fa" stroke-width="1" stroke-dasharray="4,2"/>
+      <!-- HBA Driver -->
+      <rect x="30" y="100" width="120" height="45" rx="7" fill="#1a2235" stroke="#a78bfa" stroke-width="1"/>
+      <text x="90" y="119" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#a78bfa">HBA Driver</text>
+      <text x="90" y="133" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#64748b">FC / iSCSI / FCoE</text>
+      <line x1="150" y1="123" x2="285" y2="123" stroke="#a78bfa" stroke-width="1" stroke-dasharray="4,2"/>
+      <!-- Multipath -->
+      <rect x="30" y="180" width="120" height="45" rx="7" fill="#1a2235" stroke="#34d399" stroke-width="1"/>
+      <text x="90" y="198" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#34d399">Multipathing</text>
+      <text x="90" y="213" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#64748b">MPIO / DM-Mpath</text>
+      <line x1="150" y1="203" x2="285" y2="135" stroke="#34d399" stroke-width="1" stroke-dasharray="4,2"/>
+      <!-- SAN Switch -->
+      <rect x="550" y="20" width="130" height="45" rx="7" fill="#1a2235" stroke="#fbbf24" stroke-width="1"/>
+      <text x="615" y="39" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#fbbf24">SAN Switch</text>
+      <text x="615" y="53" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#64748b">Brocade / Cisco</text>
+      <line x1="550" y1="43" x2="415" y2="118" stroke="#fbbf24" stroke-width="1" stroke-dasharray="4,2"/>
+      <!-- Mgmt Tools -->
+      <rect x="550" y="100" width="130" height="45" rx="7" fill="#1a2235" stroke="#fb923c" stroke-width="1"/>
+      <text x="615" y="119" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#fb923c">Mgmt Tools</text>
+      <text x="615" y="133" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#64748b">ActiveIQ / OCI</text>
+      <line x1="550" y1="123" x2="415" y2="123" stroke="#fb923c" stroke-width="1" stroke-dasharray="4,2"/>
+      <!-- Host Utilities -->
+      <rect x="550" y="180" width="130" height="45" rx="7" fill="#1a2235" stroke="#f472b6" stroke-width="1"/>
+      <text x="615" y="198" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#f472b6">Host Utilities</text>
+      <text x="615" y="213" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#64748b">NAS/SAN Host Utils</text>
+      <line x1="550" y1="203" x2="415" y2="135" stroke="#f472b6" stroke-width="1" stroke-dasharray="4,2"/>
+      <!-- Tool label -->
+      <text x="350" y="240" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" fill="#64748b">All verified via: mysupport.netapp.com/matrix (IMT)</text>
+    </svg>
+    <div class="diagram-caption">Figure 7.1 — All ecosystem components must be compatibility-verified against the target ONTAP version before upgrading.</div>
+  </div>
+
+  <div id="s7-sub1"></div>
+  <h3>Host &amp; HBA Compatibility (Interoperability Matrix Tool)</h3>
+  <p>NetApp's <strong>Interoperability Matrix Tool (IMT)</strong> at <code>mysupport.netapp.com/matrix</code> is the authoritative source for host-side compatibility. Select your source and target ONTAP versions, host OS, protocol (FC/iSCSI/FCoE/NFS/SMB), and HBA model to generate a compatibility report with specific version requirements and any applicable alerts.</p>
+
+  <div class="code-block">
+    <div class="code-header">
+      <div class="code-dots"><span class="dot-red"></span><span class="dot-ylw"></span><span class="dot-grn"></span></div>
+      <span class="code-lang">Software Compatibility Checklist</span>
+    </div>
+    <div class="code-body"><span class="comment">┌─ CATEGORY ──────────────────── CHECK IN IMT ─────────────────────────────┐</span>
+
+<span class="hl">Server OS</span>         Windows Server 2019/2022, RHEL 8/9, Oracle Linux, SLES
+<span class="hl">HBA Driver</span>        emulex / qlogic / broadcom — firmware + driver versions
+<span class="hl">Multipathing</span>      Windows MPIO, Linux DM-Multipath, PowerPath
+<span class="hl">Host Utilities</span>    NetApp Host Utilities for SAN (NHU) — version per OS
+<span class="hl">SAN Switches</span>      Brocade FOS version, Cisco NX-OS version
+<span class="hl">Mgmt Tools</span>       ActiveIQ Unified Manager, Harvest, OCI, SnapCenter
+<span class="hl">Protocols</span>        NFSv3/v4, SMB 2.x/3.x, iSCSI initiator version
+
+<span class="comment">┌─ ALERT TYPES ─────────────────────────────────────────────────────────────┐</span>
+<span class="warn">ALERT</span>  = Must resolve before upgrade (patch, firmware, config change)
+<span class="output">INFO</span>   = Informational only — action optional</div>
+  </div>
+
+  <div class="callout danger">
+    <span class="callout-icon">🔥</span>
+    <div class="callout-content">
+      <div class="callout-title">Most Post-Upgrade Issues Are Software Compatibility Failures</div>
+      <div class="callout-text">The most common post-upgrade problems — LUNs disappearing, paths going down, connectivity issues — stem from <strong>software compatibility mismatches that were not addressed before the upgrade</strong>. Never skip the IMT checks. Always share IMT alerts and KB articles with the server/network teams well in advance of the maintenance window so patches can be applied beforehand.</div>
+    </div>
+  </div>
+
+  <div id="s7-sub2"></div>
+  <h3>SAN Switch Firmware Compatibility</h3>
+  <p>SAN switch firmware (Brocade FOS or Cisco NX-OS) must also be compatible with the target ONTAP version. Use IMT's <em>Solution Search → Switch Infrastructure</em> option, select your switch vendor, model, and current firmware — then filter by your target ONTAP version to see which FOS/NX-OS releases are supported.</p>
+
+  <div class="card">
+    <div class="card-title">🔀 Brocade FOS Compatibility: Example Reference</div>
+    <table class="spec-table">
+      <thead><tr><th>ONTAP Version</th><th>Min Brocade FOS</th><th>Recommended</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>9.12.x</td><td>FOS 8.2.1</td><td>FOS 9.0.1c</td><td><span class="badge badge-green">Supported</span></td></tr>
+        <tr><td>9.10.x</td><td>FOS 8.0.1</td><td>FOS 8.2.3a</td><td><span class="badge badge-green">Supported</span></td></tr>
+        <tr><td>9.8.x</td><td>FOS 7.4.2</td><td>FOS 8.1.2</td><td><span class="badge badge-blue">Supported</span></td></tr>
+        <tr><td>9.6.x</td><td>FOS 7.3.0</td><td>FOS 7.4.2</td><td><span class="badge badge-yellow">Verify patches</span></td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:8px;font-size:12px;color:var(--text-muted)">Always verify against the actual IMT for your specific switch model. This table is illustrative only.</p>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════════════════
+     SECTION 8 — Upgrade Advisor & Types
+══════════════════════════════════════════ -->
+<section class="section" id="s8">
+  <div class="section-header">
+    <div class="section-icon icon-teal">🚀</div>
+    <div class="section-title-wrap">
+      <div class="section-num">Section 08 · Upgrade Execution</div>
+      <h2>Upgrade Advisor &amp; Upgrade Types</h2>
+    </div>
+  </div>
+
+  <div id="s8-sub1"></div>
+  <h3>ActiveIQ Upgrade Advisor</h3>
+  <p>Once all pre-checks are completed, use <strong>ActiveIQ Digital Advisor</strong> to generate a formal Upgrade Advisor Plan. This tool ingests your cluster's serial numbers and current ONTAP version, evaluates known risks, and produces a recommended upgrade path — including whether an intermediate version hop is required.</p>
+
+  <div class="callout info">
+    <span class="callout-icon">📊</span>
+    <div class="callout-content">
+      <div class="callout-title">About the Upgrade Advisor Plan</div>
+      <div class="callout-text">The plan can be generated as a PDF/Excel report and emailed to your registered NetApp support email. It includes: risk assessment by severity (High/Medium/Low), recommended target version per cluster, upgrade type (ANDU/NDU/DU), estimated upgrade procedure, and intermediate upgrade requirements. This document typically becomes part of the Change Control submission for the upgrade project.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🔗 Upgrade Path Validation: Intermediate Hops</div>
+    <p style="margin:0 0 10px;font-size:13.5px;color:var(--text-secondary)">Not all ONTAP version combinations allow a direct upgrade. For large version gaps, an intermediate upgrade to a bridge release is mandatory:</p>
+    <div class="diagram-wrap" style="padding:16px">
+      <div class="mermaid">
+flowchart LR
+    A["9.1 cluster"] -->|"❌ BLOCKED"| B["9.5 direct"]
+    A -->|"✅ Required"| C["9.3 (intermediate)"]
+    C -->|"✅ Then proceed"| D["9.5 target"]
+    style B fill:#1a0a0a,stroke:#f472b6,color:#f472b6
+    style C fill:#0f1a0a,stroke:#fbbf24,color:#fbbf24
+    style D fill:#0a1a0a,stroke:#34d399,color:#34d399
+      </div>
+    </div>
+    <p style="margin:0;font-size:13px;color:var(--text-muted)">Upgrade Advisor automatically identifies required intermediate hops and will block generation of a plan if a direct path is not supported.</p>
+  </div>
+
+  <div id="s8-sub2"></div>
+  <h3>ONTAP Upgrade Types: DU / NDU / ANDU</h3>
+
+  <!-- Upgrade types SVG -->
+  <div class="svg-wrap">
+    <svg viewBox="0 0 700 180" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:700px;display:block;margin:0 auto">
+      <!-- DU -->
+      <rect x="15" y="20" width="200" height="145" rx="10" fill="#1a2235" stroke="#f472b6" stroke-width="1.5"/>
+      <text x="115" y="43" text-anchor="middle" font-family="Sora,sans-serif" font-weight="700" font-size="13" fill="#f472b6">DU</text>
+      <text x="115" y="58" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#94a3b8">Disruptive Upgrade</text>
+      <text x="115" y="80" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#475569">Downtime: YES</text>
+      <text x="115" y="95" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#475569">Manual process</text>
+      <text x="115" y="110" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#475569">Single-node clusters</text>
+      <text x="115" y="125" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#475569">only applicable</text>
+      <rect x="35" y="140" width="160" height="16" rx="4" fill="#1a0a1a" stroke="#f472b6" stroke-width="1"/>
+      <text x="115" y="152" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#f472b6">Use when: no HA pair</text>
+      <!-- NDU -->
+      <rect x="248" y="20" width="200" height="145" rx="10" fill="#1a2235" stroke="#fbbf24" stroke-width="1.5"/>
+      <text x="348" y="43" text-anchor="middle" font-family="Sora,sans-serif" font-weight="700" font-size="13" fill="#fbbf24">NDU</text>
+      <text x="348" y="58" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#94a3b8">Non-Disruptive Upgrade</text>
+      <text x="348" y="80" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#475569">Downtime: NO</text>
+      <text x="348" y="95" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#475569">Manual procedure</text>
+      <text x="348" y="110" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#475569">Admin moves services,</text>
+      <text x="348" y="125" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#475569">reboots nodes manually</text>
+      <rect x="268" y="140" width="160" height="16" rx="4" fill="#1a1a0a" stroke="#fbbf24" stroke-width="1"/>
+      <text x="348" y="152" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#fbbf24">ONTAP ≤ 8.2 default</text>
+      <!-- ANDU -->
+      <rect x="482" y="20" width="200" height="145" rx="10" fill="#1a2235" stroke="#34d399" stroke-width="2"/>
+      <text x="582" y="43" text-anchor="middle" font-family="Sora,sans-serif" font-weight="700" font-size="13" fill="#34d399">ANDU ⭐</text>
+      <text x="582" y="58" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#94a3b8">Automated NDU</text>
+      <text x="582" y="80" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#475569">Downtime: NO</text>
+      <text x="582" y="95" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#475569">Fully automated</text>
+      <text x="582" y="110" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#475569">ONTAP handles everything</text>
+      <text x="582" y="125" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#475569">Available from ONTAP 8.3+</text>
+      <rect x="502" y="140" width="160" height="16" rx="4" fill="#0a1a0a" stroke="#34d399" stroke-width="1"/>
+      <text x="582" y="152" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#34d399">Recommended for all 9.x</text>
+    </svg>
+    <div class="diagram-caption">Figure 8.1 — Three ONTAP upgrade types. ANDU is standard for all ONTAP 9.x environments with 2+ node clusters.</div>
+  </div>
+
+  <div class="callout success">
+    <span class="callout-icon">🌟</span>
+    <div class="callout-content">
+      <div class="callout-title">ANDU: Single Command, Full Automation</div>
+      <div class="callout-text">In ANDU mode, a single <code>system node image update</code> or System Manager workflow orchestrates everything: image download, service migration, controller reboot, service restoration, and validation. Storage admins must <strong>actively monitor</strong> throughout — ANDU handles automation but does not eliminate the need for an administrator to be present for troubleshooting. If something unexpected occurs, intervention is required immediately.</div>
+    </div>
+  </div>
+
+  <div id="s8-sub3"></div>
+  <h3>Rolling vs Batch Upgrade Procedures</h3>
+  <p>Within ANDU, ONTAP selects the upgrade procedure automatically based on cluster size. Understanding the distinction helps in capacity planning for your maintenance window.</p>
+
+  <!-- Rolling vs Batch diagram -->
+  <div class="svg-wrap">
+    <svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:700px;display:block;margin:0 auto">
+      <defs>
+        <marker id="arrF" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0 0, 7 3.5, 0 7" fill="#60a5fa"/></marker>
+      </defs>
+      <!-- ROLLING section -->
+      <text x="10" y="22" font-family="Sora,sans-serif" font-size="12" font-weight="700" fill="#60a5fa">Rolling Upgrade (≤ 8 nodes)</text>
+      <!-- Nodes 1-4 sequential -->
+      <rect x="10" y="30" width="60" height="36" rx="6" fill="#0f172a" stroke="#34d399" stroke-width="2"/>
+      <text x="40" y="52" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#34d399">Node 1</text>
+      <line x1="70" y1="48" x2="85" y2="48" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arrF)"/>
+      <rect x="85" y="30" width="60" height="36" rx="6" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+      <text x="115" y="52" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#475569">Node 2</text>
+      <line x1="145" y1="48" x2="160" y2="48" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arrF)"/>
+      <rect x="160" y="30" width="60" height="36" rx="6" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+      <text x="190" y="52" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#475569">Node 3</text>
+      <line x1="220" y1="48" x2="235" y2="48" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arrF)"/>
+      <rect x="235" y="30" width="60" height="36" rx="6" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+      <text x="265" y="52" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" fill="#475569">Node 4</text>
+      <text x="165" y="85" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#64748b">One node at a time · Partner node serves data during upgrade</text>
+      <rect x="325" y="30" width="120" height="36" rx="6" fill="#0a1a0a" stroke="#34d399" stroke-width="1"/>
+      <text x="385" y="47" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#34d399">~30 min/node</text>
+      <text x="385" y="60" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#64748b">4 nodes = 2 hrs est.</text>
+
+      <!-- Divider -->
+      <line x1="10" y1="115" x2="690" y2="115" stroke="#1e293b" stroke-width="1.5"/>
+
+      <!-- BATCH section -->
+      <text x="10" y="135" font-family="Sora,sans-serif" font-size="12" font-weight="700" fill="#fbbf24">Batch Upgrade (&gt; 8 nodes)</text>
+      <!-- 10-node cluster, 2 rows of 5 HA pairs -->
+      <text x="10" y="155" font-family="Inter,sans-serif" font-size="10" fill="#64748b">Example: 10-node cluster (5 HA pairs)</text>
+      <!-- Batch 1: 5 nodes (first of each HA pair) -->
+      <text x="10" y="175" font-family="JetBrains Mono,monospace" font-size="9" fill="#34d399">Batch 1:</text>
+      <rect x="70" y="162" width="48" height="28" rx="5" fill="#0f172a" stroke="#34d399" stroke-width="1.5"/>
+      <text x="94" y="180" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#34d399">P1A</text>
+      <rect x="127" y="162" width="48" height="28" rx="5" fill="#0f172a" stroke="#34d399" stroke-width="1.5"/>
+      <text x="151" y="180" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#34d399">P2A</text>
+      <rect x="184" y="162" width="48" height="28" rx="5" fill="#0f172a" stroke="#34d399" stroke-width="1.5"/>
+      <text x="208" y="180" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#34d399">P3A</text>
+      <rect x="241" y="162" width="48" height="28" rx="5" fill="#0f172a" stroke="#34d399" stroke-width="1.5"/>
+      <text x="265" y="180" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#34d399">P4A</text>
+      <rect x="298" y="162" width="48" height="28" rx="5" fill="#0f172a" stroke="#34d399" stroke-width="1.5"/>
+      <text x="322" y="180" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#34d399">P5A</text>
+      <!-- Arrow -->
+      <line x1="355" y1="176" x2="380" y2="176" stroke="#fbbf24" stroke-width="1.5" marker-end="url(#arrF)"/>
+      <!-- Batch 2 -->
+      <text x="10" y="220" font-family="JetBrains Mono,monospace" font-size="9" fill="#fbbf24">Batch 2:</text>
+      <rect x="70" y="207" width="48" height="28" rx="5" fill="#0f172a" stroke="#fbbf24" stroke-width="1.5"/>
+      <text x="94" y="225" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#fbbf24">P1B</text>
+      <rect x="127" y="207" width="48" height="28" rx="5" fill="#0f172a" stroke="#fbbf24" stroke-width="1.5"/>
+      <text x="151" y="225" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#fbbf24">P2B</text>
+      <rect x="184" y="207" width="48" height="28" rx="5" fill="#0f172a" stroke="#fbbf24" stroke-width="1.5"/>
+      <text x="208" y="225" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#fbbf24">P3B</text>
+      <rect x="241" y="207" width="48" height="28" rx="5" fill="#0f172a" stroke="#fbbf24" stroke-width="1.5"/>
+      <text x="265" y="225" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#fbbf24">P4B</text>
+      <rect x="298" y="207" width="48" height="28" rx="5" fill="#0f172a" stroke="#fbbf24" stroke-width="1.5"/>
+      <text x="322" y="225" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#fbbf24">P5B</text>
+      <!-- Time savings text -->
+      <rect x="385" y="155" width="295" height="90" rx="8" fill="#1a2235" stroke="#334155" stroke-width="1"/>
+      <text x="532" y="176" text-anchor="middle" font-family="Sora,sans-serif" font-size="11" font-weight="600" fill="#fbbf24">Why Batch Saves Time</text>
+      <text x="532" y="194" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#94a3b8">12 nodes × 30 min rolling = 6 hours</text>
+      <text x="532" y="210" text-anchor="middle" font-family="Inter,sans-serif" font-size="10" fill="#94a3b8">Batch: 2 rounds of 6 = ~1.5 hours</text>
+      <text x="532" y="226" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#34d399">Partner node in each HA pair serves</text>
+      <text x="532" y="240" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#34d399">data during its partner's upgrade</text>
+    </svg>
+    <div class="diagram-caption">Figure 8.2 — Rolling vs Batch upgrade procedures. ONTAP selects the procedure automatically based on cluster node count.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">⚖️ Rolling vs Batch: Quick Reference</div>
+    <table class="spec-table">
+      <thead><tr><th>Criterion</th><th>Rolling Upgrade</th><th>Batch Upgrade</th></tr></thead>
+      <tbody>
+        <tr><td>Cluster Size Trigger</td><td>≤ 8 nodes</td><td>&gt; 8 nodes</td></tr>
+        <tr><td>Selected by default</td><td>Auto (small clusters)</td><td>Auto (large clusters)</td></tr>
+        <tr><td>Node order</td><td>One node at a time, sequentially</td><td>One from each HA pair simultaneously</td></tr>
+        <tr><td>Estimated time (12-node)</td><td>~6 hours</td><td>~1.5–2 hours</td></tr>
+        <tr><td>Disruption risk per round</td><td>Lower (fewer concurrent ops)</td><td>Higher (more parallel upgrades)</td></tr>
+        <tr><td>Change window suitability</td><td>Smaller clusters (≤ 8)</td><td>Larger clusters (&gt; 8)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════════════════
+     SECTION 9 — Interview Q&A
+══════════════════════════════════════════ -->
+<section class="section" id="s9">
+  <div class="section-header">
+    <div class="section-icon icon-purple">🎓</div>
+    <div class="section-title-wrap">
+      <div class="section-num">Section 09 · Knowledge Check</div>
+      <h2>Scenario-Based Interview Q&amp;A</h2>
+    </div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q">Q1: What is the key difference between volume-level SnapMirror and SVM DR failover from an end-client perspective?</div>
+    <button class="quiz-btn" onclick="this.nextElementSibling.style.display='block';this.style.display='none'">Reveal Answer</button>
+    <div class="quiz-a">With <strong>volume-level SnapMirror</strong> failover, the destination volume gets a new IP / LIF at the DR site. End clients must update their mount points or DNS entries to reconnect — causing visible disruption.<br><br>With <strong>SVM DR (identity-preserve true)</strong>, the destination SVM is configured with the same LIF IP addresses as the source. During failover, destination LIFs activate with the identical IPs, and source LIFs go down. Clients reconnect automatically without any configuration changes — transparent failover.</div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q">Q2: You are upgrading a mixed environment with FAS 8020, FAS 9000, and AFF A400 controllers. Your target is ONTAP 9.9. Is this feasible?</div>
+    <button class="quiz-btn" onclick="this.nextElementSibling.style.display='block';this.style.display='none'">Reveal Answer</button>
+    <div class="quiz-a"><strong>Partially feasible — but the FAS 8020 is a blocker.</strong><br><br>FAS 9000 and AFF A400 support ONTAP 9.9. However, FAS 8020 has a maximum supported version of 9.8.x — it cannot be upgraded to 9.9 (the version will appear grayed out in HWU). This means:<ul style="margin:10px 0 0 16px"><li>Either downgrade your target to 9.8.x (which all three platforms support)</li><li>Or plan a hardware refresh/replacement of FAS 8020 before attempting a 9.9 upgrade</li></ul>The correct tool for this analysis is <strong>hwu.netapp.com → select all platforms → check ONTAP version support</strong>.</div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q">Q3: What does "identity-preserve" do in an SVM DR relationship, and when would you set it to false?</div>
+    <button class="quiz-btn" onclick="this.nextElementSibling.style.display='block';this.style.display='none'">Reveal Answer</button>
+    <div class="quiz-a"><code>identity-preserve true</code> (default) replicates the complete SVM identity: protocol configurations (CIFS/NFS), DNS settings, subnet associations, and all LIF definitions with their original IP addresses. This enables transparent client failover.<br><br><code>identity-preserve false</code> replicates only volume data. No protocol config or LIFs are created on the destination. Use this when:<ul style="margin:10px 0 0 16px"><li>The DR site uses a completely different IP addressing scheme</li><li>You plan to manually configure the destination SVM for a different client population</li><li>You only need data protection without transparent failover capability</li></ul></div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q">Q4: Your 12-node ONTAP cluster upgrade is scheduled for an 8-hour maintenance window. A colleague suggests using rolling upgrade to "reduce risk." Is this the right approach?</div>
+    <button class="quiz-btn" onclick="this.nextElementSibling.style.display='block';this.style.display='none'">Reveal Answer</button>
+    <div class="quiz-a"><strong>No — for a 12-node cluster, batch upgrade is the correct procedure.</strong><br><br>Rolling upgrade for 12 nodes at ~30 minutes per node would require approximately 6 hours of pure upgrade time — and that excludes any troubleshooting time if issues arise. This easily exceeds the change window and puts the entire project at risk.<br><br>ONTAP will automatically select batch upgrade for clusters &gt; 8 nodes. In batch mode, ONTAP upgrades one node from each HA pair simultaneously (i.e., 6 nodes in parallel for a 12-node cluster), reducing total time to approximately 1.5–2 hours. The partner nodes remain active and serve data throughout.<br><br>"Reducing risk" through rolling upgrade in a large cluster is counterproductive — the extended maintenance window itself creates risk to the change control process.</div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q">Q5: When checking software compatibility for an ONTAP upgrade, what happens if you miss a server HBA driver alert in the IMT?</div>
+    <button class="quiz-btn" onclick="this.nextElementSibling.style.display='block';this.style.display='none'">Reveal Answer</button>
+    <div class="quiz-a"><strong>LUNs may become inaccessible after the upgrade.</strong><br><br>Incompatible HBA drivers are the most common cause of post-upgrade SAN connectivity issues. Symptoms include:<ul style="margin:10px 0 0 16px"><li>LUNs disappearing from hosts after ONTAP upgrade</li><li>Multipath paths going offline</li><li>Application failures due to storage connectivity loss</li></ul>IMT <em>Alert</em> items are mandatory — they must be reviewed and addressed before the upgrade maintenance window. The recommended approach: export IMT results with all applicable KB articles, share with the server team well in advance, and confirm all patches/driver updates are applied before the change window opens.</div>
+  </div>
+
+  <div class="quiz-card">
+    <div class="quiz-q">Q6: What is the vserver-dr-protection parameter and how does it affect SVM DR replication?</div>
+    <button class="quiz-btn" onclick="this.nextElementSibling.style.display='block';this.style.display='none'">Reveal Answer</button>
+    <div class="quiz-a">The <code>-vserver-dr-protection</code> parameter on a volume controls whether that volume participates in SVM DR replication.<br><br><strong>protected</strong> (default): The volume is included in SVM DR replication. It will be created on the destination SVM during the next scheduled or manual transfer.<br><br><strong>unprotected</strong>: The volume is excluded from SVM DR. Even if it exists on the source SVM, it will not appear on the DR destination. Use this for temporary or scratch volumes that don't need disaster recovery coverage — this also reduces replication overhead and baseline transfer time.</div>
+  </div>
+
+</section>
+
+<!-- ═══════════════════════════════════
+     ABOUT THE AUTHOR
+══════════════════════════════════════ -->
+<section class="section" id="about">
+  <div class="author-card">
+    <div class="author-avatar">👨‍💻</div>
+    <div class="author-name">Mohammed Abdul</div>
+    <div class="author-title">Data Protection Architect · 10+ Years Experience</div>
+    <div class="author-bio">
+      Mohammed Abdul is a Data Protection Architect with more than 10 years of experience in Hybrid Cloud, having worked with global clients across various industries. With deep expertise in enterprise backup and recovery solutions, Mohammed specializes in designing and implementing robust data protection strategies that bridge on-premises infrastructure with modern cloud platforms.
+    </div>
+    <div class="tech-badges">
+      <span class="tech-badge">AWS</span>
+      <span class="tech-badge">Azure</span>
+      <span class="tech-badge">GCP</span>
+      <span class="tech-badge">NetApp ONTAP</span>
+      <span class="tech-badge">Commvault</span>
+      <span class="tech-badge">Veeam</span>
+      <span class="tech-badge">Veritas NetBackup</span>
+      <span class="tech-badge">SnapCenter</span>
+    </div>
+    <a class="contact-link" href="mailto:abdul.md.20000102@gmail.com">
+      📧 abdul.md.20000102@gmail.com
+    </a>
+    <div class="callout warning" style="margin-top:16px">
+      <span class="callout-icon">📋</span>
+      <div class="callout-content">
+        <div class="callout-title">Disclaimer</div>
+        <div class="callout-text">This content is for educational purposes and shared as tutorial material for knowledge sharing. Always refer to official NetApp documentation and follow your organization's change management procedures for production implementations.<br><br>I am not affiliated with or endorsed by NetApp, Inc. NetApp® and ONTAP® are registered trademarks of NetApp, Inc. All references are made purely for learning and knowledge sharing purposes.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div><!-- end content-area -->
+</div><!-- end main-content -->
+
+<script>
+  // Reading progress bar
+  window.addEventListener('scroll', () => {
+    const d = document.documentElement;
+    const scrolled = d.scrollTop / (d.scrollHeight - d.clientHeight);
+    document.getElementById('reading-progress').style.transform = `scaleX(${scrolled})`;
+  });
+
+  // TOC active link highlighting
+  const sections = document.querySelectorAll('.section');
+  const tocLinks = document.querySelectorAll('.toc-link');
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.getAttribute('id');
+        tocLinks.forEach(link => {
+          link.classList.toggle('active', link.getAttribute('href') === `#${id}`);
+        });
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px', threshold: 0 });
+  sections.forEach(s => obs.observe(s));
+
+  // Mermaid init
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      primaryColor: '#1a2235',
+      primaryTextColor: '#f1f5f9',
+      primaryBorderColor: '#2dd4bf',
+      lineColor: '#60a5fa',
+      secondaryColor: '#111827',
+      tertiaryColor: '#0b0f1a',
+      edgeLabelBackground: '#111827',
+      nodeTextColor: '#f1f5f9'
+    },
+    flowchart: { htmlLabels: true, curve: 'basis' }
+  });
+</script>
+</body>
+</html>
