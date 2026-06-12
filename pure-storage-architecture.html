@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Pure Storage FlashArray — Architecture, Data Flow &amp; NetApp Comparison</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg:       #0a0e14;
+  --bg2:      #11161f;
+  --bg3:      #161d29;
+  --border:   #262f3d;
+  --orange:   #ff6b35;
+  --orange-d: #4a1f0c;
+  --teal:     #2dd4bf;
+  --teal-d:   #134e4a;
+  --purple:   #a78bfa;
+  --purple-d: #2e1065;
+  --amber:    #fbbf24;
+  --amber-d:  #78350f;
+  --coral:    #f87171;
+  --coral-d:  #450a0a;
+  --green:    #4ade80;
+  --green-d:  #052e16;
+  --blue:     #60a5fa;
+  --blue-d:   #0c1a3a;
+  --text:     #e8edf4;
+  --muted:    #8b96a8;
+  --muted2:   #4a5568;
+  --mono:     'JetBrains Mono', monospace;
+  --sans:     'Inter', system-ui, sans-serif;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.7}
+
+/* HEADER */
+header{border-bottom:1px solid var(--border);padding:0 clamp(1rem,5vw,4rem);position:sticky;top:0;background:rgba(10,14,20,0.93);backdrop-filter:blur(12px);z-index:100;display:flex;align-items:center;justify-content:space-between;height:52px}
+.logo{font-family:var(--mono);font-size:12px;color:var(--orange);text-decoration:none;letter-spacing:.05em}
+.logo span{color:var(--muted)}
+nav a{font-size:12px;color:var(--muted);text-decoration:none;margin-left:1.5rem;transition:color .2s}
+nav a:hover{color:var(--text)}
+
+/* LAYOUT */
+.layout{display:flex;max-width:1140px;margin:0 auto;padding:0 clamp(1rem,3vw,2.5rem)}
+aside{width:230px;flex-shrink:0;position:sticky;top:52px;height:calc(100vh - 52px);overflow-y:auto;padding:2rem 1rem 2rem 0;border-right:1px solid var(--border);scrollbar-width:none}
+aside::-webkit-scrollbar{display:none}
+.toc-group{margin-bottom:1.4rem}
+.toc-part{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted2);padding:0 .5rem;margin-bottom:.4rem}
+.toc-link{display:block;font-size:11.5px;color:var(--muted);text-decoration:none;padding:.26rem .5rem;border-radius:4px;transition:all .15s;border-left:2px solid transparent}
+.toc-link:hover{color:var(--text);background:var(--bg2)}
+.toc-link.active{color:var(--orange);border-left-color:var(--orange);background:rgba(255,107,53,.06)}
+.toc-sub{padding-left:1rem;font-size:10.5px;color:var(--muted2)}
+.toc-sub:hover{color:var(--muted)}
+main{flex:1;min-width:0;padding:2.5rem 0 4rem 2.5rem}
+
+/* HERO */
+.hero{margin-bottom:2.8rem}
+.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.15em;color:var(--orange);text-transform:uppercase;margin-bottom:1rem;display:flex;align-items:center;gap:.6rem}
+.eyebrow::before{content:'';display:inline-block;width:24px;height:1px;background:var(--orange)}
+h1{font-size:clamp(1.7rem,4vw,2.6rem);font-weight:700;letter-spacing:-.02em;line-height:1.15;margin-bottom:1rem}
+h1 em{font-style:normal;color:var(--orange)}
+.hero-desc{font-size:15px;color:var(--muted);max-width:640px;line-height:1.75;margin-bottom:1.4rem}
+.badge-row{display:flex;flex-wrap:wrap;gap:.5rem}
+.badge{font-family:var(--mono);font-size:10px;padding:2px 9px;border-radius:20px;border:1px solid;letter-spacing:.04em}
+.b-orange{border-color:var(--orange);color:var(--orange);background:rgba(255,107,53,.08)}
+.b-teal  {border-color:var(--teal);  color:var(--teal);  background:rgba(45,212,191,.07)}
+.b-purple{border-color:var(--purple);color:var(--purple);background:rgba(167,139,250,.07)}
+.b-amber {border-color:var(--amber); color:var(--amber); background:rgba(251,191,36,.07)}
+.b-blue  {border-color:var(--blue);  color:var(--blue);  background:rgba(96,165,250,.07)}
+
+/* SECTIONS */
+.section{margin-bottom:3rem}
+.section-num{font-family:var(--mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted2);display:block;margin-bottom:.5rem}
+h2{font-size:1.35rem;font-weight:600;margin-bottom:.9rem;padding-bottom:.7rem;border-bottom:1px solid var(--border)}
+h3{font-size:1rem;font-weight:600;margin:1.6rem 0 .7rem;color:var(--text)}
+h4{font-size:.85rem;font-weight:600;margin:1.2rem 0 .5rem;color:var(--muted);font-family:var(--mono);letter-spacing:.03em;text-transform:uppercase}
+p{margin-bottom:.9rem;color:var(--text);line-height:1.75}
+p:last-child{margin-bottom:0}
+ul.body-list{margin:.5rem 0 1rem 1.4rem}
+ul.body-list li{color:var(--muted);font-size:13.5px;line-height:1.7;margin-bottom:.35rem}
+ul.body-list li strong{color:var(--text)}
+
+/* CODE BLOCKS */
+.code-block{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:1rem 0 1.4rem}
+.code-header{display:flex;align-items:center;justify-content:space-between;padding:.55rem 1rem;background:var(--bg3);border-bottom:1px solid var(--border)}
+.code-label{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+.label-pure  {color:var(--orange)}
+.label-ontap {color:var(--teal)}
+.label-output{color:var(--muted)}
+.copy-btn{font-family:var(--mono);font-size:10px;color:var(--muted);background:none;border:1px solid var(--border);border-radius:4px;padding:2px 8px;cursor:pointer;transition:all .15s}
+.copy-btn:hover{color:var(--text);border-color:var(--muted)}
+.copy-btn.copied{color:var(--green);border-color:var(--green)}
+pre{padding:1.1rem 1.2rem;font-family:var(--mono);font-size:12.5px;line-height:1.7;overflow-x:auto;tab-size:4}
+.cm{color:var(--muted2)}
+.ck{color:var(--orange)}
+.cv{color:var(--amber)}
+.cs{color:var(--coral)}
+.cg{color:var(--green)}
+.cp{color:var(--purple)}
+.cb{color:var(--blue)}
+
+/* CALLOUTS */
+.callout{border-radius:10px;padding:1rem 1.1rem;margin:1.2rem 0;border:1px solid;display:flex;gap:.75rem;align-items:flex-start}
+.callout-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.callout-body{font-size:13.5px;line-height:1.65}
+.callout-body strong{display:block;font-size:11px;font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.3rem}
+.c-tip   {background:rgba(255,107,53,.06);border-color:var(--orange-d)}
+.c-tip .callout-body{color:#ffd6c2}
+.c-info  {background:rgba(45,212,191,.06);border-color:var(--teal-d)}
+.c-info .callout-body{color:#b2f5ea}
+.c-warn  {background:rgba(251,191,36,.06);border-color:var(--amber-d)}
+.c-warn .callout-body{color:#fde68a}
+
+/* COMPARISON TABLE */
+.cmp-table{width:100%;border-collapse:collapse;margin:1.2rem 0;font-size:13px}
+.cmp-table th{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:.65rem .9rem;border-bottom:2px solid var(--border);text-align:left}
+.cmp-table th.col-pure{color:var(--orange);background:rgba(255,107,53,.05)}
+.cmp-table th.col-ontap{color:var(--teal);background:rgba(45,212,191,.05)}
+.cmp-table th.col-concept{color:var(--muted);background:var(--bg3)}
+.cmp-table td{padding:.65rem .9rem;border-bottom:1px solid var(--border);vertical-align:top;line-height:1.6;font-size:12.5px}
+.cmp-table tr:hover td{background:var(--bg2)}
+.cmp-table td.col-concept{font-weight:600;color:var(--text);font-size:13px}
+.cmp-table code{font-family:var(--mono);font-size:11px;padding:1px 5px;background:var(--bg3);border-radius:3px;border:1px solid var(--border)}
+
+/* MODEL CARDS */
+.model-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.85rem;margin:1rem 0 1.4rem}
+.model-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:1.1rem 1.2rem;border-left:3px solid var(--orange)}
+.model-card h4{font-size:1rem;font-family:var(--mono);letter-spacing:.04em;margin:0 0 .35rem;font-weight:600;color:var(--orange);text-transform:none}
+.model-card p{font-size:12.5px;color:var(--muted);margin:0;line-height:1.6}
+.model-card .tier{display:inline-block;font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:1px 7px;border-radius:3px;margin-bottom:.4rem;background:rgba(255,107,53,.1);color:var(--orange)}
+
+/* DIAGRAM WRAP */
+.diagram-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:1.2rem;margin:1.2rem 0}
+.diagram-wrap svg{display:block;width:100%}
+
+/* TABLES */
+.dtable{width:100%;border-collapse:collapse;margin:1.2rem 0;font-size:13px}
+.dtable th{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:.55rem .8rem;border-bottom:2px solid var(--border);text-align:left;background:var(--bg3)}
+.dtable td{padding:.55rem .8rem;border-bottom:1px solid var(--border);vertical-align:top;line-height:1.55}
+.dtable tr:hover td{background:var(--bg2)}
+.dtable code{font-family:var(--mono);font-size:11.5px;padding:1px 5px;background:var(--bg3);border-radius:3px;border:1px solid var(--border)}
+
+/* Q&A */
+.qa-list{list-style:none}
+.qa-item{border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:.65rem}
+.qa-q{display:flex;justify-content:space-between;align-items:center;padding:.85rem 1.1rem;cursor:pointer;background:var(--bg2);font-size:13.5px;font-weight:500;user-select:none;transition:background .15s}
+.qa-q:hover{background:var(--bg3)}
+.qa-q .q-num{font-family:var(--mono);font-size:10px;color:var(--orange);margin-right:.6rem}
+.qa-q .chevron{color:var(--muted);font-size:12px;transition:transform .25s}
+.qa-item.open .chevron{transform:rotate(180deg)}
+.qa-a{display:none;padding:.9rem 1.1rem;background:var(--bg);font-size:13px;color:var(--muted);line-height:1.7;border-top:1px solid var(--border)}
+.qa-item.open .qa-a{display:block}
+
+/* ABOUT / FOOTER */
+.about-box{border-top:1px solid var(--border);padding:2rem 0 0;margin-top:3rem;display:flex;gap:1.2rem;align-items:flex-start}
+.about-avatar{width:44px;height:44px;border-radius:50%;background:var(--teal-d);border:2px solid var(--teal);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:16px;color:var(--teal);flex-shrink:0}
+.about-text h3{font-size:13px;font-weight:600;margin-bottom:.25rem}
+.about-text p{font-size:12.5px;color:var(--muted);line-height:1.6}
+footer{border-top:1px solid var(--border);padding:1.1rem clamp(1rem,5vw,4rem);text-align:center;font-family:var(--mono);font-size:10px;color:var(--muted2);letter-spacing:.04em}
+
+@media(max-width:768px){aside{display:none}main{padding:1.5rem 0 3rem}.layout{padding:0 1rem}.cmp-table{font-size:11px}.cmp-table th,.cmp-table td{padding:.4rem .5rem}}
+</style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="index.html"><span>~/</span>NetAppKBs</a>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="#s1">Architecture</a>
+    <a href="#s3">Data Flow</a>
+    <a href="#s5">Comparison</a>
+    <a href="https://github.com/rameshnelluri-netapp/NetAppKBs" target="_blank">GitHub ↗</a>
+  </nav>
+</header>
+
+<div class="layout">
+
+<aside>
+  <div class="toc-group">
+    <div class="toc-part">Part A — Architecture</div>
+    <a class="toc-link active" href="#s1">01 FlashArray Overview</a>
+    <a class="toc-link toc-sub" href="#s1-purity">Purity Operating Env.</a>
+    <a class="toc-link toc-sub" href="#s1-modules">Controller Modules</a>
+    <a class="toc-link" href="#s2">02 Hardware Models</a>
+    <a class="toc-link toc-sub" href="#s2-x">FlashArray//X &amp; XL</a>
+    <a class="toc-link toc-sub" href="#s2-c">FlashArray//C &amp; E</a>
+    <a class="toc-link toc-sub" href="#s2-os">Purity//FA Versions</a>
+  </div>
+  <div class="toc-group">
+    <div class="toc-part">Part B — Data Flow</div>
+    <a class="toc-link" href="#s3">03 Write Path</a>
+    <a class="toc-link toc-sub" href="#s3-write">Metadata + DFM</a>
+    <a class="toc-link" href="#s4">04 Network Concepts</a>
+    <a class="toc-link toc-sub" href="#s4-fc">FC / iSCSI / NVMe</a>
+    <a class="toc-link toc-sub" href="#s4-file">File Services</a>
+  </div>
+  <div class="toc-group">
+    <div class="toc-part">Part C — NetApp Compare</div>
+    <a class="toc-link" href="#s5">05 Concept Mapping</a>
+    <a class="toc-link toc-sub" href="#s5-wafl">WAFL vs Purity</a>
+    <a class="toc-link toc-sub" href="#s5-inode">Inode / Metadata</a>
+    <a class="toc-link toc-sub" href="#s5-agg">Aggregate / Pool</a>
+    <a class="toc-link toc-sub" href="#s5-shelf">Disk Shelves</a>
+    <a class="toc-link toc-sub" href="#s5-upgrade">Upgrades</a>
+    <a class="toc-link toc-sub" href="#s5-qtree">Qtree / Volumes</a>
+    <a class="toc-link" href="#s6">06 Interview Q&amp;A</a>
+  </div>
+</aside>
+
+<main>
+
+<!-- HERO -->
+<div class="hero" id="top">
+  <div class="eyebrow">Pure Storage · FlashArray · Purity OS</div>
+  <h1>Pure Storage<br/><em>FlashArray Architecture</em></h1>
+  <p class="hero-desc">
+    A complete walkthrough of Pure Storage FlashArray architecture, the Purity Operating Environment,
+    write data flow, and networking concepts — written for storage administrators coming from a
+    NetApp ONTAP background. Every core ONTAP concept (WAFL, inodes, aggregates, disk shelves,
+    qtrees, upgrades) is mapped to its Pure Storage equivalent so you can translate your existing
+    mental model directly.
+  </p>
+  <div class="badge-row">
+    <span class="badge b-orange">Purity//FA 6.6.x</span>
+    <span class="badge b-teal">FlashArray//X, //C, //XL, //E</span>
+    <span class="badge b-purple">NVMe · FC · iSCSI</span>
+    <span class="badge b-amber">Unified Block + File</span>
+    <span class="badge b-blue">NetApp ONTAP Comparison</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 01 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s1">
+  <span class="section-num">Section 01 · Architecture</span>
+  <h2>FlashArray Overview</h2>
+
+  <p>A Pure Storage <strong>FlashArray</strong> is an all-flash storage system built around two key principles that differ fundamentally from traditional RAID-based arrays like ONTAP: <strong>DirectFlash</strong> (Pure manages raw NAND directly instead of treating SSDs as black-box drives behind a RAID controller) and <strong>RAID-HA</strong> (a Pure-proprietary erasure-coding scheme, not traditional RAID). Every FlashArray ships as an HA pair of controllers sharing access to a common pool of <strong>DirectFlash Modules (DFMs)</strong> or NVMe SSDs.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 680 320" role="img">
+      <title>FlashArray high-level architecture — controller pair and DirectFlash shelf</title>
+      <desc>Shows two controllers (CT0 and CT1) in active-active configuration, each connected to a shared chassis of DirectFlash Modules, with front-end ports for FC, iSCSI, NVMe-oF and Ethernet file services.</desc>
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+
+      <!-- Outer chassis -->
+      <rect x="20" y="16" width="640" height="288" rx="14" fill="none" stroke="#262f3d" stroke-width="1"/>
+      <text font-family="JetBrains Mono,monospace" font-size="11" fill="#8b96a8" x="36" y="36" letter-spacing="1">FLASHARRAY CHASSIS</text>
+
+      <!-- Controller 0 -->
+      <rect x="48" y="56" width="270" height="100" rx="10" fill="#161d29" stroke="#ff6b35" stroke-width="1"/>
+      <text font-family="JetBrains Mono,monospace" font-size="11" fill="#ff6b35" x="64" y="78" letter-spacing="1">CT0 — ACTIVE</text>
+      <text font-family="Inter,sans-serif" font-size="12" fill="#e8edf4" x="64" y="98">Purity//FA OS</text>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#8b96a8" x="64" y="116">NVRAM write buffer</text>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#8b96a8" x="64" y="134">Metadata engine</text>
+
+      <!-- Controller 1 -->
+      <rect x="362" y="56" width="270" height="100" rx="10" fill="#161d29" stroke="#ff6b35" stroke-width="1" stroke-dasharray="0"/>
+      <text font-family="JetBrains Mono,monospace" font-size="11" fill="#ff6b35" x="378" y="78" letter-spacing="1">CT1 — ACTIVE</text>
+      <text font-family="Inter,sans-serif" font-size="12" fill="#e8edf4" x="378" y="98">Purity//FA OS</text>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#8b96a8" x="378" y="116">NVRAM write buffer</text>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#8b96a8" x="378" y="134">Metadata engine</text>
+
+      <!-- Mirror link between controllers -->
+      <line x1="318" y1="106" x2="362" y2="106" stroke="#2dd4bf" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr)" marker-start="url(#arr)"/>
+      <text font-family="JetBrains Mono,monospace" font-size="9" fill="#2dd4bf" x="340" y="96" text-anchor="middle">mirror</text>
+
+      <!-- DirectFlash shelf -->
+      <rect x="48" y="186" width="584" height="80" rx="10" fill="#161d29" stroke="#fbbf24" stroke-width="0.5"/>
+      <text font-family="JetBrains Mono,monospace" font-size="10" fill="#fbbf24" x="64" y="208" letter-spacing="1">SHARED DIRECTFLASH MODULES (DFM) — NVMe</text>
+      <!-- DFM blocks -->
+      <rect x="64" y="218" width="60" height="36" rx="4" fill="#1c2333" stroke="#fbbf24" stroke-width="0.5"/>
+      <rect x="134" y="218" width="60" height="36" rx="4" fill="#1c2333" stroke="#fbbf24" stroke-width="0.5"/>
+      <rect x="204" y="218" width="60" height="36" rx="4" fill="#1c2333" stroke="#fbbf24" stroke-width="0.5"/>
+      <rect x="274" y="218" width="60" height="36" rx="4" fill="#1c2333" stroke="#fbbf24" stroke-width="0.5"/>
+      <rect x="344" y="218" width="60" height="36" rx="4" fill="#1c2333" stroke="#fbbf24" stroke-width="0.5"/>
+      <rect x="414" y="218" width="60" height="36" rx="4" fill="#1c2333" stroke="#fbbf24" stroke-width="0.5"/>
+      <rect x="484" y="218" width="60" height="36" rx="4" fill="#1c2333" stroke="#fbbf24" stroke-width="0.5"/>
+      <rect x="554" y="218" width="60" height="36" rx="4" fill="#1c2333" stroke="#fbbf24" stroke-width="0.5"/>
+      <text font-family="JetBrains Mono,monospace" font-size="9" fill="#8b96a8" x="94"  y="240" text-anchor="middle">DFM</text>
+      <text font-family="JetBrains Mono,monospace" font-size="9" fill="#8b96a8" x="164" y="240" text-anchor="middle">DFM</text>
+      <text font-family="JetBrains Mono,monospace" font-size="9" fill="#8b96a8" x="234" y="240" text-anchor="middle">DFM</text>
+      <text font-family="JetBrains Mono,monospace" font-size="9" fill="#8b96a8" x="304" y="240" text-anchor="middle">DFM</text>
+      <text font-family="JetBrains Mono,monospace" font-size="9" fill="#8b96a8" x="374" y="240" text-anchor="middle">DFM</text>
+      <text font-family="JetBrains Mono,monospace" font-size="9" fill="#8b96a8" x="444" y="240" text-anchor="middle">DFM</text>
+      <text font-family="JetBrains Mono,monospace" font-size="9" fill="#8b96a8" x="514" y="240" text-anchor="middle">DFM</text>
+      <text font-family="JetBrains Mono,monospace" font-size="9" fill="#8b96a8" x="584" y="240" text-anchor="middle">DFM</text>
+
+      <!-- Arrows from controllers to DFM shelf -->
+      <line x1="183" y1="156" x2="183" y2="184" stroke="#8b96a8" stroke-width="1" marker-end="url(#arr)"/>
+      <line x1="497" y1="156" x2="497" y2="184" stroke="#8b96a8" stroke-width="1" marker-end="url(#arr)"/>
+
+      <!-- Front-end ports row -->
+      <text font-family="JetBrains Mono,monospace" font-size="10" fill="#60a5fa" x="64" y="290" letter-spacing="1">FRONT-END:</text>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#8b96a8" x="170" y="290">FC · iSCSI · NVMe/FC · NVMe/TCP · NVMe/RoCE · Ethernet (File: NFS/SMB)</text>
+    </svg>
+  </div>
+
+  <div id="s1-purity"></div>
+  <h3>Purity Operating Environment — the equivalent of ONTAP</h3>
+
+  <p><strong>Purity//FA</strong> (Purity for FlashArray) is the operating system that runs on every FlashArray controller — directly analogous to ONTAP running on a FAS/AFF controller. Purity handles everything: the storage stack (DirectFlash management, RAID-HA erasure coding, metadata), protocol services (FC, iSCSI, NVMe-oF, NFS, SMB, S3), replication (ActiveCluster, ActiveDR, async replication), and the management plane (CLI, REST API, web GUI, Pure1 cloud telemetry).</p>
+
+  <p>Unlike ONTAP's WAFL filesystem which is the foundational data structure for everything (volumes, LUNs, files all live inside WAFL), Purity is built around a <strong>global metadata-driven content-addressable architecture</strong>. Data blocks are stored once, referenced by content hash, and every volume/LUN/file is essentially a map of pointers into this shared global pool — deduplication and pattern removal are inherent to how data is stored, not a bolt-on efficiency feature run periodically.</p>
+
+  <div id="s1-modules"></div>
+  <h3>Controller modules and active-active design</h3>
+
+  <p>Both controllers (CT0 and CT1) are <strong>active-active</strong> at all times — both can service I/O for any volume simultaneously (unlike ONTAP's HA pair where each node owns specific aggregates and the partner is a standby path via ALUA). Purity's <strong>NVRAM</strong> on each controller mirrors incoming writes to the partner controller before acknowledging the host — conceptually similar to ONTAP's NVRAM mirroring over the HA interconnect, but because both controllers are always active, there's no "takeover/giveback" cycle in the ONTAP sense. If one controller fails, the surviving controller simply continues servicing all I/O — Pure calls this <strong>"no perceptible failover"</strong>.</p>
+
+  <div class="callout c-tip">
+    <div class="callout-icon">💡</div>
+    <div class="callout-body">
+      <strong>Key mental shift from ONTAP</strong>
+      In ONTAP, capacity is organised into aggregates that belong to specific nodes — a volume "lives" on a node and moving it is an explicit operation (<code>volume move</code>). In Purity, there is <strong>one global pool</strong> per array. Every volume can be served by either controller with no concept of "which node owns this." There is no equivalent of moving a volume between aggregates because there is only one pool.
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 02 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s2">
+  <span class="section-num">Section 02 · Hardware Models</span>
+  <h2>FlashArray Model Lineup</h2>
+
+  <div id="s2-x"></div>
+  <h3>FlashArray//X and //XL — performance tier</h3>
+
+  <div class="model-grid">
+    <div class="model-card">
+      <span class="tier">Mainstream</span>
+      <h4>FlashArray//X R4 / R5</h4>
+      <p>The flagship general-purpose all-NVMe platform. Latest generation (R5) succeeded R4. Supports block (FC, iSCSI, NVMe/FC, NVMe/TCP, NVMe/RoCE) and unified File services (NFS, SMB) on the same array via the Unified Data Plane introduced in Purity//FA 6.6.</p>
+    </div>
+    <div class="model-card">
+      <span class="tier">High-end Scale-out</span>
+      <h4>FlashArray//XL R1 / R5</h4>
+      <p>Larger chassis with more CPU, memory, and DFM slots than //X — built for the highest-density, highest-performance workloads. The //XL 190 model became generally available in early 2026 (Q4 FY26). Same Purity OS as //X — fully unified management and replication across the family.</p>
+    </div>
+  </div>
+
+  <div id="s2-c"></div>
+  <h3>FlashArray//C, //E, and //ST — capacity &amp; specialised tiers</h3>
+
+  <div class="model-grid">
+    <div class="model-card">
+      <span class="tier">Capacity-optimised</span>
+      <h4>FlashArray//C R3 / R4 / R5</h4>
+      <p>Uses higher-capacity, lower-cost QLC DirectFlash Modules instead of the TLC modules in //X. Targets capacity-heavy workloads (backup targets, large file repositories, secondary storage) where raw IOPS density matters less than $/TB. Same Purity//FA OS and feature set as //X.</p>
+    </div>
+    <div class="model-card">
+      <span class="tier">Backup-optimised</span>
+      <h4>FlashArray//E</h4>
+      <p>A newer capacity/economy tier positioned explicitly for backup and archive use cases — Pure has specifically highlighted //E as a target for FlashArray File Services given its cost profile, announced alongside Purity//FA 6.6.</p>
+    </div>
+    <div class="model-card">
+      <span class="tier">Block-only, extreme density</span>
+      <h4>FlashArray//ST</h4>
+      <p>A block-only platform built on off-the-shelf commercial PCIe Gen5 SSDs (e.g. 6.4/12.8 TB drives) rather than Pure's proprietary DFMs, delivering over 10 million IOPS from a single system with up to 400 TB usable. The newer generation uses an Emerald Rapids CPU platform.</p>
+    </div>
+    <div class="model-card">
+      <span class="tier">Cloud</span>
+      <h4>Pure Storage Cloud / Cloud Block Store</h4>
+      <p>Purity//FA running as a software-defined instance on AWS or Azure (also referred to as "Pure Storage Cloud Dedicated" / PSCD), providing the same Purity feature set and replication compatibility with on-prem FlashArrays for hybrid-cloud DR scenarios.</p>
+    </div>
+  </div>
+
+  <div id="s2-os"></div>
+  <h3>Purity//FA OS versions — current state</h3>
+
+  <table class="dtable">
+    <thead><tr><th>Release line</th><th>Status</th><th>Key notes</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>Purity//FA 6.6.x</code></td>
+        <td>Latest Feature Release (FR)</td>
+        <td>GA released with FlashArray//E support, Unified Data Plane enhancements, vSphere plugin improvements for NFS datastores (provision NFSv3/v4.1 datastores natively, undelete and revert NFS-backed VMs).</td>
+      </tr>
+      <tr>
+        <td><code>Purity//FA 6.9.x</code></td>
+        <td>Long-Term Maintenance (LLR)</td>
+        <td>The 6.9 LLR line (e.g. 6.9.2 GA) is planned for development through June 2028 — the recommended line for customers prioritising stability over newest features. Supported on FA//X (R3/R4/R5), FA//C (R3/R4/R5), FA//XL (R1/R5), FA//E, FA//RC20, and Pure Storage Cloud Dedicated.</td>
+      </tr>
+      <tr>
+        <td><code>Purity//FA 6.8.x</code></td>
+        <td>Prior LLR (feature development ended)</td>
+        <td>Introduced SMB Continuous Availability (preserves file handles across controller failover/upgrades) and Target Pods for Protection Group replication.</td>
+      </tr>
+      <tr>
+        <td><code>Purity//FA 6.4.x</code></td>
+        <td>Earlier LLR</td>
+        <td>Introduced NFSv4.1 support, ransomware protection enhancements, SafeMode snapshot replication, NVMe/TCP, and ActiveWorkload non-disruptive migration between different FlashArray models.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout c-info">
+    <div class="callout-icon">ℹ️</div>
+    <div class="callout-body">
+      <strong>Release model — Feature Release vs LLR</strong>
+      Pure runs two parallel release tracks: <strong>Feature Release (FR)</strong> lines get the newest capabilities continuously (e.g. 6.6.x, 6.10.x), while <strong>Long-Term Maintenance Release (LLR)</strong> lines (e.g. 6.9.x) receive only bug fixes and security patches over a multi-year support window for customers who want stability. This is conceptually similar to ONTAP's distinction between short-term-support and long-term-support release trains, but Pure's <strong>Self-Service Upgrade (SSU)</strong> via Pure1 makes switching between lines and applying upgrades largely automated and non-disruptive.
+    </div>
+  </div>
+
+  <h4>Checking the current Purity version</h4>
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-pure">Pure CLI / purefa CLI</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># From the array CLI (purestorage CLI over SSH)</span>
+<span class="ck">purearray</span> list --space
+
+<span class="cm"># Show Purity version</span>
+<span class="ck">pureversion</span>
+
+<span class="cm"># Via REST API (Purity 2.x REST)</span>
+<span class="ck">curl</span> -k -X GET "https://&lt;array-ip&gt;/api/2.30/arrays" -H "Authorization: Bearer &lt;token&gt;"</code></pre>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 03 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s3">
+  <span class="section-num">Section 03 · Data Flow</span>
+  <h2>Write Path &amp; Data Flow</h2>
+
+  <p>FlashArray's write path is built around three core ideas: <strong>always-on inline reduction</strong> (deduplication, compression, and pattern removal happen before data ever touches flash — never as a background job), <strong>NVRAM-first acknowledgement</strong> (similar in spirit to ONTAP's NVRAM write-ahead log), and <strong>global metadata addressing</strong> (every unique data pattern is stored exactly once across the entire array, referenced by content hash from any volume).</p>
+
+  <div id="s3-write"></div>
+  <h3>Step-by-step write flow</h3>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 680 460" role="img">
+      <title>FlashArray write path</title>
+      <desc>Host write arrives at an active controller, is hashed and checked against the global metadata index for deduplication, compressed if unique, committed to mirrored NVRAM with acknowledgement to host, then flushed to DirectFlash Modules with RAID-HA erasure coding.</desc>
+      <defs>
+        <marker id="arr3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+
+      <!-- Host -->
+      <rect x="240" y="10" width="200" height="42" rx="8" fill="#161d29" stroke="#4a5568" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="12" fill="#e8edf4" font-weight="600" x="340" y="32" text-anchor="middle">Host write I/O</text>
+      <line x1="340" y1="52" x2="340" y2="84" stroke="#4a5568" stroke-width="1" marker-end="url(#arr3)"/>
+
+      <!-- Step 1: arrive at controller -->
+      <rect x="190" y="84" width="300" height="44" rx="8" fill="#161d29" stroke="#ff6b35" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="12" fill="#ff6b35" font-weight="600" x="340" y="102" text-anchor="middle">1. Arrives at active controller (CT0 or CT1)</text>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#8b96a8" x="340" y="118" text-anchor="middle">via FC / iSCSI / NVMe-oF / NFS / SMB front-end port</text>
+      <line x1="340" y1="128" x2="340" y2="160" stroke="#4a5568" stroke-width="1" marker-end="url(#arr3)"/>
+
+      <!-- Step 2: hash + dedup check -->
+      <rect x="170" y="160" width="340" height="52" rx="8" fill="#161d29" stroke="#a78bfa" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="12" fill="#a78bfa" font-weight="600" x="340" y="180" text-anchor="middle">2. Inline hash + global dedup lookup</text>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#8b96a8" x="340" y="198" text-anchor="middle">Block hashed; checked against array-wide metadata index</text>
+
+      <!-- Branch: duplicate vs unique -->
+      <line x1="270" y1="212" x2="200" y2="240" stroke="#4ade80" stroke-width="1" marker-end="url(#arr3)"/>
+      <line x1="410" y1="212" x2="480" y2="240" stroke="#fbbf24" stroke-width="1" marker-end="url(#arr3)"/>
+      <text font-family="JetBrains Mono,monospace" font-size="9" fill="#4ade80" x="170" y="232">duplicate</text>
+      <text font-family="JetBrains Mono,monospace" font-size="9" fill="#fbbf24" x="486" y="232">unique</text>
+
+      <!-- Duplicate path -->
+      <rect x="80" y="240" width="240" height="50" rx="8" fill="#0a1f14" stroke="#4ade80" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#4ade80" font-weight="600" x="200" y="260" text-anchor="middle">Reference existing block</text>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#8b96a8" x="200" y="278" text-anchor="middle">No new physical write needed</text>
+
+      <!-- Unique path -->
+      <rect x="360" y="240" width="240" height="50" rx="8" fill="#1c1a00" stroke="#fbbf24" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="11" fill="#fbbf24" font-weight="600" x="480" y="260" text-anchor="middle">Inline compress + pattern removal</text>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#8b96a8" x="480" y="278" text-anchor="middle">New unique block prepared for write</text>
+
+      <!-- Converge to NVRAM -->
+      <line x1="200" y1="290" x2="280" y2="322" stroke="#4a5568" stroke-width="1" marker-end="url(#arr3)"/>
+      <line x1="480" y1="290" x2="400" y2="322" stroke="#4a5568" stroke-width="1" marker-end="url(#arr3)"/>
+
+      <!-- Step 3: NVRAM mirror + ack -->
+      <rect x="170" y="322" width="340" height="52" rx="8" fill="#161d29" stroke="#2dd4bf" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="12" fill="#2dd4bf" font-weight="600" x="340" y="342" text-anchor="middle">3. Commit to NVRAM, mirror to partner controller</text>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#8b96a8" x="340" y="360" text-anchor="middle">Host receives write acknowledgement now (~150µs)</text>
+
+      <line x1="340" y1="374" x2="340" y2="406" stroke="#4a5568" stroke-width="1" marker-end="url(#arr3)"/>
+      <text font-family="JetBrains Mono,monospace" font-size="9" fill="#8b96a8" x="356" y="394">async flush</text>
+
+      <!-- Step 4: flush to DFM with RAID-HA -->
+      <rect x="170" y="406" width="340" height="52" rx="8" fill="#161d29" stroke="#fbbf24" stroke-width="0.5"/>
+      <text font-family="Inter,sans-serif" font-size="12" fill="#fbbf24" font-weight="600" x="340" y="426" text-anchor="middle">4. Flush to DirectFlash Modules</text>
+      <text font-family="Inter,sans-serif" font-size="10" fill="#8b96a8" x="340" y="444" text-anchor="middle">RAID-HA erasure coding distributes data across DFMs</text>
+    </svg>
+  </div>
+
+  <h4>Comparison to ONTAP write path</h4>
+
+  <table class="cmp-table">
+    <thead>
+      <tr><th class="col-concept">Stage</th><th class="col-ontap">ONTAP / WAFL</th><th class="col-pure">Purity / FlashArray</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="col-concept">Initial commit</td>
+        <td>Write logged to NVRAM (write-ahead log), ACK sent to client</td>
+        <td>Write hashed, committed to NVRAM, ACK sent to host (~150µs typical latency)</td>
+      </tr>
+      <tr>
+        <td class="col-concept">HA protection</td>
+        <td>NVRAM mirrored to HA partner over dedicated HA interconnect</td>
+        <td>NVRAM mirrored to partner controller; both controllers active for all volumes</td>
+      </tr>
+      <tr>
+        <td class="col-concept">Deduplication timing</td>
+        <td>Background or inline post-process job, scoped per volume/aggregate</td>
+        <td>Always-on, inline, global across the entire array — happens before the write ever lands on flash</td>
+      </tr>
+      <tr>
+        <td class="col-concept">Final write to media</td>
+        <td>Consistency Point — buffered writes flushed to disk as large sequential I/O every ~10s</td>
+        <td>Asynchronous flush from NVRAM to DFMs with RAID-HA erasure coding — continuous, not interval-based</td>
+      </tr>
+      <tr>
+        <td class="col-concept">Redundancy scheme</td>
+        <td>RAID-DP / RAID-TEC (double/triple parity across spinning disks or SSDs in a RAID group)</td>
+        <td>RAID-HA — Pure's proprietary erasure coding designed specifically for flash failure characteristics, operating across DFMs in the shared pool</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 04 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s4">
+  <span class="section-num">Section 04 · Networking</span>
+  <h2>Network Concepts</h2>
+
+  <div id="s4-fc"></div>
+  <h3>Block protocols — FC, iSCSI, NVMe-oF</h3>
+
+  <p>FlashArray presents block storage as <strong>volumes</strong> mapped to hosts (or host groups) — the equivalent of ONTAP's LUN + igroup model. Each controller has multiple front-end ports that can be configured for:</p>
+
+  <ul class="body-list">
+    <li><strong>Fibre Channel (FC):</strong> Each port has a WWPN. Hosts are zoned to array ports via FC switches — same fabric-zoning concept as ONTAP. ALUA applies identically — paths to the controller that "owns" a volume's primary copy are optimised, though because both controllers are active-active, path optimisation differences are typically smaller than in ONTAP.</li>
+    <li><strong>iSCSI:</strong> Each port has an IP address and IQN. Host iSCSI initiators discover targets and log in, same workflow as ONTAP iSCSI.</li>
+    <li><strong>NVMe-oF (NVMe/FC, NVMe/TCP, NVMe/RoCE):</strong> Lower-latency block access using the NVMe protocol over fabrics instead of SCSI. NVMe/TCP requires no special fabric hardware — runs over standard Ethernet, introduced for FlashArray in the Purity 6.4 release line.</li>
+  </ul>
+
+  <h4>Pure equivalents of ONTAP SAN constructs</h4>
+  <table class="cmp-table">
+    <thead>
+      <tr><th class="col-concept">ONTAP construct</th><th class="col-ontap">ONTAP term</th><th class="col-pure">Pure FlashArray term</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="col-concept">Block device</td><td><code>LUN</code></td><td><code>Volume</code></td></tr>
+      <tr><td class="col-concept">Host access grouping</td><td><code>igroup</code></td><td><code>Host</code> / <code>Host Group</code></td></tr>
+      <tr><td class="col-concept">LUN-to-host association</td><td><code>lun map</code></td><td><code>Connect volume to host</code></td></tr>
+      <tr><td class="col-concept">Path optimisation</td><td>ALUA (optimised/non-optimised paths)</td><td>ALUA also used, but both controllers active for all volumes — fewer path penalty scenarios</td></tr>
+      <tr><td class="col-concept">Path restriction</td><td>SLM / port-sets</td><td>Connect a volume only to specific host ports via Host port assignment</td></tr>
+    </tbody>
+  </table>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-pure">Pure CLI — create host and connect volume</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Create a host object and register its initiator (iSCSI IQN or FC WWPN)</span>
+<span class="ck">purehost</span> create --iqnlist iqn.1994-05.com.redhat:linux01 linux01
+
+<span class="cm"># Create a volume</span>
+<span class="ck">purevol</span> create --size 500G vol-app01
+
+<span class="cm"># Connect (map) the volume to the host</span>
+<span class="ck">purehost</span> connect --vol vol-app01 linux01
+
+<span class="cm"># Verify</span>
+<span class="ck">purehost</span> list --connect</code></pre>
+  </div>
+
+  <div id="s4-file"></div>
+  <h3>File Services — NFS and SMB</h3>
+
+  <p>Since Purity//FA 6.1, FlashArray has supported native <strong>File Services</strong> — NFS and SMB shares served directly from the same Purity OS and global storage pool used for block volumes, via the <strong>Unified Data Plane</strong>. This is architecturally different from ONTAP, where NAS (NFS/CIFS via SVMs and LIFs) and SAN (LUNs via igroups) have always been first-class, deeply integrated citizens of the same WAFL filesystem since the C-Mode era.</p>
+
+  <ul class="body-list">
+    <li><strong>File System</strong> — the Pure construct roughly analogous to an SVM's namespace or a FlexVol used for NAS. A File System is created on the array and exported via NFS and/or SMB.</li>
+    <li><strong>Directories &amp; Exports</strong> — within a File System, individual directories can have their own NFS export policies and SMB share configurations — conceptually similar to qtrees having independent export policies within a FlexVol.</li>
+    <li><strong>Network Interfaces (data VIPs)</strong> — IP addresses assigned to controllers for serving NFS/SMB traffic, the rough equivalent of NAS LIFs.</li>
+  </ul>
+
+  <div class="code-block">
+    <div class="code-header">
+      <span class="code-label label-pure">Pure CLI — create a file system and NFS export</span>
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+    </div>
+    <pre><code><span class="cm"># Create a File System (analogous to a FlexVol for NAS)</span>
+<span class="ck">purefs</span> create fs-app01
+
+<span class="cm"># Create a directory within the file system</span>
+<span class="ck">puredir</span> create fs-app01:dir1
+
+<span class="cm"># Create an NFS export policy and export the directory</span>
+<span class="ck">purenfs</span> create --rules "*(rw,no_root_squash)" nfs-policy-app01
+<span class="ck">puredir</span> setattr --export nfs-policy-app01 fs-app01:dir1
+
+<span class="cm"># Create an SMB share on the same directory</span>
+<span class="ck">puredir</span> setattr --share share-app01 fs-app01:dir1</code></pre>
+  </div>
+
+  <div class="callout c-warn">
+    <div class="callout-icon">⚠️</div>
+    <div class="callout-body">
+      <strong>Maturity difference vs ONTAP NAS</strong>
+      ONTAP's NAS stack has 20+ years of multiprotocol depth — NFSv3/v4.x with delegations, Kerberos, FlexCache, FlexGroup, FPolicy, SVM-DR for entire NAS environments. Pure's File Services (GA since 6.1, with continuous enhancement through 6.6) covers core NFSv3/v4.1 and SMB with continuous availability, but administrators evaluating Pure for heavy NAS workloads should verify specific feature parity (e.g. NFSv4 delegations, Kerberos krb5p, FPolicy-equivalent ransomware detection) against current release notes for their target Purity version.
+    </div>
+  </div>
+
+  <h3>Replication networking — ActiveCluster, ActiveDR, async</h3>
+
+  <table class="dtable">
+    <thead><tr><th>Pure feature</th><th>Purpose</th><th>Closest ONTAP equivalent</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>ActiveCluster</strong></td>
+        <td>Synchronous, active-active replication between two arrays — both sides read/write simultaneously with automatic conflict resolution via a "Pure Cloud Mediator" witness.</td>
+        <td>MetroCluster (synchronous, automatic switchover) — though ActiveCluster's active-active-both-sides model is closer to a stretched cluster than ONTAP's primary/DR model.</td>
+      </tr>
+      <tr>
+        <td><strong>ActiveDR</strong></td>
+        <td>Near-synchronous (continuous replication, typically seconds of RPO) one-directional DR between two arrays, with a "pod" as the unit of replication.</td>
+        <td>SnapMirror Sync / SVM-DR for near-zero RPO async-like continuous replication.</td>
+      </tr>
+      <tr>
+        <td><strong>Async Replication (Protection Groups)</strong></td>
+        <td>Scheduled snapshot-based replication to one or more target arrays — supports fan-out to multiple targets.</td>
+        <td>SnapMirror Async (XDP) with fan-out topology.</td>
+      </tr>
+      <tr>
+        <td><strong>Pod</strong></td>
+        <td>A management/replication boundary grouping one or more volumes/file systems that are replicated together as a consistency group.</td>
+        <td>Loosely analogous to an SVM as a replication unit in SVM-DR — though a pod is purely a replication consistency-group construct, not a full multi-tenant virtualisation layer like an SVM.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 05 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s5">
+  <span class="section-num">Section 05 · Concept Mapping</span>
+  <h2>NetApp ONTAP vs Pure Storage — Concept by Concept</h2>
+
+  <p>This section walks through the core ONTAP storage concepts you already know and explains how (or whether) each one maps onto Pure Storage's architecture. Some concepts translate cleanly; others don't exist on Pure because Pure's architecture eliminates the problem they were designed to solve.</p>
+
+  <div id="s5-wafl"></div>
+  <h3>WAFL vs Purity's storage engine</h3>
+
+  <p><strong>WAFL (Write Anywhere File Layout)</strong> is ONTAP's filesystem — a write-anywhere, copy-on-write design where every volume is a WAFL container with its own inode table, block maps, and Snapshot mechanism. WAFL is fundamentally a <em>per-volume</em> filesystem structure; aggregates are pools of RAID groups that WAFL volumes are carved out of.</p>
+
+  <p>Purity has no direct equivalent of "a filesystem per volume." Instead, Purity maintains <strong>one global content-addressable metadata layer</strong> for the entire array. Every unique 512-byte-to-variable-length data segment is stored once, hashed, and referenced by pointer from however many volumes/files need it. A "volume" in Purity is essentially a namespace of pointers into this shared data store, plus its own snapshot/metadata history — there's no separate "filesystem" being formatted onto carved-out RAID capacity the way a FlexVol sits on an aggregate.</p>
+
+  <table class="cmp-table">
+    <thead><tr><th class="col-concept">Aspect</th><th class="col-ontap">WAFL (ONTAP)</th><th class="col-pure">Purity metadata engine</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="col-concept">Scope</td>
+        <td>Per-volume filesystem instance, multiple volumes share an aggregate's RAID groups</td>
+        <td>Single global metadata/data layer for the entire array — no per-volume filesystem boundary</td>
+      </tr>
+      <tr>
+        <td class="col-concept">Write placement</td>
+        <td>Write-anywhere — new blocks written to free space, old blocks retained for snapshots</td>
+        <td>Content-addressed — unique data written once anywhere in the pool; volumes reference it by pointer</td>
+      </tr>
+      <tr>
+        <td class="col-concept">Deduplication scope</td>
+        <td>Per-volume by default; cross-volume dedup available within an aggregate (9.2+)</td>
+        <td>Global, array-wide, always-on, inline — every volume/file system shares one dedup domain</td>
+      </tr>
+      <tr>
+        <td class="col-concept">Snapshot mechanism</td>
+        <td>Metadata pointer freeze at a point in time — only changed blocks consume new space</td>
+        <td>Conceptually similar — a snapshot is a frozen reference to the metadata map at that instant; changed data creates new references, unchanged data stays shared</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div id="s5-inode"></div>
+  <h3>Inode &amp; metadata model</h3>
+
+  <p>In WAFL, an <strong>inode</strong> is the per-file metadata record — ownership, permissions, timestamps, and pointers to the file's 4KB data blocks. Inode count is a finite resource per volume, sized at creation and occasionally needing manual increase (see <code>maxfiles</code>/<code>volume modify -files</code>).</p>
+
+  <p>Purity's metadata model is built around <strong>content hashes and a global address map</strong> rather than per-volume inode tables. For block volumes, there's no "file" concept at all — a volume is a flat block address space, and Purity's metadata maps logical block addresses to physical locations on DFMs via content hash, identical in structure regardless of how many volumes exist. For File Services, Purity does maintain file-level metadata (POSIX attributes, ACLs) per File System, but it is not exposed as a tunable "inode count" the way ONTAP's per-volume inode limit is — there is no published "maxfiles" parameter administrators routinely hit and increase the way they do with WAFL <code>maxdir</code>/inode limits.</p>
+
+  <div class="callout c-info">
+    <div class="callout-icon">ℹ️</div>
+    <div class="callout-body">
+      <strong>Practical implication</strong>
+      An ONTAP admin who has hit "out of inodes, plenty of free space" errors on a volume full of millions of small files won't encounter that specific failure mode on Pure File Services in the same way — Purity's metadata scales dynamically with the global pool rather than being pre-allocated per volume at creation time. Always verify current documented limits for File Services file counts per File System for your Purity version, as published limits do still exist at the platform level.
+    </div>
+  </div>
+
+  <div id="s5-agg"></div>
+  <h3>Aggregate vs Pool</h3>
+
+  <p>An ONTAP <strong>aggregate</strong> is a collection of RAID groups (RAID-DP/RAID-TEC) owned by a specific node, providing the physical capacity that FlexVol volumes are carved from. Aggregates are node-scoped — moving a volume between aggregates (<code>volume move</code>) may also mean moving it between nodes.</p>
+
+  <p>Pure has <strong>one array-wide pool</strong> — there is no aggregate concept, no RAID group sizing decisions, no per-node capacity silos. Every DFM in the chassis contributes to one shared pool protected by RAID-HA. All volumes draw from this single pool regardless of which controller is currently servicing their I/O. This eliminates an entire category of ONTAP capacity-planning work: there's no "which aggregate should this volume go on," no aggregate-level hotspot analysis, and no volume-move operations for rebalancing.</p>
+
+  <table class="cmp-table">
+    <thead><tr><th class="col-concept">Capability</th><th class="col-ontap">ONTAP Aggregate</th><th class="col-pure">Pure Pool</th></tr></thead>
+    <tbody>
+      <tr><td class="col-concept">Scope</td><td>Per-node, multiple aggregates possible per node</td><td>One pool for the entire array (both controllers)</td></tr>
+      <tr><td class="col-concept">RAID configuration</td><td>Administrator chooses RAID-DP/RAID-TEC, RAID group size, disk count</td><td>RAID-HA erasure coding is automatic and fixed — no admin RAID configuration</td></tr>
+      <tr><td class="col-concept">Capacity rebalancing</td><td><code>volume move</code> between aggregates/nodes for load balancing</td><td>Not needed — single pool means no rebalancing operation exists</td></tr>
+      <tr><td class="col-concept">Hybrid tiers (Flash Pool)</td><td>SSD cache layer added to HDD aggregate</td><td>Not applicable — FlashArray is all-flash by definition; tiering is to <em>cloud</em> (FabricPool-like) not to a local HDD tier</td></tr>
+    </tbody>
+  </table>
+
+  <div id="s5-shelf"></div>
+  <h3>Disk Shelves — DS shelves vs DirectFlash shelves</h3>
+
+  <p>ONTAP disk shelves (DS224C, DS2246, NS224, etc.) house individual SAS/SATA/NVMe drives that are assembled into RAID groups inside aggregates. Adding a shelf means adding more spindles/SSDs that get incorporated into existing or new RAID groups and aggregates — an explicit <code>storage aggregate add-disks</code> operation.</p>
+
+  <p>Pure's expansion shelves house additional <strong>DirectFlash Modules</strong> — when you add a shelf, the new DFMs are automatically incorporated into the array's single global pool and protected by RAID-HA without any administrator RAID-group configuration. There's no equivalent of choosing RAID group size or deciding which aggregate new capacity joins — it simply expands the one pool.</p>
+
+  <table class="cmp-table">
+    <thead><tr><th class="col-concept">Aspect</th><th class="col-ontap">ONTAP Disk Shelf</th><th class="col-pure">Pure Expansion Shelf (DFM)</th></tr></thead>
+    <tbody>
+      <tr><td class="col-concept">Drive types</td><td>SAS HDD, NL-SAS, SATA, SAS-SSD, NVMe-SSD depending on shelf model</td><td>DirectFlash Modules (Pure proprietary NAND modules) or NVMe SSDs depending on platform generation</td></tr>
+      <tr><td class="col-concept">Adding capacity</td><td><code>storage aggregate add-disks</code> — admin assigns disks to an aggregate/RAID group</td><td>Shelf connects, DFMs automatically join the global pool — no RAID configuration step</td></tr>
+      <tr><td class="col-concept">Largest single module</td><td>Largest NL-SAS drives ~ 20-24TB class</td><td>DFMs up to 75TB on R4 platform; 300TB DFMs planned for 2026 generation</td></tr>
+      <tr><td class="col-concept">Mixed drive types per shelf</td><td>Generally same type/speed per RAID group, can mix types across aggregates</td><td>All DFMs in the pool are part of the same erasure-coded scheme — model-dependent on whether mixed DFM generations are supported within one array</td></tr>
+    </tbody>
+  </table>
+
+  <div id="s5-upgrade"></div>
+  <h3>Upgrades — ANDU vs Pure non-disruptive upgrade</h3>
+
+  <p>ONTAP's <strong>ANDU (Automated Non-Disruptive Upgrade)</strong> upgrades one node at a time: takeover by the HA partner, upgrade the offline node, reboot, giveback, then repeat for the partner. Each node experiences a brief takeover/giveback cycle (~2-3 minutes of the partner serving double load).</p>
+
+  <p>Pure's upgrade process is conceptually similar but framed differently because both controllers are always active: Purity upgrades one controller at a time while the other continues servicing 100% of I/O, then the upgraded controller rejoins and the second controller upgrades. Pure markets this as <strong>"non-disruptive upgrades"</strong> with proven <strong>99.9999% availability</strong>, and the <strong>Self-Service Upgrade (SSU)</strong> feature in Pure1 automates pre-checks and execution — administrators trigger upgrades from the Pure1 cloud console with minimal manual CLI work, compared to ONTAP's more manual <code>cluster image update</code> workflow.</p>
+
+  <table class="cmp-table">
+    <thead><tr><th class="col-concept">Aspect</th><th class="col-ontap">ONTAP ANDU</th><th class="col-pure">Pure non-disruptive upgrade</th></tr></thead>
+    <tbody>
+      <tr><td class="col-concept">Mechanism</td><td>Takeover → upgrade offline node → giveback → repeat for partner</td><td>Upgrade one controller while partner serves 100% of I/O (no "takeover" terminology — both already active)</td></tr>
+      <tr><td class="col-concept">Initiation</td><td><code>cluster image update -version &lt;ver&gt;</code></td><td>Pure1 Self-Service Upgrade (SSU) — cloud-orchestrated, largely automated</td></tr>
+      <tr><td class="col-concept">Cross-model upgrade</td><td>Not applicable — ONTAP version is independent of hardware model within supported ranges</td><td><strong>ActiveWorkload</strong> (introduced 6.4 line) enables non-disruptive workload migration between <em>different FlashArray models</em> — e.g. moving a volume from an older //X R3 to a newer //X R4 array entirely</td></tr>
+      <tr><td class="col-concept">Downgrade</td><td>Supported to immediately-prior minor version via <code>cluster revert</code></td><td>Downgrade paths are version-specific; LLR lines are designed for long-term stability to reduce the need for downgrades</td></tr>
+    </tbody>
+  </table>
+
+  <div id="s5-qtree"></div>
+  <h3>Qtree &amp; Volume hierarchy</h3>
+
+  <p>In ONTAP, the hierarchy is: <strong>Aggregate → FlexVol Volume → Qtree → Files</strong>. Qtrees provide a sub-volume boundary for independent export policies, security styles, and quotas without the overhead of a full volume.</p>
+
+  <p>Pure's File Services hierarchy is: <strong>Pool (array-wide) → File System → Directory → Files</strong>. A Pure <strong>File System</strong> is the rough peer of a FlexVol used for NAS — it has its own snapshot history and can be replicated as a unit. A <strong>Directory</strong> within a File System can have its own NFS export and SMB share configuration — this is the closest functional analog to an ONTAP qtree, though Pure directories don't carry the independent <em>security style</em> concept (Unix/NTFS/Mixed) in the same explicit, configurable way qtrees do, since Purity's File Services security model is more unified across protocols.</p>
+
+  <table class="cmp-table">
+    <thead><tr><th class="col-concept">ONTAP layer</th><th class="col-ontap">ONTAP term</th><th class="col-pure">Pure equivalent</th></tr></thead>
+    <tbody>
+      <tr><td class="col-concept">Top-level capacity pool</td><td>Aggregate</td><td>Array-wide Pool</td></tr>
+      <tr><td class="col-concept">Primary data container (NAS)</td><td>FlexVol Volume (with junction path)</td><td>File System</td></tr>
+      <tr><td class="col-concept">Primary data container (SAN)</td><td>FlexVol Volume hosting a LUN</td><td>Volume (block)</td></tr>
+      <tr><td class="col-concept">Sub-volume export/quota boundary</td><td>Qtree</td><td>Directory (with its own export/share)</td></tr>
+      <tr><td class="col-concept">Quotas</td><td>User/Group/Tree quotas via <code>quota policy rule</code></td><td>Quota support exists for File Services directories in recent Purity versions — verify exact parity for your release</td></tr>
+      <tr><td class="col-concept">Multi-tenancy / virtualisation layer</td><td>SVM (Storage Virtual Machine)</td><td>No direct SVM equivalent — Pure uses <strong>Pods</strong> for replication grouping and array-level RBAC for tenancy, but does not virtualise a full independent "storage server" per tenant the way an SVM does</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout c-tip">
+    <div class="callout-icon">💡</div>
+    <div class="callout-body">
+      <strong>The biggest structural difference: SVMs have no Pure equivalent</strong>
+      ONTAP's SVM is a complete virtualised storage server — its own namespace, its own CIFS server/AD identity, its own NFS configuration, its own LIFs, replicable as a unit via SVM-DR. Pure has no construct that virtualises "an entire storage server" this way. If your ONTAP design relies heavily on per-tenant SVMs with separate AD identities and SVM-DR for whole-tenant failover, the Pure equivalent requires rethinking around Pods (for replication grouping) plus array-level or File-System-level access controls — there isn't a one-to-one swap.
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<!-- SECTION 06 -->
+<!-- ══════════════════════════════════════ -->
+<div class="section" id="s6">
+  <span class="section-num">Section 06 · Interview Q&amp;A</span>
+  <h2>Interview &amp; Exam Questions</h2>
+
+  <ul class="qa-list">
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q01</span> Why doesn't Pure FlashArray have an "aggregate" concept like ONTAP?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">ONTAP aggregates exist because WAFL volumes need a node-scoped pool of RAID-protected capacity to be carved from, and because ONTAP's HA model assigns aggregate ownership to specific nodes. Pure's architecture uses a single global content-addressable metadata layer across the entire array, with both controllers active-active for all volumes simultaneously. Since there's no per-node ownership of capacity and no per-volume filesystem instance that needs its own RAID-protected container, there's nothing for an "aggregate" abstraction to describe — every DFM contributes to one pool, period.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q02</span> How does Pure achieve global, always-on deduplication while ONTAP dedup is typically per-volume or per-aggregate?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">Purity's metadata engine hashes every incoming data block and checks it against an array-wide index of all previously-stored unique blocks before writing anything to flash. Because this check happens inline, in the write path, for the entire array's data — not scoped to a volume or aggregate's local fingerprint database — any duplicate data anywhere on the array (across all volumes, all hosts, all File Systems) is detected and deduplicated immediately. ONTAP's cross-volume dedup (9.2+) extended dedup scope to the aggregate level, but Pure's scope has always been the entire array from day one, because the underlying storage model has no volume/aggregate boundaries for data placement to begin with.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q03</span> An ONTAP admin is used to running volume move to fix an aggregate hotspot. What's the Pure equivalent?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">There isn't a direct equivalent because the underlying problem doesn't exist on Pure in the same form. Aggregate hotspots occur in ONTAP because capacity is partitioned into node-scoped aggregates with finite RAID-group I/O capacity, and an imbalanced workload distribution across aggregates concentrates load. Pure has one pool spanning all DFMs with both controllers actively serving all volumes — there's no aggregate-level partition for load to concentrate within. If a Pure array as a whole is approaching its performance ceiling, the resolution is typically array-level capacity planning (adding a shelf, or in extreme cases migrating volumes to a different/larger array using ActiveWorkload) rather than an internal rebalancing operation.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q04</span> What is RAID-HA and how does it differ from RAID-DP?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">RAID-DP (double parity) is a traditional RAID scheme using two dedicated parity disks per RAID group, tolerating two simultaneous disk failures within that group — designed around spinning-disk failure characteristics (long, predictable rebuild times). RAID-HA is Pure's proprietary erasure-coding scheme designed specifically for flash media — it distributes data and parity information across DFMs in the pool in a way optimised for flash's different failure modes (wear-leveling, predictable endurance curves rather than mechanical failure) and for very fast rebuild times given flash's high throughput. RAID-HA is not configured by the administrator (no RAID group size or parity-disk-count decisions) — it is an inherent property of how Purity manages the DFM pool.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q05</span> How would you replicate an entire multi-tenant environment for DR — SVM-DR on ONTAP vs Pure?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">On ONTAP, SVM-DR replicates an entire SVM — every volume, the CIFS server's AD identity, export policies, LIFs — as a single unit, and `snapmirror activate-destination` promotes the DR SVM to take over the tenant's identity wholesale. Pure has no SVM-equivalent virtualisation layer, so there's no single "promote this tenant's entire storage server" operation. Instead, you'd group the tenant's volumes and File Systems into a <strong>Pod</strong> and use <strong>ActiveDR</strong> or async Protection Group replication for that pod to a target array. Failover means promoting the pod's replicated copy to read-write on the target array, but network identity (IPs for File Services, host FC/iSCSI connections) must be reconfigured separately — there's no automatic "identity-preserve" of an entire virtualised storage server the way SVM-DR provides.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q06</span> What's the difference between Pure's Feature Release (FR) and Long-Term Maintenance (LLR) tracks, and how does it compare to ONTAP's release model?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">Feature Release lines (e.g. Purity//FA 6.6.x, 6.10.x) receive continuous new capabilities as they're developed — customers who want the newest features as soon as possible track FR lines. LLR lines (e.g. 6.9.x, planned through June 2028) are derived from a stable feature set and receive only bug fixes and security patches for an extended multi-year support window — chosen by customers prioritising stability. This is conceptually similar to ONTAP's split between standard releases and long-term-support (LTS) release trains, though Pure's Self-Service Upgrade (SSU) via Pure1 makes moving between Purity lines a largely automated, cloud-orchestrated process compared to ONTAP's more CLI-driven `cluster image update` workflow.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q07</span> How does FlashArray File Services compare to ONTAP's NAS capabilities for a heavy multiprotocol NFS/SMB environment?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">FlashArray File Services (GA since Purity 6.1, with continuous enhancement through 6.6 including SMB Continuous Availability and native vSphere NFS datastore management) provides NFSv3/NFSv4.1 and SMB on the same Unified Data Plane as block volumes, with all of Purity's always-on data reduction and replication features. However, ONTAP's NAS stack has over two decades of depth in areas like NFSv4 delegations, Kerberos krb5p, FlexGroup (multi-PB scale-out NAS volumes), FlexCache (edge caching), FPolicy (file-access policy enforcement for ransomware detection), and SVM-DR for whole-NAS-environment failover. For environments with deep dependencies on these specific ONTAP NAS features, a careful feature-parity check against the target Purity release is essential before migration — Pure's File Services covers core multiprotocol NAS well but is a newer, narrower stack than ONTAP's.</div>
+    </li>
+    <li class="qa-item">
+      <div class="qa-q" onclick="toggleQA(this)">
+        <span><span class="q-num">Q08</span> A customer wants to migrate a volume from an older FlashArray//X R3 to a new //X R5 with zero downtime. What feature enables this, and is there an ONTAP equivalent?</span>
+        <span class="chevron">▾</span>
+      </div>
+      <div class="qa-a">ActiveWorkload (introduced in the Purity 6.4 line) enables non-disruptive workload migration of a volume between different FlashArray models/generations — the volume's data is migrated to the new array while remaining online and accessible, with host connectivity transitioning transparently. ONTAP doesn't have a direct one-to-one equivalent for moving a volume between two entirely separate clusters/controllers non-disruptively in this way — the closest analogs would be SnapMirror-based migration (which involves a cutover window) or, within a single cluster, <code>volume move</code> between nodes (which doesn't help when migrating to genuinely different hardware/clusters). ActiveWorkload is specifically designed for cross-generation hardware refresh scenarios.</div>
+    </li>
+  </ul>
+</div>
+
+<!-- ABOUT -->
+<div class="about-box">
+  <div class="about-avatar">R</div>
+  <div class="about-text">
+    <h3>Ramesh Nelluri — NetApp Storage Architect</h3>
+    <p>Storage infrastructure professional specialising in NetApp ONTAP, NAS/SAN protocols, and enterprise data management. These tutorials are built from real-world lab work and production experience.</p>
+  </div>
+</div>
+
+</main>
+</div>
+
+<footer>
+  &copy; 2026 Ramesh Nelluri &nbsp;·&nbsp; NetApp KBs &nbsp;·&nbsp;
+  <a href="index.html" style="color:var(--muted2);text-decoration:none">← Back to home</a>
+</footer>
+
+<script>
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(() => {
+    btn.textContent = 'copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+function toggleQA(el) {
+  el.closest('.qa-item').classList.toggle('open');
+}
+const sections = document.querySelectorAll('[id]');
+const links    = document.querySelectorAll('.toc-link');
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      links.forEach(l => l.classList.remove('active'));
+      const a = document.querySelector(`.toc-link[href="#${e.target.id}"]`);
+      if (a) a.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+sections.forEach(s => obs.observe(s));
+</script>
+</body>
+</html>
