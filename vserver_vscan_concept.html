@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetApp ONTAP Vscan (Virus Scanning) Complete Tutorial</title>
+
+<style>
+body{
+    font-family: Arial, Helvetica, sans-serif;
+    line-height:1.7;
+    margin:40px;
+    background:#f5f7fa;
+    color:#333;
+}
+h1,h2,h3{
+    color:#003366;
+}
+.container{
+    background:white;
+    padding:30px;
+    border-radius:10px;
+    box-shadow:0 0 10px rgba(0,0,0,0.1);
+}
+code{
+    background:#efefef;
+    padding:2px 5px;
+    border-radius:4px;
+}
+pre{
+    background:#1e1e1e;
+    color:#dcdcdc;
+    padding:15px;
+    overflow:auto;
+    border-radius:8px;
+}
+.note{
+    background:#fff3cd;
+    padding:15px;
+    border-left:5px solid orange;
+}
+.arch{
+    background:#eef7ff;
+    padding:15px;
+    border-left:5px solid #0073e6;
+}
+table{
+    border-collapse:collapse;
+    width:100%;
+}
+table,th,td{
+    border:1px solid #ccc;
+}
+th{
+    background:#003366;
+    color:white;
+}
+th,td{
+    padding:10px;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>NetApp ONTAP Vscan (Virus Scanning) Complete Tutorial</h1>
+
+<p>
+Vscan (Virus Scan) is the ONTAP antivirus integration framework that enables
+external antivirus servers to scan files stored on NetApp NAS shares.
+It is mainly used with SMB/CIFS environments where files are accessed by users.
+</p>
+
+<hr>
+
+<h2>1. What is Vscan?</h2>
+
+<p>
+Vscan allows ONTAP to offload antivirus scanning to external antivirus servers
+called <b>Vscan Servers</b>.
+ONTAP itself does not scan files.
+Instead, it communicates with third-party antivirus engines.
+</p>
+
+<p>
+Supported AV vendors typically include:
+</p>
+
+<ul>
+<li>Trend Micro</li>
+<li>McAfee</li>
+<li>Symantec</li>
+<li>Sophos</li>
+<li>Other ICAP / Vscan partner solutions</li>
+</ul>
+
+<hr>
+
+<h2>2. Why Vscan is Required?</h2>
+
+<ul>
+<li>Protect CIFS shares from malware.</li>
+<li>Scan files during user access.</li>
+<li>Perform scheduled full scans.</li>
+<li>Prevent infected files from spreading.</li>
+<li>Meet security compliance requirements.</li>
+</ul>
+
+<hr>
+
+<h2>3. Vscan Architecture</h2>
+
+<div class="arch">
+
+<pre>
++------------------+
+| CIFS Client      |
++--------+---------+
+         |
+         v
++------------------+
+| ONTAP CIFS Share |
++--------+---------+
+         |
+         | Scan Request
+         v
++------------------+
+| Vscan Service    |
+| (ONTAP)          |
++--------+---------+
+         |
+         |
+         v
++----------------------+
+| Antivirus Servers    |
+| (Scanner Pool)       |
++----------------------+
+</pre>
+
+</div>
+
+<hr>
+
+<h2>4. How Vscan Works</h2>
+
+<h3>On-Access Scanning</h3>
+
+<ol>
+<li>User opens a file through SMB.</li>
+<li>ONTAP checks Vscan policy.</li>
+<li>ONTAP sends scan request to Vscan server.</li>
+<li>Antivirus engine scans file.</li>
+<li>Clean → Access granted.</li>
+<li>Infected → Access denied/quarantine.</li>
+</ol>
+
+<h3>On-Demand Scanning</h3>
+
+<ol>
+<li>Administrator creates scan task.</li>
+<li>Task scans files in specified path.</li>
+<li>Reports generated.</li>
+<li>Used for periodic compliance scans.</li>
+</ol>
+
+<hr>
+
+<h2>5. Major Components</h2>
+
+<table>
+<tr>
+<th>Component</th>
+<th>Purpose</th>
+</tr>
+
+<tr>
+<td>Vscan Service</td>
+<td>Main antivirus framework in ONTAP</td>
+</tr>
+
+<tr>
+<td>Scanner Pool</td>
+<td>Collection of antivirus servers</td>
+</tr>
+
+<tr>
+<td>On-Access Policy</td>
+<td>Real-time file scanning rules</td>
+</tr>
+
+<tr>
+<td>On-Demand Task</td>
+<td>Scheduled or manual scan job</td>
+</tr>
+
+<tr>
+<td>Privileged User</td>
+<td>Account used by AV servers</td>
+</tr>
+
+<tr>
+<td>Vscan Events</td>
+<td>Operational event logs</td>
+</tr>
+
+</table>
+
+<hr>
+
+<h2>6. Enable or Disable Vscan</h2>
+
+<h3>Enable Vscan</h3>
+
+<pre>
+vserver vscan enable -vserver svm1
+</pre>
+
+<h3>Disable Vscan</h3>
+
+<pre>
+vserver vscan disable -vserver svm1
+</pre>
+
+<h3>Verify Status</h3>
+
+<pre>
+vserver vscan show
+</pre>
+
+Example Output:
+
+<pre>
+Vserver    Vscan Status
+---------- ------------
+svm1       on
+</pre>
+
+<hr>
+
+<h2>7. Reset Cached Scan Information</h2>
+
+<p>
+ONTAP remembers files already scanned.
+Resetting forces files to be scanned again.
+</p>
+
+<pre>
+vserver vscan reset -vserver svm1
+</pre>
+
+<div class="note">
+This operation may temporarily impact performance because all files
+must be scanned again.
+</div>
+
+<hr>
+
+<h2>8. Scanner Pool Configuration</h2>
+
+<p>
+Scanner Pools define antivirus servers allowed to communicate with ONTAP.
+</p>
+
+<h3>Create Scanner Pool</h3>
+
+<pre>
+vserver vscan scanner-pool create \
+-vserver svm1 \
+-scanner-pool VSCAN_POOL \
+-privileged-users DOMAIN\vscanuser
+</pre>
+
+<h3>Add Antivirus Servers</h3>
+
+<pre>
+vserver vscan scanner-pool servers add \
+-vserver svm1 \
+-scanner-pool VSCAN_POOL \
+-hostnames avserver1,avserver2
+</pre>
+
+<h3>Show Scanner Pools</h3>
+
+<pre>
+vserver vscan scanner-pool show
+</pre>
+
+<h3>Show Active Scanner Pools</h3>
+
+<pre>
+vserver vscan scanner-pool show-active
+</pre>
+
+<h3>Apply Policy</h3>
+
+<pre>
+vserver vscan scanner-pool apply-policy \
+-vserver svm1 \
+-scanner-pool VSCAN_POOL \
+-scanner-policy primary
+</pre>
+
+<h3>Modify Scanner Pool</h3>
+
+<pre>
+vserver vscan scanner-pool modify
+</pre>
+
+<h3>Delete Scanner Pool</h3>
+
+<pre>
+vserver vscan scanner-pool delete
+</pre>
+
+<hr>
+
+<h2>9. On-Access Policy Configuration</h2>
+
+<p>
+On-access policies determine which files get scanned when accessed.
+</p>
+
+<h3>Create Policy</h3>
+
+<pre>
+vserver vscan on-access-policy create \
+-vserver svm1 \
+-policy-name DEFAULT_POLICY
+</pre>
+
+<h3>Enable Policy</h3>
+
+<pre>
+vserver vscan on-access-policy enable \
+-vserver svm1 \
+-policy-name DEFAULT_POLICY
+</pre>
+
+<h3>Disable Policy</h3>
+
+<pre>
+vserver vscan on-access-policy disable \
+-vserver svm1 \
+-policy-name DEFAULT_POLICY
+</pre>
+
+<h3>Modify Policy</h3>
+
+<pre>
+vserver vscan on-access-policy modify
+</pre>
+
+<h3>Show Policy</h3>
+
+<pre>
+vserver vscan on-access-policy show
+</pre>
+
+<hr>
+
+<h2>10. Include File Extensions</h2>
+
+<p>
+Scan only selected file types.
+</p>
+
+<h3>Add Extension</h3>
+
+<pre>
+vserver vscan on-access-policy file-ext-to-include add \
+-vserver svm1 \
+-policy-name DEFAULT_POLICY \
+-file-extensions exe,dll,zip
+</pre>
+
+<h3>Show Included Extensions</h3>
+
+<pre>
+vserver vscan on-access-policy file-ext-to-include show
+</pre>
+
+<h3>Remove Extension</h3>
+
+<pre>
+vserver vscan on-access-policy file-ext-to-include remove
+</pre>
+
+<hr>
+
+<h2>11. Exclude File Extensions</h2>
+
+<h3>Add Exclusion</h3>
+
+<pre>
+vserver vscan on-access-policy file-ext-to-exclude add \
+-vserver svm1 \
+-policy-name DEFAULT_POLICY \
+-file-extensions txt,log
+</pre>
+
+<h3>Show Exclusions</h3>
+
+<pre>
+vserver vscan on-access-policy file-ext-to-exclude show
+</pre>
+
+<h3>Remove Exclusion</h3>
+
+<pre>
+vserver vscan on-access-policy file-ext-to-exclude remove
+</pre>
+
+<hr>
+
+<h2>12. Exclude Specific Paths</h2>
+
+<p>
+Avoid scanning application directories.
+</p>
+
+<h3>Add Path Exclusion</h3>
+
+<pre>
+vserver vscan on-access-policy paths-to-exclude add \
+-vserver svm1 \
+-policy-name DEFAULT_POLICY \
+-paths /vol/appdata
+</pre>
+
+<h3>Show Excluded Paths</h3>
+
+<pre>
+vserver vscan on-access-policy paths-to-exclude show
+</pre>
+
+<h3>Remove Excluded Path</h3>
+
+<pre>
+vserver vscan on-access-policy paths-to-exclude remove
+</pre>
+
+<hr>
+
+<h2>13. On-Demand Scanning</h2>
+
+<p>
+Used to scan existing files manually or on schedule.
+</p>
+
+<h3>Create Task</h3>
+
+<pre>
+vserver vscan on-demand-task create \
+-vserver svm1 \
+-task-name FULL_SCAN \
+-paths /vol/data
+</pre>
+
+<h3>Run Task</h3>
+
+<pre>
+vserver vscan on-demand-task run \
+-vserver svm1 \
+-task-name FULL_SCAN
+</pre>
+
+<h3>Modify Task</h3>
+
+<pre>
+vserver vscan on-demand-task modify
+</pre>
+
+<h3>Show Task</h3>
+
+<pre>
+vserver vscan on-demand-task show
+</pre>
+
+<h3>Schedule Task</h3>
+
+<pre>
+vserver vscan on-demand-task schedule
+</pre>
+
+<h3>Unschedule Task</h3>
+
+<pre>
+vserver vscan on-demand-task unschedule
+</pre>
+
+<h3>Delete Task</h3>
+
+<pre>
+vserver vscan on-demand-task delete
+</pre>
+
+<hr>
+
+<h2>14. Reports</h2>
+
+<h3>View Reports</h3>
+
+<pre>
+vserver vscan on-demand-task report show
+</pre>
+
+<h3>Delete Reports</h3>
+
+<pre>
+vserver vscan on-demand-task report delete
+</pre>
+
+<hr>
+
+<h2>15. Connection Status Monitoring</h2>
+
+<h3>Show All Connections</h3>
+
+<pre>
+vserver vscan connection-status show-all
+</pre>
+
+<h3>Connected Servers</h3>
+
+<pre>
+vserver vscan connection-status show-connected
+</pre>
+
+<h3>Disconnected Servers</h3>
+
+<pre>
+vserver vscan connection-status show-not-connected
+</pre>
+
+<h3>Detailed Status</h3>
+
+<pre>
+vserver vscan connection-status show -instance
+</pre>
+
+Expected Information:
+
+<ul>
+<li>Vserver</li>
+<li>Node</li>
+<li>Server</li>
+<li>Connected Since</li>
+<li>Disconnected Since</li>
+<li>Vendor</li>
+<li>Version</li>
+<li>Disconnect Reason</li>
+</ul>
+
+<hr>
+
+<h2>16. Event Monitoring</h2>
+
+<p>
+Displays antivirus-related events.
+</p>
+
+<h3>Show Events</h3>
+
+<pre>
+vserver vscan show-events
+</pre>
+
+<h3>Show Detailed Events</h3>
+
+<pre>
+vserver vscan show-events -instance
+</pre>
+
+<h3>Show Infected Files</h3>
+
+<pre>
+vserver vscan show-events \
+-event-type file-infected
+</pre>
+
+Typical Events:
+
+<ul>
+<li>scanner-connected</li>
+<li>scanner-disconnected</li>
+<li>scanner-updated</li>
+<li>file-infected</li>
+</ul>
+
+<hr>
+
+<h2>17. Troubleshooting Workflow</h2>
+
+<h3>Step 1</h3>
+
+<pre>
+vserver vscan show
+</pre>
+
+Verify Vscan is enabled.
+
+<h3>Step 2</h3>
+
+<pre>
+vserver vscan scanner-pool show-active
+</pre>
+
+Verify scanner pool is active.
+
+<h3>Step 3</h3>
+
+<pre>
+vserver vscan connection-status show-all
+</pre>
+
+Verify AV servers are connected.
+
+<h3>Step 4</h3>
+
+<pre>
+vserver vscan on-access-policy show
+</pre>
+
+Verify policy enabled.
+
+<h3>Step 5</h3>
+
+<pre>
+vserver vscan show-events
+</pre>
+
+Check errors and infected files.
+
+<hr>
+
+<h2>18. Interview Questions</h2>
+
+<h3>What is Vscan?</h3>
+<p>ONTAP antivirus integration framework.</p>
+
+<h3>Does ONTAP scan files itself?</h3>
+<p>No. Scanning is performed by external antivirus servers.</p>
+
+<h3>Difference between On-Access and On-Demand?</h3>
+
+<ul>
+<li>On-Access = Real-time scanning.</li>
+<li>On-Demand = Scheduled/manual scanning.</li>
+</ul>
+
+<h3>What is a Scanner Pool?</h3>
+
+<p>
+Group of antivirus servers trusted by ONTAP.
+</p>
+
+<h3>How do you verify Vscan connectivity?</h3>
+
+<pre>
+vserver vscan connection-status show-all
+</pre>
+
+<hr>
+
+<h2>19. Best Practices</h2>
+
+<ul>
+<li>Deploy minimum two AV servers.</li>
+<li>Use dedicated scanner pool.</li>
+<li>Exclude unnecessary file types.</li>
+<li>Monitor scanner connectivity regularly.</li>
+<li>Review Vscan events periodically.</li>
+<li>Avoid excessive scanning of application directories.</li>
+<li>Schedule full scans during non-business hours.</li>
+</ul>
+
+<hr>
+
+<h2>Conclusion</h2>
+
+<p>
+Vscan is the primary antivirus integration mechanism in ONTAP NAS environments.
+A complete deployment includes scanner pools, privileged users,
+on-access policies, on-demand scan tasks, connection monitoring,
+event analysis, and regular health verification.
+</p>
+
+</div>
+
+</body>
+</html>
