@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetApp Disaster Recovery — Plan &amp; Execution</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@400;600;700&display=swap');
+
+  :root {
+    --bg:         #0d0f14;
+    --surface:    #141720;
+    --surface-2:  #1b1f2c;
+    --border:     #252b3b;
+    --accent:     #0ea5e9;   /* NetApp blue */
+    --accent-dim: rgba(14,165,233,.12);
+    --warn:       #f59e0b;
+    --warn-dim:   rgba(245,158,11,.12);
+    --danger:     #ef4444;
+    --danger-dim: rgba(239,68,68,.10);
+    --green:      #22c55e;
+    --green-dim:  rgba(34,197,94,.10);
+    --text:       #e2e6f0;
+    --muted:      #7a859e;
+    --code-bg:    #0a0c10;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+    min-height: 100vh;
+  }
+
+  /* ── HERO ─────────────────────────────────────────────── */
+  .hero {
+    position: relative;
+    overflow: hidden;
+    padding: 72px 24px 56px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(14,165,233,.16), transparent);
+    pointer-events: none;
+  }
+  .hero-eyebrow {
+    display: inline-block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid rgba(14,165,233,.3);
+    border-radius: 4px;
+    padding: 4px 10px;
+    margin-bottom: 20px;
+  }
+  .hero h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(28px, 5vw, 52px);
+    font-weight: 700;
+    letter-spacing: -.02em;
+    line-height: 1.1;
+    max-width: 740px;
+    margin: 0 auto 16px;
+  }
+  .hero h1 span { color: var(--accent); }
+  .hero p {
+    color: var(--muted);
+    max-width: 580px;
+    margin: 0 auto 32px;
+    font-size: 15px;
+  }
+  .hero-stats {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    flex-wrap: wrap;
+  }
+  .stat { text-align: center; }
+  .stat-n {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--accent);
+    display: block;
+  }
+  .stat-l { font-size: 11px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+
+  /* ── LAYOUT ───────────────────────────────────────────── */
+  .wrapper { max-width: 960px; margin: 0 auto; padding: 0 24px 80px; }
+
+  /* ── SECTION HEADER ───────────────────────────────────── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 52px 0 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0;
+  }
+  .section-icon {
+    width: 36px; height: 36px;
+    background: var(--accent-dim);
+    border: 1px solid rgba(14,165,233,.35);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; flex-shrink: 0;
+  }
+  .section-icon.warn { background: var(--warn-dim); border-color: rgba(245,158,11,.35); }
+  .section-icon.danger { background: var(--danger-dim); border-color: rgba(239,68,68,.35); }
+  .section-icon.green { background: var(--green-dim); border-color: rgba(34,197,94,.35); }
+  .section-header h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .section-header small { color: var(--muted); font-size: 12px; display: block; margin-top: 2px; }
+
+  /* ── PHASE STEPPER ────────────────────────────────────── */
+  .phase-track {
+    display: flex;
+    gap: 0;
+    margin: 28px 0 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .phase-btn {
+    flex: 1;
+    padding: 10px 8px;
+    background: var(--surface);
+    border: none;
+    border-right: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background .2s, color .2s;
+    text-align: center;
+  }
+  .phase-btn:last-child { border-right: none; }
+  .phase-btn.active {
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .phase-btn:hover:not(.active) { background: var(--surface-2); color: var(--text); }
+
+  /* ── EXEC STEPS ───────────────────────────────────────── */
+  .exec-panel { display: none; }
+  .exec-panel.active { display: block; }
+
+  .step-list { margin-top: 16px; }
+  .step-item {
+    display: flex;
+    gap: 16px;
+    padding: 16px 0;
+    border-bottom: 1px solid rgba(37,43,59,.6);
+  }
+  .step-item:last-child { border-bottom: none; }
+  .step-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid rgba(14,165,233,.3);
+    border-radius: 4px;
+    min-width: 36px;
+    height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .step-num.warn { color: var(--warn); background: var(--warn-dim); border-color: rgba(245,158,11,.3); }
+  .step-num.danger { color: var(--danger); background: var(--danger-dim); border-color: rgba(239,68,68,.3); }
+  .step-num.green { color: var(--green); background: var(--green-dim); border-color: rgba(34,197,94,.3); }
+  .step-body { flex: 1; }
+  .step-title { font-weight: 500; font-size: 14px; color: var(--text); margin-bottom: 6px; }
+  .step-desc { font-size: 13px; color: var(--muted); line-height: 1.65; }
+
+  /* ── Q&A CARD ─────────────────────────────────────────── */
+  .qa-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-top: 16px;
+    overflow: hidden;
+    transition: border-color .2s;
+  }
+  .qa-card:hover { border-color: rgba(14,165,233,.4); }
+  .qa-q {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 18px 20px;
+    cursor: pointer;
+    background: var(--surface);
+    user-select: none;
+  }
+  .qa-q:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .q-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid rgba(14,165,233,.3);
+    border-radius: 3px;
+    padding: 2px 6px;
+    flex-shrink: 0;
+    margin-top: 2px;
+    letter-spacing: .08em;
+  }
+  .qa-q p { font-weight: 500; font-size: 14px; flex: 1; color: var(--text); line-height: 1.5; }
+  .chevron { color: var(--muted); flex-shrink: 0; margin-top: 3px; transition: transform .25s; font-size: 12px; }
+  .qa-card.open .chevron { transform: rotate(180deg); }
+  .qa-a { display: none; padding: 0 20px 20px 50px; background: var(--surface-2); border-top: 1px solid var(--border); }
+  .qa-card.open .qa-a { display: block; }
+  .qa-a-inner { padding-top: 16px; color: var(--muted); font-size: 14px; line-height: 1.7; }
+  .qa-a-inner p { margin-bottom: 10px; }
+  .qa-a-inner p:last-child { margin-bottom: 0; }
+
+  /* ── TAGS ─────────────────────────────────────────────── */
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+  .tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .tag-snapmirror { background: rgba(14,165,233,.12); color: #38bdf8; border: 1px solid rgba(14,165,233,.3); }
+  .tag-metrocluster { background: rgba(167,139,250,.12); color: #c4b5fd; border: 1px solid rgba(167,139,250,.3); }
+  .tag-plan { background: rgba(245,158,11,.10); color: #fbbf24; border: 1px solid rgba(245,158,11,.25); }
+  .tag-exec { background: rgba(239,68,68,.10); color: #f87171; border: 1px solid rgba(239,68,68,.25); }
+  .tag-test { background: rgba(34,197,94,.10); color: #4ade80; border: 1px solid rgba(34,197,94,.25); }
+  .tag-failback { background: rgba(251,191,36,.10); color: #fbbf24; border: 1px solid rgba(251,191,36,.25); }
+
+  /* ── CODE ─────────────────────────────────────────────── */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    margin: 12px 0;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: #a5b4c8;
+  }
+  pre.danger-left { border-left-color: var(--danger); }
+  pre.warn-left { border-left-color: var(--warn); }
+  pre.green-left { border-left-color: var(--green); }
+  pre .kw  { color: var(--accent); }
+  pre .cmd { color: var(--green); }
+  pre .cmt { color: #4a5568; font-style: italic; }
+  pre .str { color: #93c5fd; }
+  pre .warn-text { color: var(--warn); }
+  pre .danger-text { color: var(--danger); }
+
+  /* ── CALLOUT ──────────────────────────────────────────── */
+  .callout {
+    background: var(--accent-dim);
+    border: 1px solid rgba(14,165,233,.3);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 12px 0;
+    font-size: 13px;
+    color: var(--text);
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .callout.warn { background: var(--warn-dim); border-color: rgba(245,158,11,.3); }
+  .callout.danger { background: var(--danger-dim); border-color: rgba(239,68,68,.3); }
+  .callout.green { background: var(--green-dim); border-color: rgba(34,197,94,.3); }
+  .callout-icon { flex-shrink: 0; margin-top: 1px; }
+
+  /* ── DIAGRAM ──────────────────────────────────────────── */
+  .diagram {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    margin: 14px 0;
+    overflow-x: auto;
+  }
+  .diagram pre {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    color: #6b7e99;
+    font-size: 12px;
+  }
+  .diagram pre .hi { color: var(--accent); font-weight: 600; }
+  .diagram pre .hi2 { color: var(--green); }
+  .diagram pre .hi3 { color: var(--warn); }
+
+  /* ── COMPARISON TABLE ─────────────────────────────────── */
+  .compare { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  .compare th {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+  }
+  .compare td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(37,43,59,.7);
+    vertical-align: top;
+    color: var(--muted);
+  }
+  .compare tr:last-child td { border-bottom: none; }
+  .compare .label { color: var(--text); font-weight: 500; }
+
+  /* ── RTO/RPO GAUGE ────────────────────────────────────── */
+  .rto-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin: 14px 0;
+  }
+  .rto-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .rto-card-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .rto-card-tech { font-weight: 600; font-size: 14px; color: var(--text); margin-bottom: 10px; }
+  .rto-bar-bg { background: var(--border); border-radius: 4px; height: 6px; margin-bottom: 6px; }
+  .rto-bar { height: 6px; border-radius: 4px; }
+  .rto-vals { display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
+  .rto-vals span:first-child { color: var(--accent); }
+  .rto-vals span:last-child { color: var(--muted); }
+
+  /* ── FOOTER ───────────────────────────────────────────── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 24px;
+    text-align: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: .06em;
+  }
+  footer span { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════ HERO ═══════════════════════════ -->
+<section class="hero">
+  <div class="hero-eyebrow">DR Runbook</div>
+  <h1>NetApp <span>Disaster Recovery</span><br>Plan &amp; Execution</h1>
+  <p>SnapMirror, MetroCluster, SVM-DR — planning, testing, failover, and failback from start to finish.</p>
+  <div class="hero-stats">
+    <div class="stat"><span class="stat-n">SnapMirror</span><span class="stat-l">Async / Sync</span></div>
+    <div class="stat"><span class="stat-n">SVM-DR</span><span class="stat-l">Full SVM Replication</span></div>
+    <div class="stat"><span class="stat-n">MetroCluster</span><span class="stat-l">Continuous Sync</span></div>
+  </div>
+</section>
+
+<div class="wrapper">
+
+  <!-- ═══════════ REPLICATION OVERVIEW ═══════════════════ -->
+  <div class="section-header">
+    <div class="section-icon">🗺️</div>
+    <div>
+      <h2>DR Technology Overview</h2>
+      <small>Choose the right tool before you build the plan</small>
+    </div>
+  </div>
+
+  <div class="rto-grid">
+    <div class="rto-card">
+      <div class="rto-card-label">Technology</div>
+      <div class="rto-card-tech">SnapMirror Async</div>
+      <div class="rto-bar-bg"><div class="rto-bar" style="width:40%;background:#0ea5e9"></div></div>
+      <div class="rto-vals"><span>RTO: minutes–hours</span><span>RPO: 5m–1h</span></div>
+    </div>
+    <div class="rto-card">
+      <div class="rto-card-label">Technology</div>
+      <div class="rto-card-tech">SnapMirror Sync</div>
+      <div class="rto-bar-bg"><div class="rto-bar" style="width:20%;background:#22c55e"></div></div>
+      <div class="rto-vals"><span>RTO: minutes</span><span>RPO: ~0 (sync)</span></div>
+    </div>
+    <div class="rto-card">
+      <div class="rto-card-label">Technology</div>
+      <div class="rto-card-tech">SVM-DR</div>
+      <div class="rto-bar-bg"><div class="rto-bar" style="width:35%;background:#a78bfa"></div></div>
+      <div class="rto-vals"><span>RTO: minutes–hours</span><span>RPO: schedule-based</span></div>
+    </div>
+    <div class="rto-card">
+      <div class="rto-card-label">Technology</div>
+      <div class="rto-card-tech">MetroCluster</div>
+      <div class="rto-bar-bg"><div class="rto-bar" style="width:5%;background:#f59e0b"></div></div>
+      <div class="rto-vals"><span>RTO: ~0 (auto)</span><span>RPO: 0</span></div>
+    </div>
+  </div>
+
+  <div class="qa-card" onclick="toggle(this)" tabindex="0">
+    <div class="qa-q">
+      <span class="q-label">ARCH</span>
+      <p>How does SnapMirror async replication work at the data level?</p>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="qa-a">
+      <div class="qa-a-inner">
+        <p>SnapMirror tracks changed blocks using ONTAP's snapshot engine. After an initial baseline transfer, each replication cycle ships only the changed blocks between the last common snapshot and the current one.</p>
+        <div class="diagram">
+          <pre>
+  Primary (Source)                           Secondary (Destination)
+  ─────────────────                          ───────────────────────
+  <span class="hi">vol1  (RW)</span>  ──── Snapshot A ────────────►  <span class="hi">vol1_dr  (DP)</span>
+                                                      Snapshot A
+              ──── Δ blocks (A→B) ────────►          Snapshot B
+              ──── Δ blocks (B→C) ────────►          Snapshot C
+                      ↑
+           <span class="hi2">Only changed blocks travel the wire</span>
+          </pre>
+        </div>
+        <p>The destination volume is in Data Protection (DP) mode — read-only until a failover or test break. The relationship schedule is defined by a SnapMirror policy and a job schedule on the destination cluster.</p>
+        <div class="tags"><span class="tag tag-snapmirror">SnapMirror</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card" onclick="toggle(this)" tabindex="0">
+    <div class="qa-q">
+      <span class="q-label">ARCH</span>
+      <p>What is SVM-DR and when should you use it instead of volume-level SnapMirror?</p>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="qa-a">
+      <div class="qa-a-inner">
+        <p>SVM-DR replicates an entire Storage Virtual Machine — including all its volumes, network configuration (LIFs, export policies, CIFS shares, NFS exports), and identity — to a destination cluster. This means that at failover time, the SVM comes up at the DR site without manual reconfiguration of shares, exports, or network settings.</p>
+        <table class="compare">
+          <tr><th>Aspect</th><th>Volume SnapMirror</th><th>SVM-DR</th></tr>
+          <tr><td class="label">Scope</td><td>Individual volumes</td><td>Whole SVM (volumes + config)</td></tr>
+          <tr><td class="label">Network config at DR</td><td>Must rebuild manually</td><td>Replicated automatically</td></tr>
+          <tr><td class="label">Failover complexity</td><td>Higher — more manual steps</td><td>Lower — SVM activates as-is</td></tr>
+          <tr><td class="label">Best for</td><td>Selective volume DR</td><td>Full application DR with consistent identity</td></tr>
+        </table>
+        <div class="tags"><span class="tag tag-snapmirror">SVM-DR</span><span class="tag tag-plan">Planning</span></div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════ DR PLAN ═════════════════════════════════ -->
+  <div class="section-header">
+    <div class="section-icon warn">📋</div>
+    <div>
+      <h2>DR Plan — What to Document Before an Incident</h2>
+      <small>The runbook nobody wants to write at 2am</small>
+    </div>
+  </div>
+
+  <div class="qa-card" onclick="toggle(this)" tabindex="0">
+    <div class="qa-q">
+      <span class="q-label">PLAN</span>
+      <p>What must a NetApp DR plan document before any incident occurs?</p>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="qa-a">
+      <div class="qa-a-inner">
+        <p>A DR plan must be executable by someone under pressure at 3am. Every ambiguity you leave in the plan will cost minutes or hours during an actual incident. Mandatory sections:</p>
+        <div class="callout">
+          <span class="callout-icon">🗂️</span>
+          <div><strong>Inventory</strong> — source cluster, destination cluster, SVM names, volume names, SnapMirror relationship names, and the SnapMirror policy applied to each. Export from ONTAP and keep a copy outside the array.</div>
+        </div>
+        <div class="callout">
+          <span class="callout-icon">🎯</span>
+          <div><strong>RTO / RPO targets per application</strong> — agree these with the business owner, not the storage team. Different workloads (ERP vs. dev/test) have different tolerance.</div>
+        </div>
+        <div class="callout">
+          <span class="callout-icon">🌐</span>
+          <div><strong>Network cutover plan</strong> — IP address scheme at DR site, DNS changes required, load balancer configuration, and who owns each of those changes (usually not the storage team).</div>
+        </div>
+        <div class="callout">
+          <span class="callout-icon">📞</span>
+          <div><strong>Escalation contacts</strong> — NetApp Support contract number, primary/backup administrators, application owners, and network team contacts. With the site down, you cannot look these up in an internal wiki.</div>
+        </div>
+        <div class="callout warn">
+          <span class="callout-icon">⚠️</span>
+          <div><strong>Known gaps</strong> — document any workloads NOT covered by DR replication. "Oracle DB on vol_prod03 is not replicated — business accepted this risk." No surprises during an incident.</div>
+        </div>
+        <div class="tags"><span class="tag tag-plan">Planning</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card" onclick="toggle(this)" tabindex="0">
+    <div class="qa-q">
+      <span class="q-label">PLAN</span>
+      <p>How do you audit the health of SnapMirror relationships as part of DR readiness?</p>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="qa-a">
+      <div class="qa-a-inner">
+        <pre><span class="cmt"># Show all SnapMirror relationships and their lag/status</span>
+<span class="cmd">snapmirror</span> show -fields state,status,lag-time,healthy
+
+<span class="cmt"># Filter for unhealthy or lagged relationships</span>
+<span class="cmd">snapmirror</span> show -fields state,lag-time,healthy -healthy false
+
+<span class="cmt"># Show transfer status (active transfers)</span>
+<span class="cmd">snapmirror</span> show -fields transfer-state
+
+<span class="cmt"># Get transfer history for a specific relationship</span>
+<span class="cmd">snapmirror</span> history show -source-path <span class="str">svm1:vol1</span>
+
+<span class="cmt"># Force an immediate update (don't wait for schedule)</span>
+<span class="cmd">snapmirror</span> update -source-path <span class="str">svm1:vol1</span> -destination-path <span class="str">svm2_dr:vol1_dr</span></pre>
+        <div class="callout">
+          <span class="callout-icon">📊</span>
+          <div>Key fields to monitor in DR readiness checks: <strong>lag-time</strong> (should be within your RPO window), <strong>healthy</strong> (must be true), and <strong>state</strong> (should be Snapmirrored for async, InSync for sync).</div>
+        </div>
+        <div class="tags"><span class="tag tag-snapmirror">SnapMirror</span><span class="tag tag-plan">Readiness</span></div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════ EXECUTION (PHASE STEPPER) ═══════════════ -->
+  <div class="section-header">
+    <div class="section-icon danger">🚨</div>
+    <div>
+      <h2>Failover Execution — Step by Step</h2>
+      <small>Run these phases in order. Do not skip verification steps.</small>
+    </div>
+  </div>
+
+  <div class="phase-track">
+    <button class="phase-btn active" onclick="showPhase('assess')">1 · Assess</button>
+    <button class="phase-btn" onclick="showPhase('quiesce')">2 · Quiesce</button>
+    <button class="phase-btn" onclick="showPhase('break')">3 · Break</button>
+    <button class="phase-btn" onclick="showPhase('activate')">4 · Activate</button>
+    <button class="phase-btn" onclick="showPhase('cutover')">5 · Cutover</button>
+  </div>
+
+  <!-- PHASE 1: ASSESS -->
+  <div class="exec-panel active" id="phase-assess">
+    <div class="step-list">
+      <div class="step-item">
+        <span class="step-num danger">1.1</span>
+        <div class="step-body">
+          <div class="step-title">Declare the incident and notify stakeholders</div>
+          <div class="step-desc">Confirm the primary site or cluster is genuinely unreachable — not a management network issue. Page the storage team lead, application owners, and network team before starting any failover actions.</div>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-num danger">1.2</span>
+        <div class="step-body">
+          <div class="step-title">Check SnapMirror lag at the DR cluster</div>
+          <div class="step-desc">SSH to the destination cluster and check lag time to understand your RPO exposure.</div>
+          <pre class="danger-left"><span class="cmt"># Run on the DESTINATION cluster</span>
+<span class="cmd">snapmirror</span> show -fields lag-time,state,transfer-state
+<span class="cmt"># Note the lag-time for every critical volume — this is data at risk</span></pre>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-num danger">1.3</span>
+        <div class="step-body">
+          <div class="step-title">Determine if a planned or unplanned failover is needed</div>
+          <div class="step-desc">Planned (primary site is still accessible) allows a clean quiesce-and-break. Unplanned (primary is down) skips quiesce — you accept whatever the last successful transfer captured.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 2: QUIESCE -->
+  <div class="exec-panel" id="phase-quiesce">
+    <div class="callout warn">
+      <span class="callout-icon">⚠️</span>
+      <div><strong>Planned failover only.</strong> If the primary site is down, skip to Phase 3 (Break). Quiesce requires the source cluster to be reachable.</div>
+    </div>
+    <div class="step-list">
+      <div class="step-item">
+        <span class="step-num warn">2.1</span>
+        <div class="step-body">
+          <div class="step-title">Stop application I/O to source volumes</div>
+          <div class="step-desc">Work with application owners to cleanly shut down databases, unmount NFS mounts, and disconnect iSCSI sessions on the application side. Do not skip this — dirty failover can corrupt data.</div>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-num warn">2.2</span>
+        <div class="step-body">
+          <div class="step-title">Quiesce the SnapMirror relationship</div>
+          <div class="step-desc">Quiesce pauses scheduled transfers so you can run a final manual update cleanly.</div>
+          <pre class="warn-left"><span class="cmt"># Run on the DESTINATION cluster</span>
+<span class="cmd">snapmirror</span> quiesce -destination-path <span class="str">svm2_dr:vol1_dr</span>
+
+<span class="cmt"># Verify quiesced state</span>
+<span class="cmd">snapmirror</span> show -destination-path <span class="str">svm2_dr:vol1_dr</span> -fields state
+<span class="cmt"># Expected: Quiesced</span></pre>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-num warn">2.3</span>
+        <div class="step-body">
+          <div class="step-title">Run a final SnapMirror update to minimize RPO</div>
+          <div class="step-desc">Push any remaining dirty blocks to the destination before breaking the relationship.</div>
+          <pre class="warn-left"><span class="cmd">snapmirror</span> update -destination-path <span class="str">svm2_dr:vol1_dr</span>
+
+<span class="cmt"># Wait for transfer to complete</span>
+<span class="cmd">snapmirror</span> show -destination-path <span class="str">svm2_dr:vol1_dr</span> -fields transfer-state
+<span class="cmt"># Expected: Idle (no active transfer)</span></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 3: BREAK -->
+  <div class="exec-panel" id="phase-break">
+    <div class="callout danger">
+      <span class="callout-icon">🔴</span>
+      <div><strong>This step is irreversible until you re-establish the relationship.</strong> Breaking the relationship makes the destination volume writable. You cannot re-sync from the source until the relationship is explicitly re-initialized or resync'd.</div>
+    </div>
+    <div class="step-list">
+      <div class="step-item">
+        <span class="step-num danger">3.1</span>
+        <div class="step-body">
+          <div class="step-title">Break the SnapMirror relationship</div>
+          <div class="step-desc">This makes the destination volume read-write. Run on the destination cluster.</div>
+          <pre class="danger-left"><span class="cmt"># Run on the DESTINATION cluster</span>
+<span class="cmd">snapmirror</span> break -destination-path <span class="str">svm2_dr:vol1_dr</span>
+
+<span class="cmt"># For SVM-DR — break at the SVM level</span>
+<span class="cmd">snapmirror</span> break -destination-path <span class="str">svm2_dr:</span>
+
+<span class="cmt"># Verify broken state</span>
+<span class="cmd">snapmirror</span> show -destination-path <span class="str">svm2_dr:vol1_dr</span> -fields state
+<span class="cmt"># Expected: Broken-off</span></pre>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-num danger">3.2</span>
+        <div class="step-body">
+          <div class="step-title">Verify destination volume is read-write</div>
+          <div class="step-desc">The volume should now show type RW instead of DP.</div>
+          <pre class="danger-left"><span class="cmd">volume</span> show -vserver <span class="str">svm2_dr</span> -volume <span class="str">vol1_dr</span> -fields type,state
+<span class="cmt"># Expected: type=RW, state=online</span></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 4: ACTIVATE -->
+  <div class="exec-panel" id="phase-activate">
+    <div class="step-list">
+      <div class="step-item">
+        <span class="step-num">4.1</span>
+        <div class="step-body">
+          <div class="step-title">Bring up network interfaces (LIFs) at DR site</div>
+          <div class="step-desc">For SVM-DR, network LIFs are replicated but initially down. Bring them up manually or configure them to auto-start based on the DR network configuration documented in your plan.</div>
+          <pre><span class="cmt"># Check LIF status on DR SVM</span>
+<span class="cmd">network</span> interface show -vserver <span class="str">svm2_dr</span>
+
+<span class="cmt"># Bring up a specific LIF</span>
+<span class="cmd">network</span> interface modify -vserver <span class="str">svm2_dr</span> -lif <span class="str">data_lif_01</span> -status-admin up
+
+<span class="cmt"># Migrate LIF to a specific home port if needed</span>
+<span class="cmd">network</span> interface modify -vserver <span class="str">svm2_dr</span> -lif <span class="str">data_lif_01</span> -home-node <span class="str">dr-node-01</span> -home-port <span class="str">e0d</span></pre>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-num">4.2</span>
+        <div class="step-body">
+          <div class="step-title">Verify NFS exports and CIFS shares are accessible</div>
+          <div class="step-desc">For SVM-DR, export policies replicate automatically. For volume SnapMirror, you must manually recreate or pre-stage export policies and CIFS shares on the destination SVM.</div>
+          <pre><span class="cmt"># Check export policy on the volume</span>
+<span class="cmd">volume</span> show -vserver <span class="str">svm2_dr</span> -fields export-policy
+
+<span class="cmt"># List export policy rules</span>
+<span class="cmd">export-policy</span> rule show -vserver <span class="str">svm2_dr</span> -policyname <span class="str">default</span>
+
+<span class="cmt"># List CIFS shares</span>
+<span class="cmd">cifs</span> share show -vserver <span class="str">svm2_dr</span></pre>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-num">4.3</span>
+        <div class="step-body">
+          <div class="step-title">Test data accessibility before handing to application team</div>
+          <div class="step-desc">Mount a share or NFS export from a test host and verify data is visible and accessible. Run a read of a known file. Check iSCSI connectivity if block volumes are in scope.</div>
+          <pre><span class="cmt"># NFS test mount from a Linux host</span>
+<span class="cmd">mount</span> -t nfs 10.20.1.50:/vol1_dr /mnt/test
+<span class="cmd">ls</span> -la /mnt/test
+<span class="cmd">cat</span> /mnt/test/known-file.txt
+
+<span class="cmt"># iSCSI — discover and log in to target</span>
+<span class="cmd">iscsiadm</span> -m discovery -t sendtargets -p 10.20.1.51
+<span class="cmd">iscsiadm</span> -m node --login</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 5: CUTOVER -->
+  <div class="exec-panel" id="phase-cutover">
+    <div class="step-list">
+      <div class="step-item">
+        <span class="step-num">5.1</span>
+        <div class="step-body">
+          <div class="step-title">Update DNS to point to DR site IPs</div>
+          <div class="step-desc">Work with the network team to update DNS A records and any load balancer VIPs. Set a short TTL (60–300 seconds) before any planned failover. For unplanned, accept the TTL you have.</div>
+          <pre><span class="cmt"># Example — verify new DNS resolution from application host</span>
+<span class="cmd">nslookup</span> nas-prod.example.com
+<span class="cmt"># Should resolve to DR site IP now</span></pre>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-num">5.2</span>
+        <div class="step-body">
+          <div class="step-title">Hand off to application team and validate application layer</div>
+          <div class="step-desc">Start the application (database, application server) and confirm end-to-end functionality. This is the true RTO milestone — when the application is serving users, not when the volume comes online.</div>
+        </div>
+      </div>
+      <div class="step-item">
+        <span class="step-num">5.3</span>
+        <div class="step-body">
+          <div class="step-title">Document the failover — timestamp, RPO achieved, data loss (if any)</div>
+          <div class="step-desc">Record the time of the last successful SnapMirror transfer versus time of incident to calculate actual RPO. This feeds the post-incident review and potential improvements to replication schedules.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════ DR TESTING ═════════════════════════════ -->
+  <div class="section-header">
+    <div class="section-icon green">🧪</div>
+    <div>
+      <h2>DR Testing — Without Breaking Production</h2>
+      <small>Test regularly. Untested DR plans are just hope documents.</small>
+    </div>
+  </div>
+
+  <div class="qa-card" onclick="toggle(this)" tabindex="0">
+    <div class="qa-q">
+      <span class="q-label">TEST</span>
+      <p>How do you test a SnapMirror failover without impacting the live replication relationship?</p>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="qa-a">
+      <div class="qa-a-inner">
+        <p>Use a FlexClone of the SnapMirror destination volume. This creates a writable, space-efficient clone from a DP snapshot — you can test fully without touching the live replication relationship.</p>
+        <pre class="green-left"><span class="cmt"># On the DESTINATION cluster — list available snapshots on the DP volume</span>
+<span class="cmd">snapshot</span> show -vserver <span class="str">svm2_dr</span> -volume <span class="str">vol1_dr</span>
+
+<span class="cmt"># Clone from the latest SnapMirror snapshot</span>
+<span class="cmd">volume</span> clone create -vserver <span class="str">svm2_dr</span> -flexclone <span class="str">vol1_dr_test</span> \
+  -parent-volume <span class="str">vol1_dr</span> -parent-snapshot <span class="str">snapmirror.snap01</span> \
+  -type RW -junction-path <span class="str">/vol1_dr_test</span>
+
+<span class="cmt"># Mount and test — SnapMirror relationship continues unaffected</span>
+<span class="cmd">volume</span> show -vserver <span class="str">svm2_dr</span> -volume <span class="str">vol1_dr_test</span>
+
+<span class="cmt"># Clean up after test</span>
+<span class="cmd">volume</span> unmount -vserver <span class="str">svm2_dr</span> -volume <span class="str">vol1_dr_test</span>
+<span class="cmd">volume</span> clone delete -vserver <span class="str">svm2_dr</span> -flexclone <span class="str">vol1_dr_test</span></pre>
+        <div class="callout green">
+          <span class="callout-icon">✅</span>
+          <div>This is the recommended approach for DR testing. The SnapMirror relationship remains intact and continues replicating throughout the test. No risk to production or replication schedule.</div>
+        </div>
+        <div class="tags"><span class="tag tag-test">Testing</span><span class="tag tag-snapmirror">SnapMirror</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card" onclick="toggle(this)" tabindex="0">
+    <div class="qa-q">
+      <span class="q-label">TEST</span>
+      <p>What should a DR test exercise validate beyond "the data is there"?</p>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="qa-a">
+      <div class="qa-a-inner">
+        <table class="compare">
+          <tr><th>Validation item</th><th>Why it matters</th></tr>
+          <tr><td class="label">Application can start and write</td><td>A volume accessible does not mean the database can open its files and recover cleanly</td></tr>
+          <tr><td class="label">DNS resolution at DR site</td><td>Client connectivity depends on name resolution — verify the runbook DNS steps work</td></tr>
+          <tr><td class="label">Authentication (AD/LDAP)</td><td>CIFS access requires a domain controller reachable from the DR site</td></tr>
+          <tr><td class="label">Actual RTO timing</td><td>Time each step. The plan says 30 minutes — reality is often different. Document the gap.</td></tr>
+          <tr><td class="label">Runbook accuracy</td><td>Verify every command and IP address in the runbook matches current reality. Stale docs kill DR plans.</td></tr>
+        </table>
+        <div class="tags"><span class="tag tag-test">Testing</span><span class="tag tag-plan">Validation</span></div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════ FAILBACK ════════════════════════════════ -->
+  <div class="section-header">
+    <div class="section-icon">🔄</div>
+    <div>
+      <h2>Failback — Returning to Primary</h2>
+      <small>After the primary site is restored, resync and reverse the relationship</small>
+    </div>
+  </div>
+
+  <div class="qa-card" onclick="toggle(this)" tabindex="0">
+    <div class="qa-q">
+      <span class="q-label">FAILBACK</span>
+      <p>Walk through the steps to resync and fail back from DR to primary after the primary site is restored.</p>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="qa-a">
+      <div class="qa-a-inner">
+        <p>Failback is a reverse SnapMirror — the DR site becomes the temporary source, replicating changed data back to the (now repaired) primary before you cut over again.</p>
+        <pre class="green-left"><span class="cmt"># Step 1 — Resync (run on the DESTINATION / DR cluster)
+# This re-establishes the SnapMirror relationship using the common snapshot
+# Direction is still DR→Primary at this point (reverse resync)</span>
+<span class="cmd">snapmirror</span> resync -source-path <span class="str">svm2_dr:vol1_dr</span> -destination-path <span class="str">svm1:vol1</span>
+
+<span class="cmt"># Step 2 — Monitor until InSync / Snapmirrored</span>
+<span class="cmd">snapmirror</span> show -destination-path <span class="str">svm1:vol1</span> -fields state,lag-time
+
+<span class="cmt"># Step 3 — When lag-time is acceptable, quiesce application at DR site
+# Then run a final update</span>
+<span class="cmd">snapmirror</span> update -destination-path <span class="str">svm1:vol1</span>
+
+<span class="cmt"># Step 4 — Break the reverse relationship (makes primary RW again)</span>
+<span class="cmd">snapmirror</span> break -destination-path <span class="str">svm1:vol1</span>
+
+<span class="cmt"># Step 5 — Re-establish the original relationship (primary → DR)
+# This restores your normal DR protection</span>
+<span class="cmd">snapmirror</span> resync -source-path <span class="str">svm1:vol1</span> -destination-path <span class="str">svm2_dr:vol1_dr</span></pre>
+        <div class="callout warn">
+          <span class="callout-icon">⚠️</span>
+          <div><strong>Do not run the final resync (Step 5) until the primary site is confirmed fully stable.</strong> A second failure immediately after failback with no DR protection in place would be catastrophic.</div>
+        </div>
+        <div class="tags"><span class="tag tag-failback">Failback</span><span class="tag tag-snapmirror">SnapMirror</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ METROCLUSTER ════════════════════════════ -->
+  <div class="section-header">
+    <div class="section-icon">🌆</div>
+    <div>
+      <h2>MetroCluster — Automated Failover</h2>
+      <small>Stretch cluster with synchronous mirroring and automatic switchover</small>
+    </div>
+  </div>
+
+  <div class="qa-card" onclick="toggle(this)" tabindex="0">
+    <div class="qa-q">
+      <span class="q-label">METRO</span>
+      <p>What is the difference between a negotiated switchover and an automatic unplanned switchover in MetroCluster?</p>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="qa-a">
+      <div class="qa-a-inner">
+        <table class="compare">
+          <tr><th>Type</th><th>When</th><th>Command</th><th>Data loss</th></tr>
+          <tr><td class="label">Negotiated switchover</td><td>Planned maintenance — primary site is online</td><td><code>metrocluster switchover</code></td><td>None (sync)</td></tr>
+          <tr><td class="label">Automatic unplanned (AUSO)</td><td>Primary site failure detected — automatic within ~60 seconds</td><td>Triggered by ONTAP automatically</td><td>None (sync mirror)</td></tr>
+          <tr><td class="label">Forced switchover</td><td>Primary site unreachable — manual override</td><td><code>metrocluster switchover -forced-on-disaster true</code></td><td>Possible — use last resort only</td></tr>
+        </table>
+        <pre><span class="cmt"># Check MetroCluster status</span>
+<span class="cmd">metrocluster</span> show
+<span class="cmd">metrocluster</span> node show
+
+<span class="cmt"># Perform a negotiated switchover (planned)</span>
+<span class="cmd">metrocluster</span> switchover
+
+<span class="cmt"># Verify switchover completed</span>
+<span class="cmd">metrocluster</span> show -fields state
+<span class="cmt"># Expected: switchover completed</span>
+
+<span class="cmt"># After primary site is repaired — perform switchback</span>
+<span class="cmd">metrocluster</span> switchback</pre>
+        <div class="tags"><span class="tag tag-metrocluster">MetroCluster</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="qa-card" onclick="toggle(this)" tabindex="0">
+    <div class="qa-q">
+      <span class="q-label">METRO</span>
+      <p>How do you verify MetroCluster health as part of ongoing DR readiness?</p>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="qa-a">
+      <div class="qa-a-inner">
+        <pre><span class="cmt"># Full MetroCluster health check — run this daily/weekly</span>
+<span class="cmd">metrocluster</span> check run
+<span class="cmd">metrocluster</span> check show
+
+<span class="cmt"># Verify NVRAM mirroring (sync health)</span>
+<span class="cmd">metrocluster</span> interconnect mirror show
+
+<span class="cmt"># Check aggregate mirror state</span>
+<span class="cmd">storage</span> aggregate show -fields mirror-status,state
+
+<span class="cmt"># Expected: mirror-status=mirrored for all data aggregates</span></pre>
+        <div class="callout>
+          <span class="callout-icon">🔔</span>
+          <div>Automate <code>metrocluster check run</code> output into your monitoring platform (Harvest, AIQUM). A degraded mirror or split-brain condition must be detected before an actual site failure — not during one.</div>
+        </div>
+        <div class="tags"><span class="tag tag-metrocluster">MetroCluster</span><span class="tag tag-plan">Readiness</span></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /wrapper -->
+
+<footer>
+  NetApp ONTAP Disaster Recovery Reference &nbsp;·&nbsp; SnapMirror · SVM-DR · MetroCluster &nbsp;·&nbsp; <span>DR Runbook</span>
+</footer>
+
+<script>
+  function toggle(card) {
+    card.classList.toggle('open');
+  }
+  document.querySelectorAll('.qa-card').forEach(card => {
+    card.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggle(card);
+      }
+    });
+  });
+
+  function showPhase(id) {
+    document.querySelectorAll('.exec-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.phase-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('phase-' + id).classList.add('active');
+    event.currentTarget.classList.add('active');
+  }
+</script>
+</body>
+</html>
