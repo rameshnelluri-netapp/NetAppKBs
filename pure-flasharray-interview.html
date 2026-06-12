@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pure Storage FlashArray Admin — Interview Questions</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@400;600;700&display=swap');
+
+  :root {
+    --bg:          #0d0f14;
+    --surface:     #141720;
+    --surface-2:   #1b1f2c;
+    --border:      #252b3b;
+    --accent:      #f97316;   /* pure orange — echoes Pure Storage brand */
+    --accent-dim:  rgba(249,115,22,.12);
+    --text:        #e2e6f0;
+    --muted:       #7a859e;
+    --code-bg:     #0a0c10;
+    --green:       #34d399;
+    --blue:        #60a5fa;
+    --tag-fc:      rgba(96,165,250,.15);
+    --tag-iscsi:   rgba(52,211,153,.15);
+    --tag-nvme:    rgba(249,115,22,.15);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+    min-height: 100vh;
+  }
+
+  /* ── HERO ─────────────────────────────────────────────── */
+  .hero {
+    position: relative;
+    overflow: hidden;
+    padding: 72px 24px 56px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(249,115,22,.18), transparent);
+    pointer-events: none;
+  }
+  .hero-eyebrow {
+    display: inline-block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid rgba(249,115,22,.3);
+    border-radius: 4px;
+    padding: 4px 10px;
+    margin-bottom: 20px;
+  }
+  .hero h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(28px, 5vw, 52px);
+    font-weight: 700;
+    letter-spacing: -.02em;
+    line-height: 1.1;
+    max-width: 720px;
+    margin: 0 auto 16px;
+  }
+  .hero h1 span { color: var(--accent); }
+  .hero p {
+    color: var(--muted);
+    max-width: 560px;
+    margin: 0 auto 32px;
+    font-size: 15px;
+  }
+  .hero-stats {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    flex-wrap: wrap;
+  }
+  .stat { text-align: center; }
+  .stat-n {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 30px;
+    font-weight: 700;
+    color: var(--accent);
+    display: block;
+  }
+  .stat-l { font-size: 11px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+
+  /* ── LAYOUT ───────────────────────────────────────────── */
+  .wrapper {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+
+  /* ── SECTION HEADER ───────────────────────────────────── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 48px 0 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 0;
+  }
+  .section-icon {
+    width: 36px; height: 36px;
+    background: var(--accent-dim);
+    border: 1px solid rgba(249,115,22,.35);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; flex-shrink: 0;
+  }
+  .section-header h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .section-header small {
+    color: var(--muted);
+    font-size: 12px;
+    display: block;
+    margin-top: 2px;
+  }
+
+  /* ── Q&A CARD ─────────────────────────────────────────── */
+  .qa-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-top: 16px;
+    overflow: hidden;
+    transition: border-color .2s;
+  }
+  .qa-card:hover { border-color: rgba(249,115,22,.4); }
+
+  .qa-q {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 18px 20px;
+    cursor: pointer;
+    background: var(--surface);
+    user-select: none;
+  }
+  .qa-q:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .q-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid rgba(249,115,22,.3);
+    border-radius: 3px;
+    padding: 2px 6px;
+    flex-shrink: 0;
+    margin-top: 2px;
+    letter-spacing: .08em;
+  }
+  .qa-q p {
+    font-weight: 500;
+    font-size: 14px;
+    flex: 1;
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .chevron {
+    color: var(--muted);
+    flex-shrink: 0;
+    margin-top: 3px;
+    transition: transform .25s;
+    font-size: 12px;
+  }
+  .qa-card.open .chevron { transform: rotate(180deg); }
+
+  .qa-a {
+    display: none;
+    padding: 0 20px 20px 50px;
+    background: var(--surface-2);
+    border-top: 1px solid var(--border);
+  }
+  .qa-card.open .qa-a { display: block; }
+  .qa-a-inner { padding-top: 16px; color: var(--muted); font-size: 14px; line-height: 1.7; }
+  .qa-a-inner p { margin-bottom: 10px; }
+  .qa-a-inner p:last-child { margin-bottom: 0; }
+
+  /* ── TAGS ─────────────────────────────────────────────── */
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+  .tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .tag-fc   { background: var(--tag-fc);    color: var(--blue);  border: 1px solid rgba(96,165,250,.3); }
+  .tag-iscsi{ background: var(--tag-iscsi);  color: var(--green); border: 1px solid rgba(52,211,153,.3); }
+  .tag-nvme { background: var(--tag-nvme);   color: var(--accent);border: 1px solid rgba(249,115,22,.3); }
+  .tag-ops  { background: rgba(167,139,250,.12); color: #c4b5fd; border: 1px solid rgba(167,139,250,.3); }
+  .tag-arch { background: rgba(251,191,36,.10); color: #fbbf24; border: 1px solid rgba(251,191,36,.25); }
+  .tag-sec  { background: rgba(239,68,68,.10);  color: #f87171;  border: 1px solid rgba(239,68,68,.25); }
+
+  /* ── CODE BLOCKS ──────────────────────────────────────── */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    margin: 12px 0;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: #a5b4c8;
+  }
+  pre .kw  { color: var(--accent); }
+  pre .cmd { color: var(--green); }
+  pre .cmt { color: #4a5568; font-style: italic; }
+  pre .str { color: #93c5fd; }
+
+  /* ── CALLOUT ──────────────────────────────────────────── */
+  .callout {
+    background: var(--accent-dim);
+    border: 1px solid rgba(249,115,22,.3);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 12px 0;
+    font-size: 13px;
+    color: var(--text);
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .callout-icon { flex-shrink: 0; margin-top: 1px; }
+
+  /* ── DIAGRAM ──────────────────────────────────────────── */
+  .diagram {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    margin: 14px 0;
+    overflow-x: auto;
+  }
+  .diagram pre {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    color: #6b7e99;
+    font-size: 12px;
+  }
+  .diagram pre .hi { color: var(--accent); font-weight: 600; }
+  .diagram pre .hi2 { color: var(--green); }
+
+  /* ── COMPARISON TABLE ─────────────────────────────────── */
+  .compare {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 13px;
+  }
+  .compare th {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+  }
+  .compare td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(37,43,59,.7);
+    vertical-align: top;
+    color: var(--muted);
+  }
+  .compare tr:last-child td { border-bottom: none; }
+  .compare .label { color: var(--text); font-weight: 500; }
+
+  /* ── FOOTER ───────────────────────────────────────────── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 24px;
+    text-align: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: .06em;
+  }
+  footer span { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════ HERO ═══════════════════════════ -->
+<section class="hero">
+  <div class="hero-eyebrow">Interview Prep</div>
+  <h1>Pure Storage <span>FlashArray</span><br>Administrator Questions</h1>
+  <p>Architecture, operations, networking, and troubleshooting — everything you need to walk into the room ready.</p>
+  <div class="hero-stats">
+    <div class="stat"><span class="stat-n">14</span><span class="stat-l">Questions</span></div>
+    <div class="stat"><span class="stat-n">4</span><span class="stat-l">Topic Areas</span></div>
+    <div class="stat"><span class="stat-n">FC / iSCSI / NVMe</span><span class="stat-l">Protocols</span></div>
+  </div>
+</section>
+
+<div class="wrapper">
+
+  <!-- ═══════════ ARCHITECTURE ═══════════════════════════ -->
+  <div class="section-header">
+    <div class="section-icon">🏗️</div>
+    <div>
+      <h2>Architecture &amp; Concepts</h2>
+      <small>RAID-HA, DirectFlash, Pods, and storage constructs</small>
+    </div>
+  </div>
+
+  <!-- Q1 -->
+  <div class="qa-card" onclick="toggle(this)" tabindex="0">
+    <div class="qa-q">
+      <span class="q-label">Q01</span>
+      <p>What is a DirectFlash Module (DFM), and why does Pure manage flash directly instead of using off-the-shelf SSDs?</p>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="qa-a">
+      <div class="qa-a-inner">
+        <p>DFMs are Pure's custom NAND modules where Purity's software directly controls flash translation, wear-leveling, and garbage collection — bypassing any onboard SSD controller firmware.</p>
+        <p>Standard SSDs have their own Flash Translation Layer (FTL) that manages these tasks internally, opaquely, and only for that one drive. By removing that layer and letting Purity manage the full pool globally, Pure gains:</p>
+        <div class="callout">
+          <span class="callout-icon">⚡</span>
+          <div><strong>Global wear-leveling</strong> — Purity can balance writes across <em>all</em> DFMs in the array, not just within a single module, extending media lifespan.</div>
+        </div>
+        <div class="callout">
+          <span class="callout-icon">🔍</span>
+          <div><strong>Media health visibility</strong> — Purity knows the exact health state of every flash cell, enabling proactive failure prediction.</div>
+        </div>
+        <div class="callout">
+          <span class="callout-icon">📦</span>
+          <div><strong>Space efficiency</strong> — No duplicate metadata. One layer handles what would otherwise require both an SSD's FTL metadata and Purity's own data-placement metadata.</div>
+        </div>
+        <div class="tags">
+          <span class="tag tag-arch">Architecture</span>
+          <span class="tag tag-arch">Hardware</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Q2 -->
+  <div class="qa-card" onclick="toggle(this)" tabindex="0">
+    <div class="qa-q">
+      <span class="q-label">Q02</span>
+      <p>What is RAID-HA and why doesn't an administrator configure RAID group sizes on FlashArray?</p>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="qa-a">
+      <div class="qa-a-inner">
+        <p>RAID-HA is Pure's proprietary erasure-coding scheme designed specifically for flash failure characteristics. Unlike traditional RAID, there is only one global storage pool — all DFMs participate in a single RAID-HA domain.</p>
+        <div class="diagram">
+          <pre>
+  Traditional RAID                      FlashArray RAID-HA
+  ─────────────────                     ──────────────────────────
+  [ RAID Group 1  ] ← admin-defined     <span class="hi">[ Global Pool              ]</span>
+  [ RAID Group 2  ] ← admin-defined     <span class="hi2">  All DFMs — one domain    </span>
+  [ RAID Group 3  ] ← admin-defined     <span class="hi">  Parity: Purity-managed   </span>
+  Group size = admin risk/capacity tradeoff    No group to configure
+          </pre>
+        </div>
+        <p>Purity automatically determines parity layout, group sizing, and rebuild behavior. The administrator's job is to monitor capacity and health — not to design RAID topology.</p>
+        <div class="tags"><span class="tag tag-arch">Architecture</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Q3 -->
+  <div class="qa-card" onclick="toggle(this)" tabindex="0">
+    <div class="qa-q">
+      <span class="q-label">Q03</span>
+      <p>Explain the difference between a <em>Volume</em> and a <em>Pod</em> on FlashArray.</p>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="qa-a">
+      <div class="qa-a-inner">
+        <table class="compare">
+          <tr>
+            <th>Construct</th>
+            <th>What it is</th>
+            <th>Primary use</th>
+          </tr>
+          <tr>
+            <td class="label">Volume</td>
+            <td>A single block storage object presented to a host — the LUN equivalent</td>
+            <td>Host connectivity, I/O</td>
+          </tr>
+          <tr>
+            <td class="label">Pod</td>
+            <td>A consistency-group wrapper that bundles one or more volumes (and/or file systems) and replicates them as a crash-consistent unit</td>
+            <td>ActiveCluster &amp; ActiveDR replication</td>
+          </tr>
+        </table>
+        <p>Think of it this way: a Volume is the storage object a host actually writes to; a Pod is the grouping construct that ensures those writes replicate together with ordering guarantees across arrays.</p>
+        <div class="tags"><span class="tag tag-arch">Architecture</span><span class="tag tag-ops">Replication</span></div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════ OPERATIONS ═════════════════════════════ -->
+  <div class="section-header">
+    <div class="section-icon">⚙️</div>
+    <div>
+      <h2>Operations</h2>
+      <small>Host connectivity, protection groups, SafeMode</small>
+    </div>
+  </div>
+
+  <!-- Q4 -->
+  <div class="qa-card" onclick="toggle(this)" tabindex="0">
+    <div class="qa-q">
+      <span class="q-label">Q04</span>
+      <p>How do you connect a new host to a FlashArray and present a volume?</p>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="qa-a">
+      <div class="qa-a-inner">
+        <p>The process follows three steps regardless of protocol (iSCSI or FC):</p>
+        <pre><span class="cmt"># 1. Register the host's initiator</span>
+<span class="cmd">purehost</span> create myhost <span class="kw">--iqnlist</span> iqn.2023-01.com.example:host01
+<span class="cmt"># or for FC:</span>
+<span class="cmd">purehost</span> create myhost <span class="kw">--wwnlist</span> 21:00:00:24:ff:ab:cd:ef
+
+<span class="cmt"># 2. Create the volume</span>
+<span class="cmd">purevol</span> create myvolume <span class="kw">--size</span> 1T
+
+<span class="cmt"># 3. Connect volume to host</span>
+<span class="cmd">purehost</span> connect myhost <span class="kw">--vol</span> myvolume</pre>
+        <div class="callout">
+          <span class="callout-icon">💡</span>
+          <div>For an ESXi cluster or any group sharing the same volumes, create a <strong>Host Group</strong> first (<code>purehgroup create</code>) and connect the volume to the group — this avoids connecting to each host individually.</div>
+        </div>
+        <div class="tags"><span class="tag tag-ops">Operations</span><span class="tag tag-fc">FC</span><span class="tag tag-iscsi">iSCSI</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Q5 -->
+  <div class="qa-card" onclick="toggle(this)" tabindex="0">
+    <div class="qa-q">
+      <span class="q-label">Q05</span>
+      <p>What is a Protection Group, and how does it differ from a Pod?</p>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="qa-a">
+      <div class="qa-a-inner">
+        <table class="compare">
+          <tr>
+            <th>Feature</th>
+            <th>Protection Group</th>
+            <th>Pod</th>
+          </tr>
+          <tr>
+            <td class="label">Replication type</td>
+            <td>Async, snapshot-based</td>
+            <td>Continuous (synchronous / near-sync)</td>
+          </tr>
+          <tr>
+            <td class="label">Scheduling</td>
+            <td>Admin-defined snapshot schedule</td>
+            <td>Ongoing — no schedule to set</td>
+          </tr>
+          <tr>
+            <td class="label">Fan-out</td>
+            <td>Yes — multiple targets supported</td>
+            <td>Two-array pair (ActiveCluster/ActiveDR)</td>
+          </tr>
+          <tr>
+            <td class="label">Use case</td>
+            <td>DR snapshots, backup targets</td>
+            <td>Active/active or near-zero RPO DR</td>
+          </tr>
+        </table>
+        <div class="tags"><span class="tag tag-ops">Operations</span><span class="tag tag-ops">Replication</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Q6 -->
+  <div class="qa-card" onclick="toggle(this)" tabindex="0">
+    <div class="qa-q">
+      <span class="q-label">Q06</span>
+      <p>What is SafeMode and why is it important?</p>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="qa-a">
+      <div class="qa-a-inner">
+        <p>SafeMode creates <strong>immutable, time-locked snapshots</strong> that cannot be deleted or modified by anyone — including a full array administrator — until the retention window expires.</p>
+        <div class="callout">
+          <span class="callout-icon">🔒</span>
+          <div><strong>Ransomware scenario:</strong> An attacker compromises admin credentials and attempts to delete all snapshots before encrypting production data. With SafeMode enabled, the snapshot copies are untouchable. The array itself enforces the retention period — no credentials override it.</div>
+        </div>
+        <p>Enabling or disabling SafeMode requires involvement from Pure Storage Support (out-of-band verification), making it a genuine air gap for the snapshot chain even when the array is fully compromised.</p>
+        <div class="tags"><span class="tag tag-sec">Security</span><span class="tag tag-ops">Data Protection</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Q7 -->
+  <div class="qa-card" onclick="toggle(this)" tabindex="0">
+    <div class="qa-q">
+      <span class="q-label">Q07</span>
+      <p>Walk through the CLI commands to create a Protection Group, add volumes to it, and configure a snapshot schedule.</p>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="qa-a">
+      <div class="qa-a-inner">
+        <pre><span class="cmt"># Create the protection group</span>
+<span class="cmd">purepgroup</span> create pg-proddb
+
+<span class="cmt"># Add volumes</span>
+<span class="cmd">purepgroup</span> add pg-proddb <span class="kw">--vollist</span> vol-db01,vol-db02
+
+<span class="cmt"># Set snapshot schedule: every 4 hours, keep 24 snapshots locally</span>
+<span class="cmd">purepgroup</span> schedule pg-proddb \
+  <span class="kw">--snap-enabled</span> true \
+  <span class="kw">--snap-frequency</span> 14400 \
+  <span class="kw">--snap-at</span> 0 \
+  <span class="kw">--snap-per</span> 24
+
+<span class="cmt"># Add a replication target and enable replication schedule</span>
+<span class="cmd">purepgroup</span> add pg-proddb <span class="kw">--targetlist</span> remote-array
+<span class="cmd">purepgroup</span> schedule pg-proddb \
+  <span class="kw">--replicate-enabled</span> true \
+  <span class="kw">--replicate-frequency</span> 3600</pre>
+        <div class="tags"><span class="tag tag-ops">Operations</span><span class="tag tag-ops">CLI</span></div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════ NETWORKING ═════════════════════════════ -->
+  <div class="section-header">
+    <div class="section-icon">🌐</div>
+    <div>
+      <h2>Networking &amp; Connectivity</h2>
+      <small>MTU, jumbo frames, FC zoning, protocol differences</small>
+    </div>
+  </div>
+
+  <!-- Q8 -->
+  <div class="qa-card" onclick="toggle(this)" tabindex="0">
+    <div class="qa-q">
+      <span class="q-label">Q08</span>
+      <p>Why is end-to-end jumbo frame (MTU 9000) verification critical for NVMe/TCP or iSCSI, and how do you test it?</p>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="qa-a">
+      <div class="qa-a-inner">
+        <p>iSCSI and NVMe/TCP set the <strong>Don't Fragment (DF)</strong> bit on large packets. If any hop in the path has a lower MTU, packets are dropped silently — causing connection failures or severe throughput degradation, not an obvious error.</p>
+        <div class="diagram">
+          <pre>
+  Host NIC       Switch Port A     Switch Port B     Array Port
+  <span class="hi">MTU 9000</span>  ──►  <span class="hi2">MTU 1500</span>  ──►   MTU 9000  ──►   MTU 9000
+                      ↑
+              <span class="hi">Drop point — large frames discarded here</span>
+          </pre>
+        </div>
+        <p>Test with a large ICMP packet and the DF flag set. The payload size is MTU minus headers (9000 − 28 = 8972 bytes):</p>
+        <pre><span class="cmt"># Linux — test each hop: switch management IP, array data IP</span>
+<span class="cmd">ping</span> -M do -s <span class="str">8972</span> 10.10.1.50
+
+<span class="cmt"># Windows</span>
+<span class="cmd">ping</span> -f -l <span class="str">8972</span> 10.10.1.50</pre>
+        <div class="callout">
+          <span class="callout-icon">⚠️</span>
+          <div>Check <em>every</em> hop: host NIC settings, each switch port (trunk and access), and the array's network interface. A single misconfigured switch port kills large-frame throughput across the entire path.</div>
+        </div>
+        <div class="tags"><span class="tag tag-iscsi">iSCSI</span><span class="tag tag-nvme">NVMe/TCP</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Q9 -->
+  <div class="qa-card" onclick="toggle(this)" tabindex="0">
+    <div class="qa-q">
+      <span class="q-label">Q09</span>
+      <p>What's the troubleshooting difference between FC, iSCSI, and NVMe/TCP connectivity issues?</p>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="qa-a">
+      <div class="qa-a-inner">
+        <table class="compare">
+          <tr>
+            <th>Protocol</th>
+            <th>First place to look</th>
+            <th>Key commands</th>
+          </tr>
+          <tr>
+            <td class="label">Fibre Channel</td>
+            <td>Switch zoning — verify the host HBA WWPN and array port WWPN are in the same zone</td>
+            <td><code>zoneshow</code> on switch; <code>systool -c fc_host</code> on Linux</td>
+          </tr>
+          <tr>
+            <td class="label">iSCSI</td>
+            <td>IP-layer reachability, then iSCSI discovery, then CHAP credentials if configured</td>
+            <td><code>iscsiadm -m discovery</code>; <code>ping</code> array data IPs</td>
+          </tr>
+          <tr>
+            <td class="label">NVMe/TCP</td>
+            <td>MTU/jumbo-frame mismatch and confirm NVMe/TCP service is enabled on the array interfaces</td>
+            <td><code>nvme discover</code>; <code>ping -M do -s 8972</code></td>
+          </tr>
+        </table>
+        <div class="tags"><span class="tag tag-fc">FC</span><span class="tag tag-iscsi">iSCSI</span><span class="tag tag-nvme">NVMe/TCP</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Q10 -->
+  <div class="qa-card" onclick="toggle(this)" tabindex="0">
+    <div class="qa-q">
+      <span class="q-label">Q10</span>
+      <p>How do you verify that FC zoning is configured correctly for a new host connection?</p>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="qa-a">
+      <div class="qa-a-inner">
+        <pre><span class="cmt"># On a Brocade switch — show zones containing a WWPN</span>
+<span class="cmd">zoneshow</span>
+
+<span class="cmt"># Verify the host HBA WWPN is in the same zone as the array port WWPN</span>
+<span class="cmt"># Each zone should contain: 1 initiator (host HBA) + 1 or more targets (array ports)</span>
+
+<span class="cmt"># On the host (Linux) — confirm HBA sees the target</span>
+<span class="cmd">systool</span> -c fc_host -v | grep port_name
+<span class="cmd">cat</span> /sys/class/fc_host/host*/port_state
+
+<span class="cmt"># Check if the array target is visible as a remote port</span>
+<span class="cmd">ls</span> /sys/class/fc_remote_ports/</pre>
+        <div class="callout">
+          <span class="callout-icon">💡</span>
+          <div>Best practice: use <strong>single-initiator zoning</strong> — one host HBA WWPN per zone, paired with all required array target ports. This prevents fabric storms if a HBA misbehaves.</div>
+        </div>
+        <div class="tags"><span class="tag tag-fc">FC</span><span class="tag tag-ops">Zoning</span></div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════ TROUBLESHOOTING ════════════════════════ -->
+  <div class="section-header">
+    <div class="section-icon">🔬</div>
+    <div>
+      <h2>Troubleshooting</h2>
+      <small>Volume visibility, latency spikes, performance investigation</small>
+    </div>
+  </div>
+
+  <!-- Q11 -->
+  <div class="qa-card" onclick="toggle(this)" tabindex="0">
+    <div class="qa-q">
+      <span class="q-label">Q11</span>
+      <p>A host can't see a newly mapped volume even though the connection shows correctly in Purity. What do you check?</p>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="qa-a">
+      <div class="qa-a-inner">
+        <p>Follow this checklist in order:</p>
+        <pre><span class="cmt"># 1. Rescan the host bus (Linux)</span>
+<span class="cmd">rescan-scsi-bus.sh</span> -a
+
+<span class="cmt"># 2. Or trigger a manual rescan per HBA</span>
+<span class="cmd">echo</span> <span class="str">"- - -"</span> > /sys/class/scsi_host/host0/scan
+
+<span class="cmt"># 3. VMware — rescan via CLI</span>
+<span class="cmd">esxcli</span> storage core adapter rescan --all
+
+<span class="cmt"># 4. Verify multipath sees the new device</span>
+<span class="cmd">multipath</span> -ll</pre>
+        <p>If a rescan doesn't reveal the device:</p>
+        <div class="callout">
+          <span class="callout-icon">🔍</span>
+          <div>Confirm the volume was connected to the <strong>correct Host object</strong> in Purity — not a different host with a similar name. Also check FC zoning includes the right array port WWPNs for this host's HBA.</div>
+        </div>
+        <div class="tags"><span class="tag tag-ops">Troubleshooting</span><span class="tag tag-fc">FC</span><span class="tag tag-iscsi">iSCSI</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Q12 -->
+  <div class="qa-card" onclick="toggle(this)" tabindex="0">
+    <div class="qa-q">
+      <span class="q-label">Q12</span>
+      <p>How would you investigate a sudden latency spike on a specific volume?</p>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="qa-a">
+      <div class="qa-a-inner">
+        <p>Work from the outside in — is this isolated to the volume, or array-wide?</p>
+        <table class="compare">
+          <tr>
+            <th>Check</th>
+            <th>What it rules in/out</th>
+          </tr>
+          <tr>
+            <td class="label">Pure1 / GUI — volume performance graph</td>
+            <td>Is IOPS, latency, and queue depth elevated? When did it start?</td>
+          </tr>
+          <tr>
+            <td class="label">Compare with other volumes on the same array</td>
+            <td>Array-wide saturation (affects all) vs. isolated workload issue</td>
+          </tr>
+          <tr>
+            <td class="label">Host-side queue depth</td>
+            <td>Is the host sending more I/Os than usual? Driver or application change?</td>
+          </tr>
+          <tr>
+            <td class="label">Background operations</td>
+            <td>Active snapshot replication job, large pgroup transfer, or array rebuild consuming resources?</td>
+          </tr>
+          <tr>
+            <td class="label">Recent config changes</td>
+            <td>New workload added to same array, replication target added, policy changes?</td>
+          </tr>
+        </table>
+        <div class="callout">
+          <span class="callout-icon">📊</span>
+          <div>Pure1 is your primary diagnostic tool — its per-volume latency heatmaps and queue-depth trending data significantly speed up root-cause isolation versus polling CLI stats manually.</div>
+        </div>
+        <div class="tags"><span class="tag tag-ops">Troubleshooting</span><span class="tag tag-ops">Performance</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Q13 -->
+  <div class="qa-card" onclick="toggle(this)" tabindex="0">
+    <div class="qa-q">
+      <span class="q-label">Q13</span>
+      <p>The array is showing a drive failure. What does the recovery process look like?</p>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="qa-a">
+      <div class="qa-a-inner">
+        <p>FlashArray handles most drive recovery automatically. Here's what happens and what you do:</p>
+        <pre><span class="cmt"># Check hardware status</span>
+<span class="cmd">puredrive</span> list
+
+<span class="cmt"># View current RAID-HA rebuild status</span>
+<span class="cmd">purearray</span> list --space
+
+<span class="cmt"># If a drive is marked 'failed', verify it's physical and not a transient error</span>
+<span class="cmd">puredrive</span> list --verbose</pre>
+        <div class="callout">
+          <span class="callout-icon">🔄</span>
+          <div>Purity begins rebuilding RAID-HA parity automatically when a DFM fails — no admin action needed to initiate rebuild. Your job is to monitor rebuild progress, open a Pure support case, and schedule the field-replaceable unit (FRU) swap. Pure proactively monitors via Pure1 and may open the case before you notice.</div>
+        </div>
+        <div class="tags"><span class="tag tag-ops">Troubleshooting</span><span class="tag tag-arch">RAID-HA</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Q14 -->
+  <div class="qa-card" onclick="toggle(this)" tabindex="0">
+    <div class="qa-q">
+      <span class="q-label">Q14</span>
+      <p>How would you identify which volume or host is causing high overall array latency (noisy neighbor)?</p>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="qa-a">
+      <div class="qa-a-inner">
+        <pre><span class="cmt"># List volumes sorted by IOPS (snapshot of current state)</span>
+<span class="cmd">purevol</span> list --performance --sort iops
+
+<span class="cmt"># List volumes sorted by throughput</span>
+<span class="cmd">purevol</span> list --performance --sort output_per_sec
+
+<span class="cmt"># Check per-host performance</span>
+<span class="cmd">purehost</span> list --performance</pre>
+        <p>In Pure1, use the <strong>Workload Analyzer</strong> to view IOPS and bandwidth heat maps across all volumes over time — this quickly surfaces any volume that spiked in the relevant window.</p>
+        <div class="callout">
+          <span class="callout-icon">⚡</span>
+          <div>Once you identify the noisy volume, check whether QoS bandwidth limits are configured (<code>purevol</code> set <code>--bandwidth-limit</code>) — this is FlashArray's primary tool for throttling a runaway workload without impacting other tenants.</div>
+        </div>
+        <div class="tags"><span class="tag tag-ops">Performance</span><span class="tag tag-ops">QoS</span></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /wrapper -->
+
+<footer>
+  Pure Storage FlashArray Administration &nbsp;·&nbsp; Interview Reference Guide &nbsp;·&nbsp; <span>Purity//FA</span>
+</footer>
+
+<script>
+  function toggle(card) {
+    card.classList.toggle('open');
+  }
+  document.querySelectorAll('.qa-card').forEach(card => {
+    card.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggle(card);
+      }
+    });
+  });
+</script>
+</body>
+</html>
