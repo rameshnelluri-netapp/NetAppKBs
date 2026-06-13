@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetApp Oplocks Tutorial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --blue-50: #E6F1FB;
+    --blue-100: #B5D4F4;
+    --blue-200: #85B7EB;
+    --blue-400: #378ADD;
+    --blue-600: #185FA5;
+    --blue-800: #0C447C;
+    --blue-900: #042C53;
+    --teal-50: #E1F5EE;
+    --teal-100: #9FE1CB;
+    --teal-400: #1D9E75;
+    --teal-600: #0F6E56;
+    --teal-800: #085041;
+    --amber-50: #FAEEDA;
+    --amber-100: #FAC775;
+    --amber-400: #BA7517;
+    --amber-600: #854F0B;
+    --amber-800: #633806;
+    --red-50: #FCEBEB;
+    --red-100: #F7C1C1;
+    --red-400: #E24B4A;
+    --red-600: #A32D2D;
+    --red-800: #791F1F;
+    --coral-50: #FAECE7;
+    --coral-100: #F5C4B3;
+    --coral-400: #D85A30;
+    --coral-600: #993C1D;
+    --coral-800: #712B13;
+    --purple-50: #EEEDFE;
+    --purple-100: #CECBF6;
+    --purple-400: #7F77DD;
+    --purple-600: #534AB7;
+    --purple-800: #3C3489;
+    --gray-50: #F1EFE8;
+    --gray-100: #D3D1C7;
+    --gray-200: #B4B2A9;
+    --gray-400: #888780;
+    --gray-600: #5F5E5A;
+    --gray-800: #444441;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #0a0e1a;
+    color: #e2e8f0;
+    line-height: 1.7;
+    font-size: 16px;
+  }
+
+  /* ── HERO ─────────────────────────────────────── */
+  .hero {
+    background: #0a0e1a;
+    border-bottom: 1px solid rgba(55, 138, 221, 0.25);
+    padding: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-grid-bg {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(55, 138, 221, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(55, 138, 221, 0.06) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  .hero-inner {
+    position: relative;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 80px 40px 64px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 40px;
+    align-items: center;
+  }
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(55, 138, 221, 0.15);
+    border: 1px solid rgba(55, 138, 221, 0.35);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #85B7EB;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+  .hero h1 {
+    font-size: 46px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: #f0f6ff;
+    margin-bottom: 8px;
+  }
+  .hero h1 span { color: #378ADD; }
+  .hero-sub {
+    font-size: 18px;
+    color: #94a3b8;
+    margin-bottom: 32px;
+    max-width: 520px;
+    line-height: 1.6;
+  }
+  .hero-pills { display: flex; flex-wrap: wrap; gap: 10px; }
+  .hero-pill {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 13px;
+    color: #94a3b8;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .hero-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 160px;
+  }
+  .hero-stat {
+    background: rgba(55, 138, 221, 0.08);
+    border: 1px solid rgba(55, 138, 221, 0.2);
+    border-radius: 10px;
+    padding: 16px 20px;
+    text-align: center;
+  }
+  .hero-stat-num { font-size: 28px; font-weight: 700; color: #378ADD; }
+  .hero-stat-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
+
+  /* ── NAV ─────────────────────────────────────── */
+  .nav-bar {
+    background: #0d1120;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-inner {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 40px;
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+  }
+  .nav-link {
+    padding: 14px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748b;
+    text-decoration: none;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .nav-link:hover { color: #e2e8f0; border-color: rgba(55,138,221,0.4); }
+  .nav-link.active { color: #378ADD; border-color: #378ADD; }
+
+  /* ── CONTENT ─────────────────────────────────── */
+  .page { max-width: 1000px; margin: 0 auto; padding: 0 40px 80px; }
+
+  .section {
+    padding-top: 72px;
+    scroll-margin-top: 48px;
+  }
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #378ADD;
+    margin-bottom: 8px;
+  }
+  .section h2 {
+    font-size: 30px;
+    font-weight: 700;
+    color: #f0f6ff;
+    margin-bottom: 16px;
+    line-height: 1.2;
+  }
+  .section-intro {
+    font-size: 16px;
+    color: #94a3b8;
+    max-width: 720px;
+    margin-bottom: 40px;
+    line-height: 1.7;
+  }
+  .divider {
+    height: 1px;
+    background: rgba(255,255,255,0.07);
+    margin: 64px 0 0;
+  }
+
+  /* ── INFO CARD ─────────────────────────────────── */
+  .info-card {
+    background: #111827;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 20px;
+  }
+  .info-card h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #f0f6ff;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .info-card p, .info-card li { font-size: 15px; color: #94a3b8; line-height: 1.7; }
+  .info-card ul { padding-left: 20px; margin-top: 8px; }
+  .info-card li { margin-bottom: 4px; }
+
+  /* ── OPLOCK TYPES GRID ──────────────────────────── */
+  .types-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+  .type-card {
+    border-radius: 12px;
+    padding: 22px 24px;
+    border: 1px solid;
+    position: relative;
+    overflow: hidden;
+  }
+  .type-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .type-exclusive { background: rgba(24,95,165,0.12); border-color: rgba(55,138,221,0.3); }
+  .type-exclusive::before { background: #378ADD; }
+  .type-batch { background: rgba(15,110,86,0.12); border-color: rgba(29,158,117,0.3); }
+  .type-batch::before { background: #1D9E75; }
+  .type-level2 { background: rgba(131,75,11,0.12); border-color: rgba(186,117,23,0.3); }
+  .type-level2::before { background: #EF9F27; }
+  .type-lease { background: rgba(83,74,183,0.12); border-color: rgba(127,119,221,0.3); }
+  .type-lease::before { background: #7F77DD; }
+  .type-card-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .badge-blue { background: rgba(55,138,221,0.2); color: #85B7EB; }
+  .badge-teal { background: rgba(29,158,117,0.2); color: #5DCAA5; }
+  .badge-amber { background: rgba(186,117,23,0.2); color: #FAC775; }
+  .badge-purple { background: rgba(127,119,221,0.2); color: #AFA9EC; }
+  .type-card h3 { font-size: 17px; font-weight: 700; color: #f0f6ff; margin-bottom: 8px; }
+  .type-card p { font-size: 14px; color: #94a3b8; line-height: 1.65; margin-bottom: 12px; }
+  .type-caps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .cap-tag {
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #64748b;
+  }
+  .cap-yes { background: rgba(29,158,117,0.12); border-color: rgba(29,158,117,0.25); color: #5DCAA5; }
+  .cap-no { background: rgba(226,75,74,0.08); border-color: rgba(226,75,74,0.2); color: #F09595; }
+  .smb-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 10px;
+  }
+
+  /* ── FLOW DIAGRAM ────────────────────────────── */
+  .flow-diagram {
+    background: #111827;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 40px;
+  }
+  .flow-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 28px;
+    text-align: center;
+  }
+  .flow-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
+  }
+  .flow-step {
+    display: grid;
+    grid-template-columns: 44px 1fr auto;
+    gap: 16px;
+    align-items: flex-start;
+    padding: 0 0 28px;
+    position: relative;
+  }
+  .flow-step:not(:last-child) .flow-step-num::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 44px;
+    transform: translateX(-50%);
+    width: 2px;
+    height: calc(100% - 16px);
+    background: rgba(55,138,221,0.2);
+  }
+  .flow-step-num {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(55,138,221,0.15);
+    border: 1.5px solid rgba(55,138,221,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+    color: #378ADD;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+  .flow-step-body { padding-top: 10px; }
+  .flow-step-title { font-size: 15px; font-weight: 600; color: #f0f6ff; margin-bottom: 4px; }
+  .flow-step-desc { font-size: 14px; color: #64748b; line-height: 1.6; }
+  .flow-step-side {
+    padding-top: 8px;
+    text-align: right;
+  }
+  .flow-actor {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .actor-client { background: rgba(55,138,221,0.15); color: #85B7EB; }
+  .actor-ontap { background: rgba(29,158,117,0.15); color: #5DCAA5; }
+
+  /* ── CODE BLOCKS ───────────────────────────────── */
+  .code-section { margin-bottom: 40px; }
+  .code-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    margin-bottom: 0;
+  }
+  .code-tab {
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748b;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.15s;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+  }
+  .code-tab.active { color: #378ADD; border-bottom-color: #378ADD; }
+  .code-tab:hover:not(.active) { color: #94a3b8; }
+  .code-panel {
+    background: #0d1120;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-top: none;
+    border-radius: 0 0 10px 10px;
+    padding: 24px;
+    display: none;
+  }
+  .code-panel.active { display: block; }
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .code-label {
+    font-size: 12px;
+    color: #64748b;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.04em;
+  }
+  .copy-btn {
+    font-size: 12px;
+    color: #64748b;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 5px;
+    padding: 4px 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: 'Inter', sans-serif;
+  }
+  .copy-btn:hover { color: #e2e8f0; background: rgba(255,255,255,0.1); }
+  pre {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.75;
+    overflow-x: auto;
+    color: #cbd5e1;
+  }
+  .kw { color: #7F77DD; }
+  .cmd { color: #378ADD; }
+  .param { color: #5DCAA5; }
+  .val { color: #FAC775; }
+  .comment { color: #475569; font-style: italic; }
+  .out { color: #64748b; }
+  .out-hi { color: #f0f6ff; }
+  .err { color: #F09595; }
+  .ok { color: #5DCAA5; }
+
+  /* ── SCENARIO CARDS ─────────────────────────────── */
+  .scenario-list { display: flex; flex-direction: column; gap: 16px; margin-bottom: 40px; }
+  .scenario {
+    background: #111827;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .scenario-header {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 24px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .scenario-header:hover { background: rgba(255,255,255,0.02); }
+  .scenario-num {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: rgba(55,138,221,0.12);
+    border: 1px solid rgba(55,138,221,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: #378ADD;
+    flex-shrink: 0;
+  }
+  .scenario-title { font-size: 15px; font-weight: 600; color: #f0f6ff; }
+  .scenario-subtitle { font-size: 13px; color: #64748b; margin-top: 2px; }
+  .scenario-arrow {
+    font-size: 18px;
+    color: #475569;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+  .scenario.open .scenario-arrow { transform: rotate(90deg); }
+  .scenario-body {
+    display: none;
+    padding: 0 24px 24px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .scenario.open .scenario-body { display: block; }
+  .scenario-body h4 { font-size: 13px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; margin: 20px 0 8px; }
+  .scenario-body p { font-size: 14px; color: #94a3b8; line-height: 1.7; }
+  .scenario-body pre { font-size: 12.5px; margin-top: 10px; }
+
+  /* ── RECOMMENDATION TABLE ────────────────────────── */
+  .rec-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; font-size: 14px; }
+  .rec-table th {
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    background: #111827;
+  }
+  .rec-table td {
+    padding: 13px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    color: #94a3b8;
+    vertical-align: top;
+  }
+  .rec-table tr:last-child td { border-bottom: none; }
+  .rec-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .rec-table td:first-child { color: #e2e8f0; font-weight: 500; }
+  .enable { color: #5DCAA5; font-weight: 600; }
+  .disable { color: #F09595; font-weight: 600; }
+  .caution { color: #FAC775; font-weight: 600; }
+
+  /* ── CALLOUT BOXES ──────────────────────────────── */
+  .callout {
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin-bottom: 20px;
+    border-left: 3px solid;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .callout-warn { background: rgba(186,117,23,0.08); border-color: #EF9F27; }
+  .callout-info { background: rgba(55,138,221,0.08); border-color: #378ADD; }
+  .callout-danger { background: rgba(226,75,74,0.08); border-color: #E24B4A; }
+  .callout-ok { background: rgba(29,158,117,0.08); border-color: #1D9E75; }
+  .callout-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+  .callout-title { font-size: 14px; font-weight: 600; color: #f0f6ff; margin-bottom: 4px; }
+  .callout-body { font-size: 14px; color: #94a3b8; line-height: 1.65; }
+
+  /* ── CHECKLIST ──────────────────────────────────── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 40px; }
+  .checklist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    font-size: 14px;
+    color: #94a3b8;
+    line-height: 1.6;
+  }
+  .check-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    background: rgba(29,158,117,0.15);
+    border: 1px solid rgba(29,158,117,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+    font-size: 12px;
+    color: #5DCAA5;
+  }
+
+  /* ── FOOTER ─────────────────────────────────────── */
+  .footer {
+    background: #0d1120;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    padding: 40px;
+    text-align: center;
+    color: #475569;
+    font-size: 13px;
+  }
+  .footer a { color: #378ADD; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+
+  @media (max-width: 700px) {
+    .hero-inner { grid-template-columns: 1fr; }
+    .hero-stats { flex-direction: row; }
+    .types-grid { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 32px; }
+    .page, .nav-inner { padding-left: 20px; padding-right: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-grid-bg"></div>
+  <div class="hero-inner">
+    <div>
+      <div class="hero-badge">📦 NetApp ONTAP · SMB/CIFS</div>
+      <h1>Oplocks<br><span>Deep Dive</span></h1>
+      <p class="hero-sub">Opportunistic locks — how ONTAP grants client-side caching, manages lock breaks, and when to enable or disable them.</p>
+      <div class="hero-pills">
+        <span class="hero-pill">ONTAP 9.x</span>
+        <span class="hero-pill">SMB 1/2/3</span>
+        <span class="hero-pill">CIFS</span>
+        <span class="hero-pill">SVM-level</span>
+        <span class="hero-pill">Volume/Share</span>
+      </div>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="hero-stat-num">4</div>
+        <div class="hero-stat-label">Oplock Types</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-num">35s</div>
+        <div class="hero-stat-label">Break Timeout</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-num">3</div>
+        <div class="hero-stat-label">Config Levels</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav-bar">
+  <div class="nav-inner">
+    <a href="#what" class="nav-link active" onclick="setActive(this)">What are Oplocks</a>
+    <a href="#types" class="nav-link" onclick="setActive(this)">Oplock Types</a>
+    <a href="#how" class="nav-link" onclick="setActive(this)">How It Works</a>
+    <a href="#config" class="nav-link" onclick="setActive(this)">Configuration</a>
+    <a href="#monitor" class="nav-link" onclick="setActive(this)">Monitoring</a>
+    <a href="#scenarios" class="nav-link" onclick="setActive(this)">Scenarios</a>
+    <a href="#recommend" class="nav-link" onclick="setActive(this)">Recommendations</a>
+  </div>
+</nav>
+
+<div class="page">
+
+  <!-- SECTION 1: WHAT ARE OPLOCKS -->
+  <section class="section" id="what">
+    <div class="section-label">Section 01</div>
+    <h2>What are Oplocks?</h2>
+    <p class="section-intro">
+      Opportunistic locks (oplocks) are a client-side caching mechanism in the SMB/CIFS protocol. They allow a Windows (or any SMB-capable) client to cache file data, read-aheads, write-behinds, and lock information locally — without constantly communicating with the ONTAP storage server.
+    </p>
+
+    <div class="info-card">
+      <h3>🧠 The Core Idea</h3>
+      <p>When a client opens a file and no other client is accessing it, ONTAP grants the client an oplock — essentially a promise: <em>"You are the only one using this file right now. You may cache reads and buffer writes locally. I'll notify you if anyone else wants it."</em></p>
+      <p style="margin-top: 10px;">This eliminates the need for the client to flush writes to the server after every operation, reducing network round-trips and dramatically improving performance for single-user file access patterns.</p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+      <div class="info-card">
+        <h3>✅ Without Oplocks — Expensive</h3>
+        <ul>
+          <li>Every read goes to the storage server</li>
+          <li>Every write is synchronously flushed</li>
+          <li>Every byte-range lock is server-round-tripped</li>
+          <li>Applications like Office, ERP, IDEs behave sluggishly</li>
+        </ul>
+      </div>
+      <div class="info-card">
+        <h3>⚡ With Oplocks — Efficient</h3>
+        <ul>
+          <li>Reads are served from local client cache</li>
+          <li>Writes are buffered, flushed in batches</li>
+          <li>Lock state is managed locally by the client</li>
+          <li>Network traffic is significantly reduced</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div>
+        <div class="callout-title">The trade-off: cached data is at risk</div>
+        <div class="callout-body">If a CIFS session is unexpectedly lost while a client holds an oplock (e.g. network failure, client crash), any writes buffered locally but not yet flushed to ONTAP may be lost. This is an acceptable trade-off for most workloads but is critical to understand before disabling oplocks on live systems.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 2: TYPES -->
+  <section class="section" id="types">
+    <div class="section-label">Section 02</div>
+    <h2>Oplock Types in ONTAP</h2>
+    <p class="section-intro">
+      ONTAP supports four oplock levels, negotiated dynamically between the client and server based on SMB dialect version and current access patterns.
+    </p>
+
+    <div class="types-grid">
+      <div class="type-card type-exclusive">
+        <div class="type-card-badge badge-blue">Exclusive / Level 1</div>
+        <h3>Exclusive Oplock</h3>
+        <p>Granted when a single client opens a file that no other client is using. The client gets exclusive read + write caching. Only available in SMB2+.</p>
+        <div class="type-caps">
+          <span class="cap-tag cap-yes">✓ Read cache</span>
+          <span class="cap-tag cap-yes">✓ Write cache</span>
+          <span class="cap-tag cap-no">✗ Handle cache</span>
+        </div>
+        <div class="smb-tag">🔌 SMB 2.0+</div>
+      </div>
+
+      <div class="type-card type-batch">
+        <div class="type-card-badge badge-teal">Batch</div>
+        <h3>Batch Oplock</h3>
+        <p>Designed for programs that repeatedly open, read/write, and close the same file (like compilers or batch scripts). The client can open the file once and keep the handle open server-side while performing many local open/close cycles.</p>
+        <div class="type-caps">
+          <span class="cap-tag cap-yes">✓ Read cache</span>
+          <span class="cap-tag cap-yes">✓ Write cache</span>
+          <span class="cap-tag cap-yes">✓ Handle cache</span>
+        </div>
+        <div class="smb-tag">🔌 SMB 1.0, 2.x</div>
+      </div>
+
+      <div class="type-card type-level2">
+        <div class="type-card-badge badge-amber">Level II / Shared</div>
+        <h3>Level II Oplock</h3>
+        <p>Granted when multiple clients open the same file. Allows shared read caching across all clients, but no write buffering — any write by any client immediately invalidates all level-2 oplocks.</p>
+        <div class="type-caps">
+          <span class="cap-tag cap-yes">✓ Read cache</span>
+          <span class="cap-tag cap-no">✗ Write cache</span>
+          <span class="cap-tag cap-no">✗ Handle cache</span>
+        </div>
+        <div class="smb-tag">🔌 SMB 1.0, 2.x, 3.x</div>
+      </div>
+
+      <div class="type-card type-lease">
+        <div class="type-card-badge badge-purple">Lease Oplock</div>
+        <h3>Lease Oplock (SMB 2.1+)</h3>
+        <p>A more flexible caching model introduced in SMB 2.1. A lease is tied to a client-file pair (not just an open handle), so caching persists across multiple open/close cycles on the same client. Essential for non-disruptive ONTAP operations.</p>
+        <div class="type-caps">
+          <span class="cap-tag cap-yes">✓ Read cache</span>
+          <span class="cap-tag cap-yes">✓ Write cache</span>
+          <span class="cap-tag cap-yes">✓ Handle cache</span>
+        </div>
+        <div class="smb-tag">🔌 SMB 2.1+ (Windows 7+)</div>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">Lease oplocks are essential for non-disruptive operations</div>
+        <div class="callout-body">ONTAP uses lease oplocks internally to enable non-disruptive LIF migration and storage failover for SMB clients. Disabling lease oplocks at the CIFS server level will break NDO (Non-Disruptive Operations). Disabling at the share level only affects opportunistic — not lease — oplocks when configured via <code>vserver cifs options</code>.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 3: HOW IT WORKS -->
+  <section class="section" id="how">
+    <div class="section-label">Section 03</div>
+    <h2>How Oplocks Work — The Break Sequence</h2>
+    <p class="section-intro">
+      The oplock lifecycle has two phases: the grant (straightforward) and the break (the critical part). Understanding the break sequence is essential for diagnosing oplock-related performance and stability issues.
+    </p>
+
+    <div class="flow-diagram">
+      <div class="flow-title">Oplock Grant → Break → Re-grant lifecycle</div>
+      <div class="flow-steps">
+        <div class="flow-step">
+          <div class="flow-step-num">1</div>
+          <div class="flow-step-body">
+            <div class="flow-step-title">Client 1 opens file, oplock granted</div>
+            <div class="flow-step-desc">Client 1 opens <code>report.xlsx</code>. ONTAP grants a Batch or Exclusive oplock. Client 1 begins caching reads and buffering writes locally.</div>
+          </div>
+          <div class="flow-step-side"><span class="flow-actor actor-ontap">ONTAP → Client 1</span></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num">2</div>
+          <div class="flow-step-body">
+            <div class="flow-step-title">Client 2 requests access to the same file</div>
+            <div class="flow-step-desc">Client 2 sends an open request for <code>report.xlsx</code>. ONTAP cannot grant conflicting access while Client 1 holds an exclusive oplock.</div>
+          </div>
+          <div class="flow-step-side"><span class="flow-actor actor-client">Client 2 → ONTAP</span></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num">3</div>
+          <div class="flow-step-body">
+            <div class="flow-step-title">ONTAP sends an Oplock Break Request to Client 1</div>
+            <div class="flow-step-desc">ONTAP holds off on Client 2's open request and sends a break to Client 1, asking it to flush its write cache and release or downgrade its oplock. The timer starts: Client 1 has <strong>35 seconds</strong> to respond.</div>
+          </div>
+          <div class="flow-step-side"><span class="flow-actor actor-ontap">ONTAP → Client 1</span></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num">4</div>
+          <div class="flow-step-body">
+            <div class="flow-step-title">Client 1 flushes cache and acknowledges</div>
+            <div class="flow-step-desc">Client 1 writes its buffered data to ONTAP and sends an Oplock Break Acknowledgement, either releasing the oplock fully or downgrading to a Level II shared oplock.</div>
+          </div>
+          <div class="flow-step-side"><span class="flow-actor actor-client">Client 1 → ONTAP</span></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-num">5</div>
+          <div class="flow-step-body">
+            <div class="flow-step-title">ONTAP grants Client 2 access</div>
+            <div class="flow-step-desc">With Client 1's cached data now safely on disk, ONTAP processes Client 2's open request and grants the appropriate lock level (often Level II for both clients).</div>
+          </div>
+          <div class="flow-step-side"><span class="flow-actor actor-ontap">ONTAP → Client 2</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-danger">
+      <span class="callout-icon">🚨</span>
+      <div>
+        <div class="callout-title">Oplock break timeout — 35 seconds</div>
+        <div class="callout-body">If Client 1 does not respond to the break request within 35 seconds, ONTAP forcefully cleans up all locks for Client 1 and grants Client 2 access. Any data buffered by Client 1 that was not flushed is lost. Prior to ONTAP 9.0, a "delayed break" EMS message was also logged with the offending client's IP address. This 35-second delay is also what causes application timeouts when clients are slow to respond to break requests.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 4: CONFIGURATION -->
+  <section class="section" id="config">
+    <div class="section-label">Section 04</div>
+    <h2>Configuration — Three Levels</h2>
+    <p class="section-intro">
+      Oplocks in ONTAP are controlled at three levels: the CIFS server (SVM), the volume, and the share. A disable at any level takes precedence — the most restrictive setting wins.
+    </p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">📋</span>
+      <div>
+        <div class="callout-title">Precedence rule</div>
+        <div class="callout-body">Share-level disable &gt; Volume-level disable &gt; SVM-level setting. Disabling oplocks on a share overrides any volume-level enablement. Disabling on a share disables both opportunistic and lease oplocks for that share.</div>
+      </div>
+    </div>
+
+    <div class="code-section">
+      <div style="background:#111827; border:1px solid rgba(255,255,255,0.08); border-radius: 12px 12px 0 0; overflow:hidden;">
+        <div class="code-tabs">
+          <button class="code-tab active" onclick="showTab(this,'tab-svm')">SVM Level</button>
+          <button class="code-tab" onclick="showTab(this,'tab-vol')">Volume Level</button>
+          <button class="code-tab" onclick="showTab(this,'tab-share')">Share Level</button>
+          <button class="code-tab" onclick="showTab(this,'tab-new')">New Share</button>
+        </div>
+      </div>
+
+      <div id="tab-svm" class="code-panel active">
+        <div class="code-header">
+          <span class="code-label">ontap-cli :: SVM / CIFS Server level</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+<pre><span class="comment"># Show current CIFS server oplock settings</span>
+<span class="cmd">vserver cifs options show</span> <span class="param">-vserver</span> <span class="val">svm_prod</span>
+
+<span class="comment"># Enable oplocks at SVM level (default)</span>
+<span class="cmd">vserver cifs options modify</span> <span class="param">-vserver</span> <span class="val">svm_prod</span> \
+  <span class="param">-is-oplocks-enabled</span> <span class="val">true</span>
+
+<span class="comment"># Disable oplocks at SVM level (affects all shares on this SVM)</span>
+<span class="cmd">vserver cifs options modify</span> <span class="param">-vserver</span> <span class="val">svm_prod</span> \
+  <span class="param">-is-oplocks-enabled</span> <span class="val">false</span>
+
+<span class="comment"># Lease oplocks — separate control (do not disable for NDO)</span>
+<span class="cmd">vserver cifs options modify</span> <span class="param">-vserver</span> <span class="val">svm_prod</span> \
+  <span class="param">-smb2-enabled-for-dc-connections</span> <span class="val">true</span></pre>
+      </div>
+
+      <div id="tab-vol" class="code-panel">
+        <div class="code-header">
+          <span class="code-label">ontap-cli :: Volume level</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+<pre><span class="comment"># Show oplock setting on a specific volume</span>
+<span class="cmd">volume show</span> <span class="param">-vserver</span> <span class="val">svm_prod</span> \
+  <span class="param">-volume</span> <span class="val">vol_cifs_data</span> \
+  <span class="param">-fields</span> <span class="val">oplocks</span>
+
+<span class="comment"># Enable oplocks on a volume (default is enabled)</span>
+<span class="cmd">volume modify</span> <span class="param">-vserver</span> <span class="val">svm_prod</span> \
+  <span class="param">-volume</span> <span class="val">vol_cifs_data</span> \
+  <span class="param">-oplocks</span> <span class="val">enabled</span>
+
+<span class="comment"># Disable oplocks on a volume (e.g. database or critical data)</span>
+<span class="cmd">volume modify</span> <span class="param">-vserver</span> <span class="val">svm_prod</span> \
+  <span class="param">-volume</span> <span class="val">vol_db_files</span> \
+  <span class="param">-oplocks</span> <span class="val">disabled</span>
+
+<span class="out"># Output example:</span>
+<span class="out">Volume Modified: vol_db_files</span></pre>
+      </div>
+
+      <div id="tab-share" class="code-panel">
+        <div class="code-header">
+          <span class="code-label">ontap-cli :: Share level (existing share)</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+<pre><span class="comment"># Show all share properties (check if oplocks is listed)</span>
+<span class="cmd">vserver cifs share properties show</span> \
+  <span class="param">-vserver</span> <span class="val">svm_prod</span> \
+  <span class="param">-share-name</span> <span class="val">Engineering</span>
+
+<span class="comment"># Add oplocks property to an existing share (enables it)</span>
+<span class="cmd">vserver cifs share properties add</span> \
+  <span class="param">-vserver</span> <span class="val">svm_prod</span> \
+  <span class="param">-share-name</span> <span class="val">Engineering</span> \
+  <span class="param">-share-properties</span> <span class="val">oplocks</span>
+
+<span class="comment"># Remove oplocks property from an existing share (disables it)</span>
+<span class="cmd">vserver cifs share properties remove</span> \
+  <span class="param">-vserver</span> <span class="val">svm_prod</span> \
+  <span class="param">-share-name</span> <span class="val">DB_Share</span> \
+  <span class="param">-share-properties</span> <span class="val">oplocks</span>
+
+<span class="out"># Verify:</span>
+<span class="cmd">vserver cifs share properties show</span>
+<span class="out">Vserver   Share          Properties</span>
+<span class="out">--------- -------------- -------------------</span>
+<span class="out-hi">vs1       Engineering    oplocks browsable changenotify showsnapshot</span>
+<span class="out-hi">vs1       DB_Share       browsable changenotify showsnapshot</span></pre>
+      </div>
+
+      <div id="tab-new" class="code-panel">
+        <div class="code-header">
+          <span class="code-label">ontap-cli :: Creating a new share with explicit oplock setting</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+<pre><span class="comment"># Create share WITH oplocks (default — include oplocks in properties)</span>
+<span class="cmd">vserver cifs share create</span> \
+  <span class="param">-vserver</span> <span class="val">svm_prod</span> \
+  <span class="param">-share-name</span> <span class="val">UserData</span> \
+  <span class="param">-path</span> <span class="val">/vol_cifs_data/userdata</span> \
+  <span class="param">-share-properties</span> <span class="val">oplocks,browsable,changenotify,showsnapshot</span>
+
+<span class="comment"># Create share WITHOUT oplocks (for databases, Hyper-V, SQL over SMB)</span>
+<span class="cmd">vserver cifs share create</span> \
+  <span class="param">-vserver</span> <span class="val">svm_prod</span> \
+  <span class="param">-share-name</span> <span class="val">SQL_Data</span> \
+  <span class="param">-path</span> <span class="val">/vol_sql/data</span> \
+  <span class="param">-share-properties</span> <span class="val">browsable,changenotify</span>
+
+<span class="comment"># Note: omitting 'oplocks' from -share-properties disables it</span></pre>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 5: MONITORING -->
+  <section class="section" id="monitor">
+    <div class="section-label">Section 05</div>
+    <h2>Monitoring Oplocks</h2>
+    <p class="section-intro">
+      Use these commands to inspect active oplocks, identify stale locks, and diagnose oplock break delays.
+    </p>
+
+    <div class="code-section">
+      <div style="background:#111827; border:1px solid rgba(255,255,255,0.08); border-radius: 12px 12px 0 0; overflow:hidden;">
+        <div class="code-tabs">
+          <button class="code-tab active" onclick="showTab(this,'tab-mon1')">Show Oplocks</button>
+          <button class="code-tab" onclick="showTab(this,'tab-mon2')">Detailed View</button>
+          <button class="code-tab" onclick="showTab(this,'tab-mon3')">Break a Lock</button>
+          <button class="code-tab" onclick="showTab(this,'tab-mon4')">EMS / Events</button>
+        </div>
+      </div>
+
+      <div id="tab-mon1" class="code-panel active">
+        <div class="code-header">
+          <span class="code-label">ontap-cli :: List all active oplocks</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+<pre><span class="comment"># Show all lock types including oplocks (summary)</span>
+<span class="cmd">vserver locks show</span>
+
+<span class="comment"># Filter for oplock type only</span>
+<span class="cmd">vserver locks show</span> <span class="param">-lock-type</span> <span class="val">op-lock</span>
+
+<span class="comment"># Filter by SVM and volume</span>
+<span class="cmd">vserver locks show</span> \
+  <span class="param">-vserver</span> <span class="val">svm_prod</span> \
+  <span class="param">-volume</span> <span class="val">vol_cifs_data</span>
+
+<span class="comment"># Filter by specific file path</span>
+<span class="cmd">vserver locks show</span> \
+  <span class="param">-path</span> <span class="val">/vol_cifs_data/docs/report.xlsx</span>
+
+<span class="out"># Example output:</span>
+<span class="out">Vserver  Volume       Object Path              LIF      Protocol Lock Type  Client</span>
+<span class="out">-------- ------------ ------------------------ -------- -------- ---------- ------</span>
+<span class="out-hi">svm_prod vol_cifs_data /docs/report.xlsx       lif_cifs cifs     op-lock    10.1.1.50</span>
+<span class="out-hi">svm_prod vol_cifs_data /docs/budget.xlsx       lif_cifs cifs     op-lock    10.1.1.52</span></pre>
+      </div>
+
+      <div id="tab-mon2" class="code-panel">
+        <div class="code-header">
+          <span class="code-label">ontap-cli :: Detailed oplock information</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+<pre><span class="comment"># Show full oplock details for a specific path</span>
+<span class="cmd">vserver locks show</span> <span class="param">-instance</span> \
+  <span class="param">-path</span> <span class="val">/vol_cifs_data/docs/report.xlsx</span>
+
+<span class="out"># Full output reveals lock UUID, oplock level, client IP, SMB open type:</span>
+<span class="out">Vserver:                  svm_prod</span>
+<span class="out">Volume:                   vol_cifs_data</span>
+<span class="out">Logical Interface:        lif_cifs_01</span>
+<span class="out">Object Path:              /vol_cifs_data/docs/report.xlsx</span>
+<span class="out">Lock UUID:                553cf484-7030-4998-88d3-1125adbba0b7</span>
+<span class="out">Lock Protocol:            cifs</span>
+<span class="out">Lock Type:                op-lock</span>
+<span class="out">Node Holding Lock State:  node1</span>
+<span class="out">Lock State:               granted</span>
+<span class="out-hi">Oplock Level:             batch</span>
+<span class="out">Client Address:           10.1.1.50</span>
+<span class="out">SMB Open Type:            durable</span>
+<span class="out">SMB Connect State:        connected</span></pre>
+      </div>
+
+      <div id="tab-mon3" class="code-panel">
+        <div class="code-header">
+          <span class="code-label">ontap-cli :: Breaking a stale oplock manually</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+<pre><span class="comment"># Step 1: Find the UUID of the oplock to break</span>
+<span class="cmd">vserver locks show</span> <span class="param">-instance</span> \
+  <span class="param">-path</span> <span class="val">/vol_cifs_data/docs/report.xlsx</span>
+
+<span class="out"># Note the Lock UUID from output:</span>
+<span class="out">Lock UUID: 553cf484-7030-4998-88d3-1125adbba0b7</span>
+
+<span class="comment"># Step 2: Break the lock using its UUID</span>
+<span class="cmd">vserver locks break</span> \
+  <span class="param">-vserver</span> <span class="val">svm_prod</span> \
+  <span class="param">-volume</span> <span class="val">vol_cifs_data</span> \
+  <span class="param">-lock-id</span> <span class="val">553cf484-7030-4998-88d3-1125adbba0b7</span>
+
+<span class="comment"># Break ALL locks on a volume (use with caution)</span>
+<span class="cmd">vserver locks break</span> \
+  <span class="param">-vserver</span> <span class="val">svm_prod</span> \
+  <span class="param">-volume</span> <span class="val">vol_cifs_data</span>
+
+<span class="err"># ⚠ WARNING: Breaking an active oplock forcibly discards the client's</span>
+<span class="err">#   buffered write cache. Data not yet flushed to ONTAP will be LOST.</span>
+<span class="err">#   Always verify the client is offline/disconnected first.</span></pre>
+      </div>
+
+      <div id="tab-mon4" class="code-panel">
+        <div class="code-header">
+          <span class="code-label">ontap-cli :: EMS events related to oplocks</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+<pre><span class="comment"># Search EMS for oplock break timeout events</span>
+<span class="cmd">event log show</span> \
+  <span class="param">-messagename</span> <span class="val">CIFS.oplock.break.timeout</span>
+
+<span class="comment"># Search for any CIFS lock related events (last 24h)</span>
+<span class="cmd">event log show</span> \
+  <span class="param">-time-range</span> <span class="val">24h</span> \
+  <span class="param">-messagename</span> <span class="val">CIFS.*</span>
+
+<span class="comment"># Show all EMS severity error events</span>
+<span class="cmd">event log show</span> \
+  <span class="param">-severity</span> <span class="val">error</span> \
+  <span class="param">-time-range</span> <span class="val">1h</span>
+
+<span class="comment"># Example oplock break timeout EMS message:</span>
+<span class="out">Time                Node    Severity     Event</span>
+<span class="out">------------------- ------- ------------ -----------------------------------</span>
+<span class="err">2025-06-13 09:12:30 node1   ERROR        CIFS.oplock.break.timeout:</span>
+<span class="err">                                         Oplock break timed out for client</span>
+<span class="err">                                         10.1.1.77, file: /vol_cifs/data.xlsx</span></pre>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 6: SCENARIOS -->
+  <section class="section" id="scenarios">
+    <div class="section-label">Section 06</div>
+    <h2>Real-World Scenarios</h2>
+    <p class="section-intro">
+      Expand each scenario to see the problem, root cause, and resolution with ONTAP CLI commands.
+    </p>
+
+    <div class="scenario-list">
+
+      <div class="scenario" onclick="toggleScenario(this)">
+        <div class="scenario-header">
+          <div class="scenario-num">1</div>
+          <div>
+            <div class="scenario-title">Office users experience slow file open / "File in use" errors</div>
+            <div class="scenario-subtitle">SMB/CIFS · Microsoft Office · Oplock break delay</div>
+          </div>
+          <div class="scenario-arrow">▶</div>
+        </div>
+        <div class="scenario-body">
+          <h4>Symptom</h4>
+          <p>Users report that opening Excel files takes 30–40 seconds intermittently. Some users see "File is locked by another user" even when no one else has the file open.</p>
+          <h4>Root Cause</h4>
+          <p>A previous user's client crashed while holding a batch oplock. ONTAP sent a break request, waited 35 seconds, then forcefully cleaned up — but the stale lock entry was still visible briefly. Additionally, a network switch issue caused break request packets to be delayed, making healthy clients appear to be timed out.</p>
+          <h4>Diagnosis Commands</h4>
+<pre><span class="cmd">vserver locks show</span> <span class="param">-vserver</span> <span class="val">svm_files</span> <span class="param">-lock-type</span> <span class="val">op-lock</span>
+<span class="comment"># Look for locks with disconnected SMB connect state:</span>
+<span class="cmd">vserver locks show</span> <span class="param">-instance</span> <span class="param">-vserver</span> <span class="val">svm_files</span>
+<span class="comment"># Check EMS for timeout events:</span>
+<span class="cmd">event log show</span> <span class="param">-messagename</span> <span class="val">CIFS.*</span> <span class="param">-time-range</span> <span class="val">1h</span></pre>
+          <h4>Resolution</h4>
+          <p>Break the stale oplock using the UUID. Investigate the network switch for packet loss between that client subnet and the storage LIF. No oplock configuration change was required — this was a network fault, not an oplock misconfiguration.</p>
+        </div>
+      </div>
+
+      <div class="scenario" onclick="toggleScenario(this)">
+        <div class="scenario-header">
+          <div class="scenario-num">2</div>
+          <div>
+            <div class="scenario-title">Database application reports data inconsistency / recommends disabling oplocks</div>
+            <div class="scenario-subtitle">SQL over SMB · DB vendor requirement · Volume-level disable</div>
+          </div>
+          <div class="scenario-arrow">▶</div>
+        </div>
+        <div class="scenario-body">
+          <h4>Symptom</h4>
+          <p>A third-party database (e.g. older ERP system) vendor documentation explicitly states: "Disable opportunistic locking on any network share hosting database files." After enabling oplocks, the application shows occasional commit failures.</p>
+          <h4>Why Databases Reject Oplocks</h4>
+          <p>Database engines manage their own internal locking and consistency mechanisms. They assume all writes are immediately durable on disk. Oplocks allow the client OS to delay writes, which can desynchronize the database's internal state from what is actually on storage — causing corruption if the client crashes between a buffered write and a flush.</p>
+          <h4>Resolution</h4>
+<pre><span class="comment"># Disable oplocks at the volume level for the DB volume</span>
+<span class="cmd">volume modify</span> <span class="param">-vserver</span> <span class="val">svm_db</span> \
+  <span class="param">-volume</span> <span class="val">vol_erp_data</span> \
+  <span class="param">-oplocks</span> <span class="val">disabled</span>
+
+<span class="comment"># Also remove from share if set there</span>
+<span class="cmd">vserver cifs share properties remove</span> \
+  <span class="param">-vserver</span> <span class="val">svm_db</span> \
+  <span class="param">-share-name</span> <span class="val">ERP_Data</span> \
+  <span class="param">-share-properties</span> <span class="val">oplocks</span>
+
+<span class="comment"># Verify</span>
+<span class="cmd">volume show</span> <span class="param">-volume</span> <span class="val">vol_erp_data</span> <span class="param">-fields</span> <span class="val">oplocks</span>
+<span class="ok">Oplocks: disabled</span></pre>
+        </div>
+      </div>
+
+      <div class="scenario" onclick="toggleScenario(this)">
+        <div class="scenario-header">
+          <div class="scenario-num">3</div>
+          <div>
+            <div class="scenario-title">ONTAP LIF migration breaks SMB sessions (NDO failure)</div>
+            <div class="scenario-subtitle">Non-Disruptive Operations · Lease Oplocks · SMB 2.1</div>
+          </div>
+          <div class="scenario-arrow">▶</div>
+        </div>
+        <div class="scenario-body">
+          <h4>Symptom</h4>
+          <p>During a planned ONTAP upgrade or LIF migration, Windows clients lose their SMB sessions and need to reconnect manually. Applications running against CIFS shares throw "network path not found" errors.</p>
+          <h4>Root Cause</h4>
+          <p>Lease oplocks were disabled at the CIFS server level — either intentionally (misguided policy) or accidentally. Lease oplocks are what enable SMB clients to survive LIF migrations and storage failover events without disconnecting. Without them, every failover event appears as a disconnect to the client.</p>
+          <h4>Diagnosis</h4>
+<pre><span class="cmd">vserver cifs options show</span> <span class="param">-vserver</span> <span class="val">svm_prod</span> \
+  <span class="param">-fields</span> <span class="val">is-oplocks-enabled</span>
+
+<span class="comment"># Check if SMB2 is enabled (required for lease oplocks)</span>
+<span class="cmd">vserver cifs options show</span> <span class="param">-vserver</span> <span class="val">svm_prod</span> \
+  <span class="param">-fields</span> <span class="val">smb2-enabled</span></pre>
+          <h4>Resolution</h4>
+<pre><span class="comment"># Re-enable oplocks at SVM level</span>
+<span class="cmd">vserver cifs options modify</span> \
+  <span class="param">-vserver</span> <span class="val">svm_prod</span> \
+  <span class="param">-is-oplocks-enabled</span> <span class="val">true</span>
+
+<span class="comment"># Ensure SMB 2.1+ is enabled (for lease oplock support)</span>
+<span class="cmd">vserver cifs options modify</span> \
+  <span class="param">-vserver</span> <span class="val">svm_prod</span> \
+  <span class="param">-smb2-enabled</span> <span class="val">true</span></pre>
+        </div>
+      </div>
+
+      <div class="scenario" onclick="toggleScenario(this)">
+        <div class="scenario-header">
+          <div class="scenario-num">4</div>
+          <div>
+            <div class="scenario-title">Second client sees stale data from first client's cache</div>
+            <div class="scenario-subtitle">Multi-client access · Level II downgrade · Read cache staleness</div>
+          </div>
+          <div class="scenario-arrow">▶</div>
+        </div>
+        <div class="scenario-body">
+          <h4>Symptom</h4>
+          <p>In a shared folder, User B opens a file that User A recently edited. User B sees the old version of the file even though User A saved it 10 seconds ago.</p>
+          <h4>What Happened</h4>
+          <p>User A held a batch oplock and wrote changes to the local write cache. When User B opened the same file, ONTAP sent a break request to User A. The break request requires User A to flush the cache — but if User A's client is briefly unresponsive or the break packet is delayed on the network, User B momentarily reads from what appears to be a stale view until the flush completes.</p>
+          <h4>Diagnosis</h4>
+<pre><span class="comment"># Check oplock state during the issue window</span>
+<span class="cmd">vserver locks show</span> <span class="param">-vserver</span> <span class="val">svm_files</span> \
+  <span class="param">-path</span> <span class="val">/vol_cifs/shared/document.docx</span> \
+  <span class="param">-instance</span>
+<span class="comment"># Look for: Lock State: break-sent (means break was issued, pending ack)</span></pre>
+          <h4>Resolution Options</h4>
+          <p>1. Investigate and fix client-side network latency causing slow break acknowledgements.</p>
+          <p>2. For ultra-critical shared files where multiple concurrent editors are expected, disable oplocks at the share level to force synchronous writes — accepting the performance trade-off.</p>
+          <p>3. Consider application-level locking (e.g. SharePoint, file collaboration tools) for heavy multi-editor workflows instead of raw CIFS shares.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 7: RECOMMENDATIONS -->
+  <section class="section" id="recommend">
+    <div class="section-label">Section 07</div>
+    <h2>When to Enable vs. Disable</h2>
+    <p class="section-intro">
+      The default in ONTAP is to leave oplocks enabled. Disabling should be a deliberate, targeted decision — never a blanket policy across all SVMs.
+    </p>
+
+    <table class="rec-table">
+      <thead>
+        <tr>
+          <th>Workload / Use Case</th>
+          <th>Oplock Setting</th>
+          <th>Level to Configure</th>
+          <th>Reasoning</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>General file sharing (Office, PDFs, images)</td>
+          <td><span class="enable">Enable</span></td>
+          <td>Default (no change)</td>
+          <td>Maximum performance benefit. Single-user file access is the common case.</td>
+        </tr>
+        <tr>
+          <td>Home directory shares</td>
+          <td><span class="enable">Enable</span></td>
+          <td>Default (no change)</td>
+          <td>Each user owns their own files. Oplock conflicts are rare.</td>
+        </tr>
+        <tr>
+          <td>Database files (SQL, Oracle, ERP)</td>
+          <td><span class="disable">Disable</span></td>
+          <td>Volume + Share</td>
+          <td>Databases manage their own caching and consistency. Oplocks interfere.</td>
+        </tr>
+        <tr>
+          <td>Hyper-V / VMs over SMB</td>
+          <td><span class="caution">Selective</span></td>
+          <td>Share level</td>
+          <td>Hyper-V 2012+ uses its own SMB3 persistent handles. Follow Microsoft guidance per share type.</td>
+        </tr>
+        <tr>
+          <td>SQL Server over SMB</td>
+          <td><span class="disable">Disable</span></td>
+          <td>Share level</td>
+          <td>SQL Server documentation explicitly requires oplocks to be disabled on data/log shares.</td>
+        </tr>
+        <tr>
+          <td>Software build / compile shares</td>
+          <td><span class="enable">Enable</span></td>
+          <td>Default (no change)</td>
+          <td>Batch oplocks are designed for this. Build tools open/read/close many files rapidly.</td>
+        </tr>
+        <tr>
+          <td>Backup staging areas</td>
+          <td><span class="enable">Enable</span></td>
+          <td>Default</td>
+          <td>Backups are typically single-stream writes. Oplocks help throughput.</td>
+        </tr>
+        <tr>
+          <td>Critical shared config files (multi-writer)</td>
+          <td><span class="disable">Disable</span></td>
+          <td>Share or Volume</td>
+          <td>When consistency matters more than performance and multiple clients write the same file.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 style="font-size:18px; font-weight:600; color:#f0f6ff; margin-bottom:16px;">Best Practice Checklist</h3>
+    <ul class="checklist">
+      <li><span class="check-icon">✓</span><span><strong style="color:#e2e8f0">Never</strong> disable oplocks globally at the SVM level unless every single share on that SVM requires it. Use volume or share-level control for targeted workloads.</span></li>
+      <li><span class="check-icon">✓</span><span><strong style="color:#e2e8f0">Never</strong> disable lease oplocks at the CIFS server level. Lease oplocks are required for SMB non-disruptive operations during LIF migrations and failover.</span></li>
+      <li><span class="check-icon">✓</span><span>Monitor EMS for <code>CIFS.oplock.break.timeout</code> events. Repeated timeouts from the same client IP indicate a network problem or misbehaving application — not an oplock misconfiguration.</span></li>
+      <li><span class="check-icon">✓</span><span>Use <code>vserver locks show -instance</code> to identify which oplock level (batch, exclusive, level2) is being held before breaking a lock manually.</span></li>
+      <li><span class="check-icon">✓</span><span>When disabling for a database workload, disable at both the <strong>volume</strong> and <strong>share</strong> level — one without the other is insufficient since share-level takes precedence over volume-level.</span></li>
+      <li><span class="check-icon">✓</span><span>Ensure all Windows clients accessing SMB shares support SMB 2.1+ (Windows 7 / Server 2008 R2 or later) to benefit from the more resilient lease oplock model.</span></li>
+      <li><span class="check-icon">✓</span><span>After any oplock configuration change, test with the target application and verify with <code>vserver cifs share properties show</code> and <code>volume show -fields oplocks</code>.</span></li>
+    </ul>
+
+    <div class="callout callout-ok">
+      <span class="callout-icon">✅</span>
+      <div>
+        <div class="callout-title">Golden rule</div>
+        <div class="callout-body">Leave oplocks enabled everywhere, then selectively disable only for workloads where the application vendor explicitly requires it or where you have diagnosed actual data consistency problems caused by oplock caching. The performance cost of disabling is real and measurable — every file operation becomes a synchronous round-trip to storage.</div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <p>NetApp Oplocks Tutorial &nbsp;·&nbsp; Based on ONTAP 9.x documentation &nbsp;·&nbsp;
+  <a href="https://docs.netapp.com/us-en/ontap/smb-admin/enable-disable-oplocks-existing-shares-task.html" target="_blank">NetApp Docs ↗</a>
+  &nbsp;·&nbsp;
+  <a href="https://kb.netapp.com/on-prem/ontap/da/NAS/NAS-KBs/What_are_locks_OpLocks_and_delayed_breaks_in_ONTAP" target="_blank">KB Article ↗</a>
+  </p>
+</div>
+
+<script>
+function setActive(el) {
+  document.querySelectorAll('.nav-link').forEach(a => a.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function showTab(btn, tabId) {
+  const container = btn.closest('[style*="border-radius"]').closest('.code-section') ||
+                    btn.closest('.code-section') ||
+                    btn.parentElement.parentElement.parentElement;
+  btn.closest('.code-tabs').querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  const panels = btn.closest('.code-section') ?
+    btn.closest('.code-section').querySelectorAll('.code-panel') :
+    document.querySelectorAll('.code-panel');
+  const targetPanel = document.getElementById(tabId);
+  if (!targetPanel) return;
+  const section = targetPanel.closest('.section') || document.body;
+  section.querySelectorAll('.code-panel').forEach(p => {
+    if (p.id === tabId) p.classList.add('active');
+    else if (p.closest('.section') === targetPanel.closest('.section')) p.classList.remove('active');
+  });
+}
+
+function toggleScenario(el) {
+  el.classList.toggle('open');
+}
+
+function copyCode(btn) {
+  const panel = btn.closest('.code-panel');
+  const pre = panel.querySelector('pre');
+  const text = pre ? pre.innerText : '';
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    btn.style.color = '#5DCAA5';
+    setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 1800);
+  });
+}
+
+window.addEventListener('scroll', () => {
+  const sections = document.querySelectorAll('.section');
+  const links = document.querySelectorAll('.nav-link');
+  let current = '';
+  sections.forEach(s => {
+    if (window.scrollY >= s.offsetTop - 80) current = s.id;
+  });
+  links.forEach(l => {
+    l.classList.toggle('active', l.getAttribute('href') === '#' + current);
+  });
+});
+
+document.querySelectorAll('.code-section').forEach(section => {
+  section.querySelectorAll('.code-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+      const tabId = this.getAttribute('onclick').match(/'([^']+)'\)/)?.[1];
+      if (!tabId) return;
+      section.querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
+      this.classList.add('active');
+      section.querySelectorAll('.code-panel').forEach(p => {
+        p.classList.toggle('active', p.id === tabId);
+      });
+    });
+  });
+});
+</script>
+</body>
+</html>
