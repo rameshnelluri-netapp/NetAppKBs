@@ -1,0 +1,1523 @@
+bash
+
+cat > /home/claude/netapp_storage_efficiency.html << 'HTMLEOF'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetApp Storage Efficiency Features — Complete Tutorial</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#e2e8f0;--ink2:#94a3b8;--ink3:#64748b;--ink4:#475569;
+  --bg:#080c18;--bg2:#0e1220;--bg3:#141928;--bg4:#1a2035;--bg5:#222840;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+  --blue:#3B82F6;--blue-dim:rgba(59,130,246,0.12);--blue-line:rgba(59,130,246,0.35);
+  --teal:#14B8A6;--teal-dim:rgba(20,184,166,0.12);--teal-line:rgba(20,184,166,0.35);
+  --green:#22C55E;--green-dim:rgba(34,197,94,0.1);--green-line:rgba(34,197,94,0.3);
+  --amber:#F59E0B;--amber-dim:rgba(245,158,11,0.1);--amber-line:rgba(245,158,11,0.3);
+  --red:#EF4444;--red-dim:rgba(239,68,68,0.1);--red-line:rgba(239,68,68,0.3);
+  --purple:#A855F7;--purple-dim:rgba(168,85,247,0.1);--purple-line:rgba(168,85,247,0.3);
+  --pink:#EC4899;--pink-dim:rgba(236,72,153,0.1);--pink-line:rgba(236,72,153,0.3);
+  --orange:#F97316;--orange-dim:rgba(249,115,22,0.1);--orange-line:rgba(249,115,22,0.3);
+  --cyan:#06B6D4;--cyan-dim:rgba(6,182,212,0.1);--cyan-line:rgba(6,182,212,0.3);
+  --lime:#84CC16;--lime-dim:rgba(132,204,22,0.1);--lime-line:rgba(132,204,22,0.3);
+  --white:#ffffff;
+  --radius:10px;--radius2:14px;
+  --mono:'JetBrains Mono',monospace;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink);line-height:1.7;font-size:15px;overflow-x:hidden}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--bg5);border-radius:3px}
+
+/* ── HERO ── */
+.hero{position:relative;overflow:hidden;background:var(--bg);border-bottom:1px solid var(--border)}
+.hero-bg{position:absolute;inset:0;
+  background:radial-gradient(ellipse 800px 500px at 60% 0%,rgba(59,130,246,0.06) 0%,transparent 70%),
+             radial-gradient(ellipse 400px 400px at 10% 80%,rgba(20,184,166,0.05) 0%,transparent 70%);
+  pointer-events:none}
+.hero-grid{position:absolute;inset:0;
+  background-image:linear-gradient(rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.03) 1px,transparent 1px);
+  background-size:48px 48px;pointer-events:none}
+.hero-inner{position:relative;max-width:1100px;margin:0 auto;padding:72px 48px 60px;display:grid;grid-template-columns:1fr 340px;gap:48px;align-items:center}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:6px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.25);border-radius:20px;padding:5px 14px;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#93C5FD;margin-bottom:20px}
+.hero h1{font-size:48px;font-weight:800;line-height:1.05;color:#f8fafc;margin-bottom:12px}
+.hero h1 em{font-style:normal;background:linear-gradient(135deg,var(--blue),var(--teal));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-desc{font-size:17px;color:var(--ink2);line-height:1.6;max-width:520px;margin-bottom:32px}
+.hero-tags{display:flex;flex-wrap:wrap;gap:8px}
+.hero-tag{background:rgba(255,255,255,0.05);border:1px solid var(--border2);border-radius:6px;padding:4px 12px;font-size:12px;font-family:var(--mono);color:var(--ink3)}
+.hero-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.hero-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:18px;text-align:center}
+.hero-card-val{font-size:30px;font-weight:800;color:var(--blue);line-height:1}
+.hero-card-val.teal{color:var(--teal)}
+.hero-card-val.green{color:var(--green)}
+.hero-card-val.amber{color:var(--amber)}
+.hero-card-sub{font-size:11px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-top:4px}
+
+/* ── STICKY NAV ── */
+.sticky-nav{position:sticky;top:0;z-index:200;background:rgba(8,12,24,0.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--border)}
+.nav-scroll{max-width:1100px;margin:0 auto;padding:0 48px;display:flex;gap:0;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.nav-scroll::-webkit-scrollbar{display:none}
+.nav-a{padding:13px 16px;font-size:13px;font-weight:500;color:var(--ink3);text-decoration:none;white-space:nowrap;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;cursor:pointer}
+.nav-a:hover{color:var(--ink)}
+.nav-a.act{color:var(--blue);border-bottom-color:var(--blue)}
+
+/* ── LAYOUT ── */
+.wrap{max-width:1100px;margin:0 auto;padding:0 48px 96px}
+.sec{padding-top:80px;scroll-margin-top:54px}
+.sec-label{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--blue);margin-bottom:8px}
+.sec h2{font-size:32px;font-weight:800;color:#f8fafc;margin-bottom:14px;line-height:1.2}
+.sec-lead{font-size:16px;color:var(--ink2);max-width:740px;margin-bottom:44px;line-height:1.7}
+.divider{height:1px;background:var(--border);margin:80px 0 0}
+
+/* ── FEATURE INTRO CARDS (top overview) ── */
+.features-overview{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:48px}
+.fov-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:16px 14px;text-align:center;position:relative;overflow:hidden;cursor:default;transition:border-color .2s,transform .2s}
+.fov-card:hover{transform:translateY(-2px)}
+.fov-icon{font-size:26px;margin-bottom:8px}
+.fov-name{font-size:12px;font-weight:700;color:#f8fafc;line-height:1.2;margin-bottom:4px}
+.fov-save{font-size:11px;font-weight:600;border-radius:4px;padding:2px 7px;display:inline-block;margin-top:4px}
+/* colored left borders */
+.fov-blue{border-left:3px solid var(--blue)} .fov-blue:hover{border-color:var(--blue)}
+.fov-teal{border-left:3px solid var(--teal)}
+.fov-green{border-left:3px solid var(--green)}
+.fov-amber{border-left:3px solid var(--amber)}
+.fov-purple{border-left:3px solid var(--purple)}
+.fov-pink{border-left:3px solid var(--pink)}
+.fov-cyan{border-left:3px solid var(--cyan)}
+.fov-orange{border-left:3px solid var(--orange)}
+.fov-lime{border-left:3px solid var(--lime)}
+.fov-red{border-left:3px solid var(--red)}
+.save-blue{background:rgba(59,130,246,.15);color:#93C5FD}
+.save-teal{background:rgba(20,184,166,.15);color:#5EEAD4}
+.save-green{background:rgba(34,197,94,.15);color:#86EFAC}
+.save-amber{background:rgba(245,158,11,.15);color:#FCD34D}
+.save-purple{background:rgba(168,85,247,.15);color:#D8B4FE}
+.save-pink{background:rgba(236,72,153,.15);color:#F9A8D4}
+.save-cyan{background:rgba(6,182,212,.15);color:#67E8F9}
+.save-orange{background:rgba(249,115,22,.15);color:#FDBA74}
+.save-lime{background:rgba(132,204,22,.15);color:#BEF264}
+.save-red{background:rgba(239,68,68,.15);color:#FCA5A5}
+
+/* ── FEATURE SECTIONS ── */
+.feat-block{margin-bottom:56px}
+.feat-header{display:flex;align-items:flex-start;gap:18px;margin-bottom:24px}
+.feat-icon-box{width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.feat-title{font-size:22px;font-weight:700;color:#f8fafc;line-height:1.2}
+.feat-tagline{font-size:14px;color:var(--ink2);margin-top:4px}
+.feat-body{font-size:15px;color:var(--ink2);line-height:1.75;margin-bottom:20px}
+.feat-body b,strong{color:var(--ink);font-weight:600}
+
+/* ── HOW IT WORKS FLOW ── */
+.flow{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius2);padding:28px 32px;margin:20px 0}
+.flow-title{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:22px}
+.flow-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:0;position:relative}
+.flow-steps::before{content:'';position:absolute;top:20px;left:calc(12.5% + 20px);right:calc(12.5% + 20px);height:2px;background:linear-gradient(90deg,rgba(59,130,246,.4),rgba(20,184,166,.4));z-index:0}
+.flow-step{display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;z-index:1;padding:0 8px}
+.flow-dot{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;margin-bottom:12px;border:2px solid}
+.flow-step-t{font-size:12px;font-weight:600;color:var(--ink);margin-bottom:4px}
+.flow-step-d{font-size:11px;color:var(--ink3);line-height:1.5}
+.flow3{grid-template-columns:repeat(3,1fr)}
+.flow3::before{left:calc(16.67% + 20px);right:calc(16.67% + 20px)}
+.flow5{grid-template-columns:repeat(5,1fr)}
+.flow5::before{left:calc(10% + 20px);right:calc(10% + 20px)}
+
+/* ── CODE BLOCKS ── */
+.code-wrap{border-radius:var(--radius2);overflow:hidden;margin:16px 0;border:1px solid var(--border)}
+.code-bar{background:var(--bg4);padding:10px 18px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)}
+.code-bar-label{font-size:11px;font-family:var(--mono);color:var(--ink3);letter-spacing:.04em}
+.copy-btn{font-size:11px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:4px;padding:3px 10px;color:var(--ink3);cursor:pointer;transition:all .15s;font-family:'Inter',sans-serif}
+.copy-btn:hover{color:var(--ink);background:rgba(255,255,255,.1)}
+.code-body{background:#080d1a;padding:20px 22px;overflow-x:auto}
+pre{font-family:var(--mono);font-size:12.5px;line-height:1.85;color:#CBD5E1}
+.c{color:#374151;font-style:italic} /* comment */
+.kw{color:#818CF8} /* keyword */
+.cmd{color:#60A5FA} /* command */
+.p{color:#34D399} /* param */
+.v{color:#FCD34D} /* value */
+.o{color:#6B7280} /* output */
+.oh{color:#E2E8F0} /* output highlight */
+.ok{color:#4ADE80} /* success */
+.er{color:#F87171} /* error */
+.s{color:#A78BFA} /* string */
+
+/* ── TABS ── */
+.tab-container{border:1px solid var(--border);border-radius:var(--radius2);overflow:hidden;margin:16px 0}
+.tab-bar{background:var(--bg4);display:flex;border-bottom:1px solid var(--border);overflow-x:auto}
+.tab-btn{padding:10px 18px;font-size:12px;font-weight:600;color:var(--ink3);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;font-family:'Inter',sans-serif;transition:all .15s;margin-bottom:-1px}
+.tab-btn:hover{color:var(--ink)}
+.tab-btn.on{color:var(--blue);border-bottom-color:var(--blue)}
+.tab-pane{display:none;background:#080d1a;padding:20px 22px}
+.tab-pane.on{display:block}
+
+/* ── INFO/CALLOUT BOXES ── */
+.box{border-radius:var(--radius);padding:16px 20px;margin:16px 0;display:flex;gap:12px;align-items:flex-start;border:1px solid}
+.box-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+.box-title{font-size:13px;font-weight:700;color:#f8fafc;margin-bottom:3px}
+.box-body{font-size:13px;color:var(--ink2);line-height:1.6}
+.box-body code{font-family:var(--mono);font-size:11.5px;background:rgba(255,255,255,.08);padding:1px 6px;border-radius:3px;color:var(--ink)}
+.box-info{background:var(--blue-dim);border-color:var(--blue-line)}
+.box-warn{background:var(--amber-dim);border-color:var(--amber-line)}
+.box-tip{background:var(--teal-dim);border-color:var(--teal-line)}
+.box-danger{background:var(--red-dim);border-color:var(--red-line)}
+.box-ok{background:var(--green-dim);border-color:var(--green-line)}
+.box-purple{background:var(--purple-dim);border-color:var(--purple-line)}
+
+/* ── TWO-COL LAYOUT ── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin:16px 0}
+
+/* ── FEATURE CARD ── */
+.fc{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+.fc h4{font-size:14px;font-weight:700;color:#f8fafc;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.fc p,ul{font-size:13px;color:var(--ink2);line-height:1.65}
+.fc ul{padding-left:18px}
+.fc li{margin-bottom:3px}
+.fc-colored{border-top:3px solid}
+
+/* ── COMPARISON TABLE ── */
+.cmp-table{width:100%;border-collapse:collapse;font-size:13px;margin:16px 0}
+.cmp-table th{text-align:left;padding:10px 14px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);background:var(--bg3);border-bottom:1px solid var(--border)}
+.cmp-table td{padding:11px 14px;border-bottom:1px solid var(--border);color:var(--ink2);vertical-align:top}
+.cmp-table tr:last-child td{border-bottom:none}
+.cmp-table tr:hover td{background:rgba(255,255,255,.02)}
+.cmp-table td:first-child{color:var(--ink);font-weight:600}
+.yes{color:var(--green);font-weight:700}
+.no{color:var(--red)}
+.cond{color:var(--amber);font-weight:600}
+
+/* ── SAVINGS METER ── */
+.meter-row{display:grid;grid-template-columns:160px 1fr 60px;gap:12px;align-items:center;margin-bottom:10px}
+.meter-label{font-size:13px;color:var(--ink2);font-weight:500;text-align:right}
+.meter-bar-bg{background:var(--bg4);border-radius:6px;height:10px;overflow:hidden}
+.meter-bar{height:100%;border-radius:6px;transition:width .8s ease}
+.meter-val{font-size:13px;font-weight:700;color:var(--ink)}
+
+/* ── SAVINGS STACK ── */
+.stack-visual{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius2);padding:32px;display:flex;gap:12px;align-items:flex-end;justify-content:center;margin:20px 0;min-height:200px}
+.stack-bar{display:flex;flex-direction:column;align-items:center;gap:8px}
+.stack-segment{width:72px;border-radius:4px 4px 0 0;display:flex;align-items:flex-end;justify-content:center;padding:4px;min-height:8px}
+.stack-seg-label{font-size:9px;font-weight:600;color:rgba(255,255,255,.75);writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg)}
+.stack-bar-label{font-size:11px;color:var(--ink3);text-align:center;width:72px}
+.stack-bar-total{font-size:12px;font-weight:700;color:var(--ink);text-align:center;width:72px}
+
+/* ── CHECKLIST ── */
+.cl{list-style:none;display:flex;flex-direction:column;gap:8px;margin:16px 0}
+.cl li{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:var(--ink2);line-height:1.6}
+.cl-icon{width:20px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:2px}
+.cl-green{background:var(--green-dim);border:1px solid var(--green-line);color:var(--green)}
+.cl-amber{background:var(--amber-dim);border:1px solid var(--amber-line);color:var(--amber)}
+.cl-red{background:var(--red-dim);border:1px solid var(--red-line);color:var(--red)}
+
+/* ── PLATFORM TAG ── */
+.platform-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}
+.ptag{border:1px solid var(--border);border-radius:8px;padding:12px 14px;text-align:center;font-size:12px}
+.ptag-name{font-weight:700;color:#f8fafc;margin-bottom:4px;font-size:13px}
+.ptag-desc{color:var(--ink3);font-size:11px;line-height:1.4}
+.ptag.aff{border-color:rgba(59,130,246,.3);background:rgba(59,130,246,.06)}
+.ptag.fas{border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.06)}
+.ptag.cvo{border-color:rgba(20,184,166,.3);background:rgba(20,184,166,.06)}
+.ptag.asa{border-color:rgba(168,85,247,.3);background:rgba(168,85,247,.06)}
+
+/* ── TIER DIAGRAM ── */
+.tier-diagram{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius2);padding:28px;margin:20px 0}
+.tier-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);text-align:center;margin-bottom:24px}
+.tier-layers{display:flex;flex-direction:column;gap:0}
+.tier-layer{border-radius:8px;padding:16px 24px;display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;margin-bottom:3px}
+.tier-hot{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3)}
+.tier-warm{background:rgba(249,115,22,.1);border:1px solid rgba(249,115,22,.3)}
+.tier-cool{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3)}
+.tier-cold{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3)}
+.tier-frozen{background:rgba(6,182,212,.1);border:1px solid rgba(6,182,212,.3)}
+.tier-arrow{text-align:center;color:var(--ink4);font-size:18px;padding:2px 0}
+.tier-icon{font-size:22px;width:36px;text-align:center}
+.tier-info{}
+.tier-info-name{font-size:14px;font-weight:700;color:#f8fafc}
+.tier-info-desc{font-size:12px;color:var(--ink3)}
+.tier-info-tags{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.tier-tag{font-size:10px;padding:2px 8px;border-radius:3px;font-weight:600}
+.tier-cost{text-align:right}
+.tier-cost-label{font-size:10px;color:var(--ink4);text-transform:uppercase;letter-spacing:.04em}
+.tier-cost-val{font-size:15px;font-weight:800;color:#f8fafc}
+
+/* ── ACCORDION ── */
+.accordion{border:1px solid var(--border);border-radius:var(--radius2);overflow:hidden;margin:16px 0}
+.acc-item{border-bottom:1px solid var(--border)}
+.acc-item:last-child{border-bottom:none}
+.acc-header{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:16px 20px;cursor:pointer;user-select:none;transition:background .15s}
+.acc-header:hover{background:rgba(255,255,255,.02)}
+.acc-num{width:28px;height:28px;border-radius:6px;background:var(--bg5);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--blue);flex-shrink:0}
+.acc-title{font-size:14px;font-weight:600;color:#f8fafc}
+.acc-sub{font-size:12px;color:var(--ink3);margin-top:2px}
+.acc-arrow{color:var(--ink4);font-size:16px;transition:transform .2s;flex-shrink:0}
+.acc-item.open .acc-arrow{transform:rotate(90deg)}
+.acc-body{display:none;padding:0 20px 20px;border-top:1px solid var(--border)}
+.acc-item.open .acc-body{display:block}
+.acc-body h5{font-size:12px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px}
+.acc-body p{font-size:13.5px;color:var(--ink2);line-height:1.7;margin-bottom:10px}
+
+/* ── FOOTER ── */
+.footer{background:var(--bg2);border-top:1px solid var(--border);padding:36px 48px;text-align:center;color:var(--ink3);font-size:13px}
+.footer a{color:var(--blue);text-decoration:none}
+.footer a:hover{text-decoration:underline}
+
+@media(max-width:768px){
+  .hero-inner{grid-template-columns:1fr}
+  .hero h1{font-size:34px}
+  .wrap,.nav-scroll,.footer{padding-left:20px;padding-right:20px}
+  .features-overview{grid-template-columns:repeat(2,1fr)}
+  .two-col,.three-col,.flow-steps,.flow3,.flow5{grid-template-columns:1fr}
+  .flow-steps::before,.flow3::before,.flow5::before{display:none}
+  .platform-grid{grid-template-columns:1fr 1fr}
+  .hero-cards{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ HERO ═══════════════════ -->
+<div class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+  <div class="hero-inner">
+    <div>
+      <div class="hero-eyebrow">⚡ NetApp ONTAP</div>
+      <h1>Storage <em>Efficiency</em><br>Complete Tutorial</h1>
+      <p class="hero-desc">All native efficiency features — how they work, ONTAP CLI commands to enable them, platform requirements, and real savings expectations. Covering ONTAP 9.x.</p>
+      <div class="hero-tags">
+        <span class="hero-tag">Deduplication</span>
+        <span class="hero-tag">Compression</span>
+        <span class="hero-tag">Compaction</span>
+        <span class="hero-tag">Thin Provisioning</span>
+        <span class="hero-tag">FabricPool</span>
+        <span class="hero-tag">FlexClone</span>
+        <span class="hero-tag">Snapshots</span>
+        <span class="hero-tag">TSSE</span>
+        <span class="hero-tag">Zero-block Dedup</span>
+      </div>
+    </div>
+    <div class="hero-cards">
+      <div class="hero-card"><div class="hero-card-val">90%</div><div class="hero-card-sub">Max Dedup Savings</div></div>
+      <div class="hero-card"><div class="hero-card-val teal">87%</div><div class="hero-card-sub">Max Compression</div></div>
+      <div class="hero-card"><div class="hero-card-val green">10+</div><div class="hero-card-sub">Efficiency Features</div></div>
+      <div class="hero-card"><div class="hero-card-val amber">5:1</div><div class="hero-card-sub">Typical Ratio AFF</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ NAV ═══════════════════ -->
+<nav class="sticky-nav">
+  <div class="nav-scroll">
+    <a class="nav-a act" href="#overview">Overview</a>
+    <a class="nav-a" href="#dedup">Deduplication</a>
+    <a class="nav-a" href="#compression">Compression</a>
+    <a class="nav-a" href="#compaction">Compaction</a>
+    <a class="nav-a" href="#thin">Thin Provisioning</a>
+    <a class="nav-a" href="#snapshots">Snapshots</a>
+    <a class="nav-a" href="#flexclone">FlexClone</a>
+    <a class="nav-a" href="#fabricpool">FabricPool</a>
+    <a class="nav-a" href="#tsse">TSSE</a>
+    <a class="nav-a" href="#reporting">Reporting</a>
+    <a class="nav-a" href="#bestpractice">Best Practices</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+<!-- ═══════════════════ SECTION 0: OVERVIEW ═══════════════════ -->
+<section class="sec" id="overview">
+  <div class="sec-label">Section 00</div>
+  <h2>Storage Efficiency — Overview</h2>
+  <p class="sec-lead">NetApp ONTAP provides a comprehensive stack of storage efficiency technologies. They are complementary — each one tackles a different aspect of storage waste. Used together, they routinely achieve 5:1 to 10:1+ overall data reduction ratios on production workloads.</p>
+
+  <div class="features-overview">
+    <div class="fov-card fov-blue"><div class="fov-icon">🔁</div><div class="fov-name">Deduplication</div><div class="fov-save save-blue">Up to 90%</div></div>
+    <div class="fov-card fov-teal"><div class="fov-icon">🗜️</div><div class="fov-name">Compression</div><div class="fov-save save-teal">Up to 87%</div></div>
+    <div class="fov-card fov-green"><div class="fov-icon">📦</div><div class="fov-name">Compaction</div><div class="fov-save save-green">Up to 30%</div></div>
+    <div class="fov-card fov-amber"><div class="fov-icon">📏</div><div class="fov-name">Thin Provisioning</div><div class="fov-save save-amber">Over-provision</div></div>
+    <div class="fov-card fov-purple"><div class="fov-icon">📸</div><div class="fov-name">Snapshots</div><div class="fov-save save-purple">ROW — No Copy</div></div>
+    <div class="fov-card fov-pink"><div class="fov-icon">🧬</div><div class="fov-name">FlexClone</div><div class="fov-save save-pink">Near-zero space</div></div>
+    <div class="fov-card fov-cyan"><div class="fov-icon">☁️</div><div class="fov-name">FabricPool</div><div class="fov-save save-cyan">Cold → Cloud</div></div>
+    <div class="fov-card fov-orange"><div class="fov-icon">🌡️</div><div class="fov-name">TSSE</div><div class="fov-save save-orange">Adaptive Compress</div></div>
+    <div class="fov-card fov-lime"><div class="fov-icon">0️⃣</div><div class="fov-name">Zero-block Dedup</div><div class="fov-save save-lime">100% zeros saved</div></div>
+    <div class="fov-card fov-red"><div class="fov-icon">📡</div><div class="fov-name">Cross-Vol Dedup</div><div class="fov-save save-red">Across volumes</div></div>
+  </div>
+
+  <div class="box box-info">
+    <span class="box-icon">💡</span>
+    <div><div class="box-title">ONTAP 9.15.1+ Automatic Enablement</div>
+    <div class="box-body">On AFF (All-Flash) platforms, all storage efficiency features — deduplication, inline compression, data compaction, cross-volume deduplication — are enabled <strong>automatically</strong> on newly created thin-provisioned volumes. On FAS/Hybrid platforms, you manually enable them. Always verify your platform and ONTAP version before enabling manually.</div></div>
+  </div>
+
+  <h3 style="font-size:18px;font-weight:700;color:#f8fafc;margin:28px 0 16px">How Savings Stack Up — Cumulative Effect</h3>
+  <p style="color:var(--ink2);font-size:14px;margin-bottom:16px">These technologies are applied in sequence. The output of one becomes the input of the next — each percentage builds on what's already been saved.</p>
+  <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius2);padding:28px 32px;margin:20px 0">
+    <div class="meter-row"><span class="meter-label">Zero-block Dedup</span><div class="meter-bar-bg"><div class="meter-bar" style="width:100%;background:var(--lime)"></div></div><span class="meter-val">First</span></div>
+    <div class="meter-row"><span class="meter-label">Inline Dedup</span><div class="meter-bar-bg"><div class="meter-bar" style="width:90%;background:var(--blue)"></div></div><span class="meter-val">90%</span></div>
+    <div class="meter-row"><span class="meter-label">Inline Compression</span><div class="meter-bar-bg"><div class="meter-bar" style="width:87%;background:var(--teal)"></div></div><span class="meter-val">87%</span></div>
+    <div class="meter-row"><span class="meter-label">Compaction</span><div class="meter-bar-bg"><div class="meter-bar" style="width:60%;background:var(--green)"></div></div><span class="meter-val">~30%</span></div>
+    <div class="meter-row"><span class="meter-label">Background Dedup</span><div class="meter-bar-bg"><div class="meter-bar" style="width:75%;background:var(--purple)"></div></div><span class="meter-val">Add'l</span></div>
+    <div class="meter-row"><span class="meter-label">FabricPool Tiering</span><div class="meter-bar-bg"><div class="meter-bar" style="width:80%;background:var(--cyan)"></div></div><span class="meter-val">Cold %</span></div>
+  </div>
+
+  <div class="box box-tip">
+    <span class="box-icon">🎯</span>
+    <div><div class="box-title">All built on WAFL — Write Anywhere File Layout</div>
+    <div class="box-body">Every efficiency feature in ONTAP is built on top of WAFL, the core storage architecture. WAFL tracks all block sharing via metadata pointers, so deduplication, cloning, and snapshots share the same zero-copy pointer mechanism — with no data movement overhead on reads of deduplicated or cloned data.</div></div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ SECTION 1: DEDUPLICATION ═══════════════════ -->
+<section class="sec" id="dedup">
+  <div class="sec-label">Section 01</div>
+  <h2>Deduplication</h2>
+  <p class="sec-lead">Deduplication eliminates redundant data blocks, storing only unique 4KB blocks and replacing duplicates with lightweight metadata pointers. It operates at three distinct levels in ONTAP.</p>
+
+  <div class="feat-block">
+    <div class="three-col">
+      <div class="fc fc-colored" style="border-top-color:var(--blue)">
+        <h4>🔍 Zero-block Dedup</h4>
+        <p>Detects and eliminates data blocks filled entirely with zeros. Enabled automatically on all deduplicated volumes. Saves 100% of zero-block space — immediately effective when VMs are first provisioned (empty pages).</p>
+      </div>
+      <div class="fc fc-colored" style="border-top-color:var(--teal)">
+        <h4>⚡ Inline Deduplication</h4>
+        <p>Detects and eliminates duplicate blocks <strong>before</strong> they are written to disk. No extra I/O for scanning — savings are immediate and the storage never gets wasted in the first place. Default on AFF.</p>
+      </div>
+      <div class="fc fc-colored" style="border-top-color:var(--purple)">
+        <h4>🕐 Background (Post-process) Dedup</h4>
+        <p>Runs as a scheduled job on existing data already written to disk. Scans fingerprints of written blocks and consolidates duplicates. Can be scheduled or triggered manually. Useful for HDD-based systems.</p>
+      </div>
+    </div>
+
+    <div class="two-col" style="margin-top:16px">
+      <div class="fc fc-colored" style="border-top-color:var(--orange)">
+        <h4>🌐 Cross-Volume Inline Dedup</h4>
+        <p>Finds duplicate blocks <strong>across multiple volumes</strong> on the same aggregate. Particularly effective in multi-VM environments where OS images share identical OS-level blocks. Default on AFF ONTAP 9.2+.</p>
+      </div>
+      <div class="fc fc-colored" style="border-top-color:var(--pink)">
+        <h4>📦 Cross-Volume Background Dedup</h4>
+        <p>Post-process scan across volumes in an aggregate. Finds duplicates that inline missed. Runs during low-activity windows. Effective for large datasets with high duplicate rates like backup volumes and NFS datastores.</p>
+      </div>
+    </div>
+
+    <div class="flow" style="margin-top:24px">
+      <div class="flow-title">🔁 How Inline Deduplication Works — Block Write Path</div>
+      <div class="flow-steps">
+        <div class="flow-step">
+          <div class="flow-dot" style="background:rgba(59,130,246,.15);border-color:var(--blue);color:var(--blue)">1</div>
+          <div class="flow-step-t">Client Write</div>
+          <div class="flow-step-d">4KB block arrives at ONTAP controller from client</div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot" style="background:rgba(20,184,166,.15);border-color:var(--teal);color:var(--teal)">2</div>
+          <div class="flow-step-t">Fingerprint</div>
+          <div class="flow-step-d">SHA-256 hash computed for the incoming block in memory</div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot" style="background:rgba(168,85,247,.15);border-color:var(--purple);color:var(--purple)">3</div>
+          <div class="flow-step-t">Lookup</div>
+          <div class="flow-step-d">Hash compared against dedup fingerprint database (NVRAM + on-disk)</div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot" style="background:rgba(34,197,94,.15);border-color:var(--green);color:var(--green)">4</div>
+          <div class="flow-step-t">Match → Pointer</div>
+          <div class="flow-step-d">Duplicate found: write a metadata pointer, no new block stored</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-container">
+      <div class="tab-bar">
+        <button class="tab-btn on" onclick="tab(this,'d1')">Enable / Configure</button>
+        <button class="tab-btn" onclick="tab(this,'d2')">Run Manually</button>
+        <button class="tab-btn" onclick="tab(this,'d3')">Check Status</button>
+        <button class="tab-btn" onclick="tab(this,'d4')">Savings Report</button>
+      </div>
+      <div id="d1" class="tab-pane on"><pre><span class="c"># Enable inline deduplication on an existing volume</span>
+<span class="cmd">volume efficiency on</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span>
+
+<span class="c"># Enable inline dedup explicitly</span>
+<span class="cmd">volume efficiency modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-inline-dedupe</span> <span class="v">true</span>
+
+<span class="c"># Enable cross-volume inline deduplication</span>
+<span class="cmd">volume efficiency modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-cross-volume-inline-dedupe</span> <span class="v">true</span>
+
+<span class="c"># Enable cross-volume background deduplication</span>
+<span class="cmd">volume efficiency modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-cross-volume-background-dedupe</span> <span class="v">true</span>
+
+<span class="c"># Schedule background dedup (e.g. auto = runs when system load is low)</span>
+<span class="cmd">volume efficiency modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-schedule</span> <span class="v">auto</span></pre></div>
+      <div id="d2" class="tab-pane"><pre><span class="c"># Trigger a deduplication run immediately on a specific volume</span>
+<span class="cmd">volume efficiency start</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span>
+
+<span class="c"># Run dedup AND compression together</span>
+<span class="cmd">volume efficiency start</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-scan-old-data</span> <span class="v">true</span>
+
+<span class="c"># Run dedup on all previously unscanned data (full pass)</span>
+<span class="cmd">volume efficiency start</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-scan-old-data</span> <span class="v">true</span> <span class="p">-compression</span> <span class="v">true</span> <span class="p">-dedupe</span> <span class="v">true</span>
+
+<span class="c"># Stop a running efficiency job</span>
+<span class="cmd">volume efficiency stop</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span></pre></div>
+      <div id="d3" class="tab-pane"><pre><span class="c"># Show efficiency status and configuration for a volume</span>
+<span class="cmd">volume efficiency show</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span>
+
+<span class="c"># Show all volumes with efficiency enabled on an SVM</span>
+<span class="cmd">volume efficiency show</span> <span class="p">-vserver</span> <span class="v">svm_prod</span>
+
+<span class="c"># Detailed instance view (all flags)</span>
+<span class="cmd">volume efficiency show</span> <span class="p">-instance</span> <span class="p">-volume</span> <span class="v">vol_data</span>
+
+<span class="o"># Sample output:</span>
+<span class="o">Vserver     Volume     State    Status    Compression  Inline-Compression  Dedupe</span>
+<span class="o">----------- ---------- -------- --------- ------------ ------------------- ------</span>
+<span class="oh">svm_prod    vol_data   Enabled  Idle      true         true                true</span></pre></div>
+      <div id="d4" class="tab-pane"><pre><span class="c"># Show space savings for a specific volume</span>
+<span class="cmd">volume show</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-fields</span> <span class="v">dedupe-space-savings,compression-space-savings,total-space-saved</span>
+
+<span class="c"># Show aggregate-level efficiency breakdown</span>
+<span class="cmd">storage aggregate show-efficiency</span> <span class="p">-details</span>
+
+<span class="o"># Example aggregate efficiency output:</span>
+<span class="o">Aggregate: aggr_aff_01  Node: node1</span>
+<span class="oh">Total Storage Efficiency Ratio:     4.29:1</span>
+<span class="oh">Volume Deduplication Efficiency:    5.03:1</span>
+<span class="oh">Compression Efficiency:             1.82:1</span>
+<span class="oh">Snapshot Volume Storage Efficiency: 8.81:1</span></pre></div>
+    </div>
+
+    <div class="box box-warn">
+      <span class="box-icon">⚠️</span>
+      <div><div class="box-title">Deduplication and Encryption</div>
+      <div class="box-body">Data encrypted with NetApp Volume Encryption (NVE) or NetApp Aggregate Encryption (NAE) can still benefit from deduplication, but only when using NAE. With NVE (volume-level encryption), blocks are encrypted with different keys per volume, so cross-volume deduplication does not apply. Use NAE for maximum savings on encrypted volumes.</div></div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ SECTION 2: COMPRESSION ═══════════════════ -->
+<section class="sec" id="compression">
+  <div class="sec-label">Section 02</div>
+  <h2>Compression</h2>
+  <p class="sec-lead">Compression reduces the physical storage required for a volume by encoding data blocks in a mathematically smaller form. ONTAP supports three distinct compression modes, each optimized for different performance and savings trade-offs.</p>
+
+  <div class="three-col">
+    <div class="fc fc-colored" style="border-top-color:var(--blue)">
+      <h4>⚡ Inline Compression</h4>
+      <p>Compresses data <strong>in memory before writing to disk</strong>. Uses 8KB compression groups. Provides immediate savings with minimal latency impact. Default on AFF platforms. If compression ratio would be less than 50%, data is written uncompressed to avoid wasted CPU.</p>
+    </div>
+    <div class="fc fc-colored" style="border-top-color:var(--teal)">
+      <h4>🕐 Post-process Compression</h4>
+      <p>Data is written uncompressed first, then a background job compresses it using larger 32KB groups. Uses more CPU during the scan, but achieves better compression ratios than inline for sequential data. Suitable for FAS/HDD systems where write latency matters more.</p>
+    </div>
+    <div class="fc fc-colored" style="border-top-color:var(--purple)">
+      <h4>🌡️ Adaptive / Secondary Compression</h4>
+      <p>Used by TSSE (Temperature-Sensitive Storage Efficiency). Cold data is recompressed with larger 32KB blocks (vs 8KB for inline) for deeper savings. Hot data uses 8KB for faster decompression. Enabled automatically on AFF C-Series.</p>
+    </div>
+  </div>
+
+  <div class="box box-info" style="margin-top:16px">
+    <span class="box-icon">📏</span>
+    <div><div class="box-title">8KB vs 32KB Compression Groups</div>
+    <div class="box-body"><strong>8KB groups (inline)</strong>: Faster read/write performance because only a small block needs decompression on read. Lower compression ratio but negligible latency impact. <strong>32KB groups (secondary)</strong>: Better compression ratio (2-3x vs 8KB), but requires reading and decompressing a larger unit. Used for cold/archival data where compression ratio matters more than read speed.</div></div>
+  </div>
+
+  <div class="tab-container" style="margin-top:24px">
+    <div class="tab-bar">
+      <button class="tab-btn on" onclick="tab(this,'c1')">Enable Compression</button>
+      <button class="tab-btn" onclick="tab(this,'c2')">Verify Settings</button>
+      <button class="tab-btn" onclick="tab(this,'c3')">Savings Check</button>
+      <button class="tab-btn" onclick="tab(this,'c4')">Supported Workloads</button>
+    </div>
+    <div id="c1" class="tab-pane on"><pre><span class="c"># Enable efficiency first (prerequisite)</span>
+<span class="cmd">volume efficiency on</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span>
+
+<span class="c"># Enable INLINE compression (compresses in memory before write)</span>
+<span class="cmd">volume efficiency modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-compression</span> <span class="v">true</span> \
+  <span class="p">-inline-compression</span> <span class="v">true</span>
+
+<span class="c"># Enable POST-PROCESS compression only (no inline)</span>
+<span class="cmd">volume efficiency modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-compression</span> <span class="v">true</span> \
+  <span class="p">-inline-compression</span> <span class="v">false</span>
+
+<span class="c"># Requirement: volume must have space-guarantee=none (thin provisioned)</span>
+<span class="cmd">volume modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-space-guarantee</span> <span class="v">none</span>
+
+<span class="c"># Trigger compression on existing uncompressed data</span>
+<span class="cmd">volume efficiency start</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-scan-old-data</span> <span class="v">true</span> <span class="p">-compression</span> <span class="v">true</span></pre></div>
+    <div id="c2" class="tab-pane"><pre><span class="c"># Verify all compression settings on a volume</span>
+<span class="cmd">volume efficiency show</span> <span class="p">-instance</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span>
+
+<span class="o"># Key fields to look for:</span>
+<span class="oh">Compression:             Enabled</span>
+<span class="oh">Inline Compression:      Enabled</span>
+<span class="oh">Adaptive Compression:    8k (or 32k for TSSE cold data)</span>
+<span class="oh">Cross Vol Inline Compr:  true</span>
+<span class="oh">Status:                  Idle</span>
+
+<span class="c"># Show compression type on all volumes in SVM</span>
+<span class="cmd">volume efficiency show</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> \
+  <span class="p">-fields</span> <span class="v">compression,inline-compression,adaptive-compression</span></pre></div>
+    <div id="c3" class="tab-pane"><pre><span class="c"># Show compression savings for a volume</span>
+<span class="cmd">volume show</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-fields</span> <span class="v">compression-space-savings</span>
+
+<span class="c"># Show full efficiency savings breakdown</span>
+<span class="cmd">volume show-space</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span>
+
+<span class="c"># Aggregate-level compression ratio</span>
+<span class="cmd">storage aggregate show-efficiency</span> <span class="p">-details</span>
+
+<span class="o"># Example savings output:</span>
+<span class="o">Volume        Compression-Space-Savings</span>
+<span class="oh">vol_data      178.4 GB</span>
+<span class="oh">vol_vmdk      241.0 GB</span>
+<span class="oh">vol_db        44.2 GB</span></pre></div>
+    <div id="c4" class="tab-pane"><pre><span class="c"># Workload compression effectiveness guide:</span>
+
+<span class="c"># ✅ HIGH savings (enable inline + post-process)</span>
+<span class="c">#    - VM images (VMDK, VHDX) with mixed OS data</span>
+<span class="c">#    - Office documents, PDFs, log files</span>
+<span class="c">#    - Database data files (Oracle, SQL Server)</span>
+<span class="c">#    - Uninitialized / zero-padded files</span>
+
+<span class="c"># ⚠️  MEDIUM savings (inline recommended)</span>
+<span class="c">#    - Application binaries</span>
+<span class="c">#    - Text-heavy file shares</span>
+<span class="c">#    - Source code repositories</span>
+
+<span class="c"># ❌ LOW savings (compression not recommended)</span>
+<span class="c">#    - Already compressed media (JPEG, MP4, ZIP, MP3)</span>
+<span class="c">#    - Encrypted data (NVE volumes with pre-encrypted content)</span>
+<span class="c">#    - Random-write OLTP databases with small writes</span>
+
+<span class="c"># Disable compression on a volume where it harms performance:</span>
+<span class="cmd">volume efficiency modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_oltp</span> \
+  <span class="p">-compression</span> <span class="v">false</span> <span class="p">-inline-compression</span> <span class="v">false</span></pre></div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ SECTION 3: COMPACTION ═══════════════════ -->
+<section class="sec" id="compaction">
+  <div class="sec-label">Section 03</div>
+  <h2>Data Compaction</h2>
+  <p class="sec-lead">Data compaction addresses a specific inefficiency: data that is smaller than a full 4KB ONTAP block wastes the remainder of that block. Compaction packs multiple sub-4KB pieces into a single 4KB physical block, reclaiming that wasted space.</p>
+
+  <div class="two-col">
+    <div>
+      <div class="flow" style="margin-bottom:0">
+        <div class="flow-title">🗑️ Without Compaction — Wasted Space</div>
+        <div class="flow3">
+          <div class="flow-step">
+            <div class="flow-dot" style="background:rgba(239,68,68,.15);border-color:var(--red);color:var(--red)">A</div>
+            <div class="flow-step-t">1KB Chunk</div>
+            <div class="flow-step-d">Stored in a full 4KB block. 3KB wasted.</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-dot" style="background:rgba(239,68,68,.15);border-color:var(--red);color:var(--red)">B</div>
+            <div class="flow-step-t">800B Chunk</div>
+            <div class="flow-step-d">Stored in a full 4KB block. 3.2KB wasted.</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-dot" style="background:rgba(239,68,68,.15);border-color:var(--red);color:var(--red)">C</div>
+            <div class="flow-step-t">512B Chunk</div>
+            <div class="flow-step-d">Stored in a full 4KB block. 3.5KB wasted.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="flow" style="margin-bottom:0">
+        <div class="flow-title">✅ With Compaction — Packed Efficiently</div>
+        <div class="flow3">
+          <div class="flow-step">
+            <div class="flow-dot" style="background:rgba(34,197,94,.15);border-color:var(--green);color:var(--green)">1</div>
+            <div class="flow-step-t">Pack Together</div>
+            <div class="flow-step-d">A (1KB) + B (800B) + C (512B) = 2.3KB → fits in 1 block</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-dot" style="background:rgba(34,197,94,.15);border-color:var(--green);color:var(--green)">2</div>
+            <div class="flow-step-t">One 4KB Block</div>
+            <div class="flow-step-d">All 3 chunks stored in 1 physical block vs 3 blocks previously</div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-dot" style="background:rgba(34,197,94,.15);border-color:var(--green);color:var(--green)">3</div>
+            <div class="flow-step-t">66% Savings</div>
+            <div class="flow-step-d">2 physical blocks freed. Metadata tracks sub-block locations.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="box box-warn" style="margin-top:20px">
+    <span class="box-icon">📋</span>
+    <div><div class="box-title">Prerequisites for Compaction</div>
+    <div class="box-body">Compaction requires: <code>space-guarantee=none</code> (thin-provisioned volume) AND storage efficiency must be enabled on the volume. It works at the WAFL block level after deduplication and compression, so the savings stack on top of the other two.</div></div>
+  </div>
+
+  <div class="tab-container">
+    <div class="tab-bar">
+      <button class="tab-btn on" onclick="tab(this,'k1')">Enable Compaction</button>
+      <button class="tab-btn" onclick="tab(this,'k2')">Verify & Report</button>
+    </div>
+    <div id="k1" class="tab-pane on"><pre><span class="c"># Prerequisite: ensure volume is thin-provisioned</span>
+<span class="cmd">volume modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-space-guarantee</span> <span class="v">none</span>
+
+<span class="c"># Enable efficiency (if not already)</span>
+<span class="cmd">volume efficiency on</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span>
+
+<span class="c"># Enable data compaction</span>
+<span class="cmd">volume efficiency modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-data-compaction</span> <span class="v">true</span>
+
+<span class="c"># Enable ALL three (dedup + compression + compaction) together</span>
+<span class="cmd">volume efficiency modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-dedupe</span> <span class="v">true</span> \
+  <span class="p">-inline-dedupe</span> <span class="v">true</span> \
+  <span class="p">-compression</span> <span class="v">true</span> \
+  <span class="p">-inline-compression</span> <span class="v">true</span> \
+  <span class="p">-data-compaction</span> <span class="v">true</span></pre></div>
+    <div id="k2" class="tab-pane"><pre><span class="c"># Show compaction savings</span>
+<span class="cmd">volume show</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-fields</span> <span class="v">compaction-space-savings</span>
+
+<span class="c"># Show aggregate-level compaction</span>
+<span class="cmd">storage aggregate show-efficiency</span> <span class="p">-details</span>
+
+<span class="c"># Check inline compaction state on all volumes</span>
+<span class="cmd">volume efficiency show</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> \
+  <span class="p">-fields</span> <span class="v">data-compaction</span></pre></div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ SECTION 4: THIN PROVISIONING ═══════════════════ -->
+<section class="sec" id="thin">
+  <div class="sec-label">Section 04</div>
+  <h2>Thin Provisioning</h2>
+  <p class="sec-lead">Thin provisioning allows you to present more logical storage to hosts than you have physically allocated. Space is consumed from the aggregate only when data is actually written — not when the volume or LUN is created.</p>
+
+  <div class="two-col">
+    <div class="fc">
+      <h4>📦 Thick Provisioning (Traditional)</h4>
+      <ul>
+        <li>All space reserved upfront at creation</li>
+        <li>100TB volume = 100TB immediately consumed from aggregate</li>
+        <li>Safe but wasteful — most space sits empty</li>
+        <li>Required for certain latency-sensitive workloads</li>
+        <li>ONTAP: <code>-space-guarantee volume</code></li>
+      </ul>
+    </div>
+    <div class="fc" style="border-color:rgba(59,130,246,.3)">
+      <h4 style="color:var(--blue)">📏 Thin Provisioning (Recommended)</h4>
+      <ul>
+        <li>Space consumed only as data is written</li>
+        <li>100TB volume may use only 20TB of physical space initially</li>
+        <li>Enables over-provisioning: 500TB logical in 100TB physical pool</li>
+        <li>Prerequisite for compression and compaction</li>
+        <li>ONTAP: <code>-space-guarantee none</code></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="tab-container">
+    <div class="tab-bar">
+      <button class="tab-btn on" onclick="tab(this,'t1')">Volume Thin Provisioning</button>
+      <button class="tab-btn" onclick="tab(this,'t2')">LUN Thin Provisioning</button>
+      <button class="tab-btn" onclick="tab(this,'t3')">Space Monitoring</button>
+      <button class="tab-btn" onclick="tab(this,'t4')">AutoGrow / Autoshrink</button>
+    </div>
+    <div id="t1" class="tab-pane on"><pre><span class="c"># Create a thin-provisioned volume</span>
+<span class="cmd">volume create</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_thin</span> \
+  <span class="p">-aggregate</span> <span class="v">aggr1</span> \
+  <span class="p">-size</span> <span class="v">10t</span> \
+  <span class="p">-space-guarantee</span> <span class="v">none</span>       <span class="c"># thin — no space reserved</span>
+
+<span class="c"># Convert existing thick volume to thin</span>
+<span class="cmd">volume modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_old</span> \
+  <span class="p">-space-guarantee</span> <span class="v">none</span>
+
+<span class="c"># Check volume guarantee type</span>
+<span class="cmd">volume show</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> \
+  <span class="p">-fields</span> <span class="v">space-guarantee,size,available</span></pre></div>
+    <div id="t2" class="tab-pane"><pre><span class="c"># Create a thin-provisioned LUN (space-reservation=disabled)</span>
+<span class="cmd">lun create</span> <span class="p">-vserver</span> <span class="v">svm_san</span> \
+  <span class="p">-path</span> <span class="v">/vol/vol_san/lun_db</span> \
+  <span class="p">-size</span> <span class="v">2t</span> \
+  <span class="p">-ostype</span> <span class="v">linux</span> \
+  <span class="p">-space-reserve</span> <span class="v">disabled</span>   <span class="c"># thin LUN</span>
+
+<span class="c"># Enable T10 SCSI thin provisioning (host-visible reclamation)</span>
+<span class="cmd">lun modify</span> <span class="p">-vserver</span> <span class="v">svm_san</span> \
+  <span class="p">-path</span> <span class="v">/vol/vol_san/lun_db</span> \
+  <span class="p">-space-allocation</span> <span class="v">enabled</span>
+
+<span class="c"># Show LUN space reservation status</span>
+<span class="cmd">lun show</span> <span class="p">-vserver</span> <span class="v">svm_san</span> \
+  <span class="p">-fields</span> <span class="v">size,space-reserve,space-allocation</span></pre></div>
+    <div id="t3" class="tab-pane"><pre><span class="c"># Monitor space usage — critical with thin provisioning</span>
+<span class="cmd">volume show-space</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_thin</span>
+
+<span class="c"># Show aggregate utilization (thin provisioning can over-commit)</span>
+<span class="cmd">storage aggregate show</span> \
+  <span class="p">-fields</span> <span class="v">name,availsize,usedsize,percent-used</span>
+
+<span class="c"># Show logical space vs physical space (over-commitment ratio)</span>
+<span class="cmd">volume show</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> \
+  <span class="p">-fields</span> <span class="v">size,used,logical-used,percent-used</span>
+
+<span class="c"># Set volume space alerts (warn at 80%, autodelete snapshots at 90%)</span>
+<span class="cmd">volume modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_thin</span> \
+  <span class="p">-space-mgmt-try-first</span> <span class="v">snap_delete</span> \
+  <span class="p">-percent-snapshot-space</span> <span class="v">20</span></pre></div>
+    <div id="t4" class="tab-pane"><pre><span class="c"># Enable autogrow — volume expands automatically when space is low</span>
+<span class="cmd">volume autosize</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_thin</span> \
+  <span class="p">-mode</span> <span class="v">grow_shrink</span> \
+  <span class="p">-minimum-size</span> <span class="v">500g</span> \
+  <span class="p">-maximum-size</span> <span class="v">10t</span> \
+  <span class="p">-grow-threshold-percent</span> <span class="v">85</span> \
+  <span class="p">-shrink-threshold-percent</span> <span class="v">50</span> \
+  <span class="p">-increment-size</span> <span class="v">100g</span>
+
+<span class="c"># Check autosize configuration</span>
+<span class="cmd">volume autosize show</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_thin</span></pre></div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ SECTION 5: SNAPSHOTS ═══════════════════ -->
+<section class="sec" id="snapshots">
+  <div class="sec-label">Section 05</div>
+  <h2>Snapshot Copies — Space-Efficient Protection</h2>
+  <p class="sec-lead">NetApp Snapshot copies are read-only, point-in-time images of volumes. Unlike traditional backup copies, Snapshots use a Redirect-on-Write (ROW) mechanism — they consume near-zero space at creation and only grow as the original data changes.</p>
+
+  <div class="flow">
+    <div class="flow-title">📸 Redirect-on-Write — How Snapshots Save Space</div>
+    <div class="flow5">
+      <div class="flow-step">
+        <div class="flow-dot" style="background:rgba(59,130,246,.15);border-color:var(--blue);color:var(--blue)">1</div>
+        <div class="flow-step-t">Snapshot Taken</div>
+        <div class="flow-step-d">ONTAP creates a pointer map to all current blocks. No data copied.</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-dot" style="background:rgba(20,184,166,.15);border-color:var(--teal);color:var(--teal)">2</div>
+        <div class="flow-step-t">New Write</div>
+        <div class="flow-step-d">Active file system data changes. Old block must be preserved.</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-dot" style="background:rgba(168,85,247,.15);border-color:var(--purple);color:var(--purple)">3</div>
+        <div class="flow-step-t">Block Redirect</div>
+        <div class="flow-step-d">New data written to a new block. Snapshot pointer still holds old block.</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-dot" style="background:rgba(245,158,11,.15);border-color:var(--amber);color:var(--amber)">4</div>
+        <div class="flow-step-t">Shared Blocks</div>
+        <div class="flow-step-d">Unchanged blocks are shared between Snapshot and active. Zero extra space.</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-dot" style="background:rgba(34,197,94,.15);border-color:var(--green);color:var(--green)">5</div>
+        <div class="flow-step-t">Efficient Result</div>
+        <div class="flow-step-d">Snapshot only grows by the blocks that actually changed. 255 Snaps max.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-container">
+    <div class="tab-bar">
+      <button class="tab-btn on" onclick="tab(this,'sn1')">Create &amp; Manage</button>
+      <button class="tab-btn" onclick="tab(this,'sn2')">Schedules &amp; Policies</button>
+      <button class="tab-btn" onclick="tab(this,'sn3')">Space Management</button>
+      <button class="tab-btn" onclick="tab(this,'sn4')">Restore</button>
+    </div>
+    <div id="sn1" class="tab-pane on"><pre><span class="c"># Create a manual snapshot</span>
+<span class="cmd">volume snapshot create</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-snapshot</span> <span class="v">snap_pre_change_20250613</span>
+
+<span class="c"># List all snapshots on a volume</span>
+<span class="cmd">volume snapshot show</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span>
+
+<span class="c"># Show snapshot sizes and cumulative percentages</span>
+<span class="cmd">volume snapshot show</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-fields</span> <span class="v">size,cumulative-total,cumulative-percentage-of-total-size</span>
+
+<span class="c"># Delete a specific snapshot</span>
+<span class="cmd">volume snapshot delete</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-snapshot</span> <span class="v">snap_pre_change_20250613</span></pre></div>
+    <div id="sn2" class="tab-pane"><pre><span class="c"># Show existing snapshot policies</span>
+<span class="cmd">volume snapshot policy show</span>
+
+<span class="c"># Create a custom snapshot policy</span>
+<span class="cmd">volume snapshot policy create</span> \
+  <span class="p">-vserver</span> <span class="v">svm_prod</span> \
+  <span class="p">-policy</span> <span class="v">prod_policy</span> \
+  <span class="p">-enabled</span> <span class="v">true</span> \
+  <span class="p">-schedules</span> <span class="v">hourly,daily,weekly</span> \
+  <span class="p">-count</span> <span class="v">6,2,1</span>
+
+<span class="c"># Assign a snapshot policy to a volume</span>
+<span class="cmd">volume modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-snapshot-policy</span> <span class="v">prod_policy</span>
+
+<span class="c"># View snapshot reserve (space set aside for snapshots)</span>
+<span class="cmd">volume show</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-fields</span> <span class="v">percent-snapshot-space,snapshot-space-used</span></pre></div>
+    <div id="sn3" class="tab-pane"><pre><span class="c"># Reduce snapshot reserve (default 5% — often unnecessary with ROW)</span>
+<span class="cmd">volume modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-percent-snapshot-space</span> <span class="v">1</span>
+
+<span class="c"># Enable automatic snapshot deletion when volume fills</span>
+<span class="cmd">volume snapshot autodelete modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> \
+  <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-enabled</span> <span class="v">true</span> \
+  <span class="p">-commitment</span> <span class="v">destroy</span> \
+  <span class="p">-trigger</span> <span class="v">volume</span> \
+  <span class="p">-target-free-space</span> <span class="v">20</span>
+
+<span class="c"># Show snapshot efficiency savings across all SVMs</span>
+<span class="cmd">storage aggregate show-efficiency</span> <span class="p">-details</span>
+<span class="o">  >> Snapshot Volume Storage Efficiency: 8.81:1</span></pre></div>
+    <div id="sn4" class="tab-pane"><pre><span class="c"># Restore entire volume to a snapshot (revert)</span>
+<span class="cmd">volume snapshot restore</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-snapshot</span> <span class="v">snap_pre_change_20250613</span>
+
+<span class="c"># Restore a SINGLE FILE from snapshot (via .snapshot directory)</span>
+<span class="c"># From a client: navigate to /vol_data/.snapshot/snap_name/path/to/file</span>
+<span class="c"># OR use ONTAP single-file restore:</span>
+<span class="cmd">volume snapshot restore-file</span> \
+  <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-snapshot</span> <span class="v">snap_pre_change_20250613</span> \
+  <span class="p">-path</span> <span class="v">/reports/q2_report.xlsx</span> \
+  <span class="p">-restore-path</span> <span class="v">/reports/q2_report_recovered.xlsx</span></pre></div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ SECTION 6: FLEXCLONE ═══════════════════ -->
+<section class="sec" id="flexclone">
+  <div class="sec-label">Section 06</div>
+  <h2>FlexClone — Instant Zero-Space Clones</h2>
+  <p class="sec-lead">FlexClone creates an instantaneous, writable clone of a volume, LUN, or file from a Snapshot. The clone shares all existing blocks with the parent — consuming near-zero space at creation time, using space only as it diverges.</p>
+
+  <div class="two-col">
+    <div class="box box-info" style="margin:0">
+      <span class="box-icon">🧬</span>
+      <div><div class="box-title">FlexClone Volume</div>
+      <div class="box-body">A full volume clone. Perfect for <strong>dev/test environments</strong>, <strong>parallel builds</strong>, or <strong>staging</strong>. A 50TB volume cloned instantly — the clone uses 0 extra space at creation. Developers can work on it independently, writing only deltas.</div></div>
+    </div>
+    <div class="box box-purple" style="margin:0">
+      <span class="box-icon">📄</span>
+      <div><div class="box-title">FlexClone LUN / File</div>
+      <div class="box-body">Clone individual LUNs or files within a volume. Used heavily by <strong>Virtual Desktop Infrastructure (VDI)</strong> to provision 1000s of desktop VMs from a golden image — each desktop shares the golden image blocks until they diverge.</div></div>
+    </div>
+  </div>
+
+  <div class="tab-container" style="margin-top:16px">
+    <div class="tab-bar">
+      <button class="tab-btn on" onclick="tab(this,'fl1')">Clone a Volume</button>
+      <button class="tab-btn" onclick="tab(this,'fl2')">Clone a LUN</button>
+      <button class="tab-btn" onclick="tab(this,'fl3')">Clone a File</button>
+      <button class="tab-btn" onclick="tab(this,'fl4')">Split from Parent</button>
+    </div>
+    <div id="fl1" class="tab-pane on"><pre><span class="c"># Create a FlexClone volume from a snapshot (instant — seconds)</span>
+<span class="cmd">volume clone create</span> \
+  <span class="p">-vserver</span> <span class="v">svm_prod</span> \
+  <span class="p">-flexclone</span> <span class="v">vol_dev_clone</span> \
+  <span class="p">-parent-volume</span> <span class="v">vol_prod</span> \
+  <span class="p">-parent-snapshot</span> <span class="v">snap_daily_20250613</span> \
+  <span class="p">-type</span> <span class="v">RW</span>
+
+<span class="c"># Create FlexClone from current state (auto-creates a snap)</span>
+<span class="cmd">volume clone create</span> \
+  <span class="p">-vserver</span> <span class="v">svm_prod</span> \
+  <span class="p">-flexclone</span> <span class="v">vol_test_clone</span> \
+  <span class="p">-parent-volume</span> <span class="v">vol_prod</span>
+
+<span class="c"># List all FlexClone volumes and their parent</span>
+<span class="cmd">volume clone show</span>
+
+<span class="c"># Show space used by clone vs parent (blocks shared)</span>
+<span class="cmd">volume show</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_dev_clone</span> \
+  <span class="p">-fields</span> <span class="v">size,used,is-flexclone,flexclone-parent-volume</span></pre></div>
+    <div id="fl2" class="tab-pane"><pre><span class="c"># Clone a LUN from a snapshot (e.g. golden VDI image)</span>
+<span class="cmd">lun copy start</span> \
+  <span class="p">-vserver</span> <span class="v">svm_vdi</span> \
+  <span class="p">-source-path</span> <span class="v">/vol/golden_vol/.snapshot/golden_snap/golden.vmdk</span> \
+  <span class="p">-destination-path</span> <span class="v">/vol/desktop_vol/desktop001.vmdk</span>
+
+<span class="c"># Create FlexClone LUN directly (faster, uses block sharing)</span>
+<span class="cmd">lun copy start</span> \
+  <span class="p">-vserver</span> <span class="v">svm_san</span> \
+  <span class="p">-source-path</span> <span class="v">/vol/vol_prod/lun_db</span> \
+  <span class="p">-destination-path</span> <span class="v">/vol/vol_dev/lun_db_dev</span>
+
+<span class="c"># Show LUN space consumption</span>
+<span class="cmd">lun show</span> <span class="p">-vserver</span> <span class="v">svm_san</span> \
+  <span class="p">-fields</span> <span class="v">size,size-used,mapped</span></pre></div>
+    <div id="fl3" class="tab-pane"><pre><span class="c"># Clone a single file (FlexClone file) from a snapshot</span>
+<span class="cmd">volume file clone create</span> \
+  <span class="p">-vserver</span> <span class="v">svm_prod</span> \
+  <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-source-path</span> <span class="v">/golden/template.vmdk</span> \
+  <span class="p">-destination-path</span> <span class="v">/vms/vm001.vmdk</span>
+
+<span class="c"># Clone file from specific snapshot</span>
+<span class="cmd">volume file clone create</span> \
+  <span class="p">-vserver</span> <span class="v">svm_prod</span> \
+  <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-source-path</span> <span class="v">/data/report.xlsx</span> \
+  <span class="p">-destination-path</span> <span class="v">/data/report_copy.xlsx</span> \
+  <span class="p">-source-snapshot</span> <span class="v">daily_snap</span>
+
+<span class="c"># Check FlexClone space usage (subfiles)</span>
+<span class="cmd">volume file clone show-autodelete</span> \
+  <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span></pre></div>
+    <div id="fl4" class="tab-pane"><pre><span class="c"># Split a FlexClone from its parent (makes it independent)</span>
+<span class="c"># This copies the actual shared blocks — uses space but removes dependency</span>
+<span class="cmd">volume clone split start</span> \
+  <span class="p">-vserver</span> <span class="v">svm_prod</span> \
+  <span class="p">-flexclone</span> <span class="v">vol_dev_clone</span>
+
+<span class="c"># Monitor split progress</span>
+<span class="cmd">volume clone split show</span> \
+  <span class="p">-vserver</span> <span class="v">svm_prod</span>
+
+<span class="o"># Output:</span>
+<span class="o">Vserver     FlexClone     Blocks To Split  Blocks Completed  Progress</span>
+<span class="oh">svm_prod    vol_dev_clone 2543872          1028400           40%</span>
+
+<span class="c"># Stop a split in progress</span>
+<span class="cmd">volume clone split stop</span> \
+  <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-flexclone</span> <span class="v">vol_dev_clone</span></pre></div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ SECTION 7: FABRICPOOL ═══════════════════ -->
+<section class="sec" id="fabricpool">
+  <div class="sec-label">Section 07</div>
+  <h2>FabricPool — Intelligent Data Tiering</h2>
+  <p class="sec-lead">FabricPool automatically moves cold (infrequently accessed) data blocks from expensive performance-tier SSDs to low-cost object storage — on-premises (StorageGRID, ONTAP S3) or cloud (AWS S3, Azure Blob, GCP). Hot data stays on flash. Metadata always remains on the local tier.</p>
+
+  <div class="tier-diagram">
+    <div class="tier-title">FabricPool — Two-Tier Storage Architecture</div>
+    <div class="tier-layers">
+      <div class="tier-layer tier-hot">
+        <div class="tier-icon">🔥</div>
+        <div class="tier-info">
+          <div class="tier-info-name">Performance Tier (Local — Flash/SSD)</div>
+          <div class="tier-info-desc">All active (hot) data blocks, all metadata, WAFL structures, Snapshot metadata</div>
+          <div class="tier-info-tags">
+            <span class="tier-tag" style="background:rgba(239,68,68,.2);color:#FCA5A5">AFF / FAS SSDs</span>
+            <span class="tier-tag" style="background:rgba(239,68,68,.2);color:#FCA5A5">Low latency &lt;1ms</span>
+            <span class="tier-tag" style="background:rgba(239,68,68,.2);color:#FCA5A5">High IOPS</span>
+          </div>
+        </div>
+        <div class="tier-cost"><div class="tier-cost-label">Cost / TB</div><div class="tier-cost-val" style="color:#FCA5A5">$$$$$</div></div>
+      </div>
+      <div class="tier-arrow">↕ FabricPool moves cold blocks down, retrieves hot blocks up</div>
+      <div class="tier-layer tier-cold">
+        <div class="tier-icon">❄️</div>
+        <div class="tier-info">
+          <div class="tier-info-name">Capacity Tier (Cloud / Object Store)</div>
+          <div class="tier-info-desc">Cold, infrequently accessed data blocks. AWS S3, Azure Blob, GCP Storage, StorageGRID, ONTAP S3</div>
+          <div class="tier-info-tags">
+            <span class="tier-tag" style="background:rgba(59,130,246,.2);color:#93C5FD">Object Storage</span>
+            <span class="tier-tag" style="background:rgba(59,130,246,.2);color:#93C5FD">Higher latency on read</span>
+            <span class="tier-tag" style="background:rgba(59,130,246,.2);color:#93C5FD">On-prem or Cloud</span>
+          </div>
+        </div>
+        <div class="tier-cost"><div class="tier-cost-label">Cost / TB</div><div class="tier-cost-val" style="color:#93C5FD">$</div></div>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="font-size:18px;font-weight:700;color:#f8fafc;margin:24px 0 16px">FabricPool Tiering Policies</h3>
+  <table class="cmp-table">
+    <thead><tr><th>Policy</th><th>What Gets Tiered</th><th>Cooling Days</th><th>Best For</th></tr></thead>
+    <tbody>
+      <tr><td>snapshot-only</td><td>Snapshot blocks not in active filesystem</td><td>2 days (default)</td><td>General use — safe default</td></tr>
+      <tr><td>auto</td><td>Cold blocks in both active FS and snapshots</td><td>31 days (default)</td><td>Mixed workloads, older data</td></tr>
+      <tr><td>all</td><td>All data marked cold immediately</td><td>Immediate</td><td>Backup/archive volumes, DR targets</td></tr>
+      <tr><td>none</td><td>Nothing tiered; data can be recalled from cloud</td><td>N/A</td><td>Bring data back from cloud tier</td></tr>
+    </tbody>
+  </table>
+
+  <div class="tab-container">
+    <div class="tab-bar">
+      <button class="tab-btn on" onclick="tab(this,'fp1')">Attach Object Store</button>
+      <button class="tab-btn" onclick="tab(this,'fp2')">Set Tiering Policy</button>
+      <button class="tab-btn" onclick="tab(this,'fp3')">Monitor Tiering</button>
+      <button class="tab-btn" onclick="tab(this,'fp4')">Recall Cold Data</button>
+    </div>
+    <div id="fp1" class="tab-pane on"><pre><span class="c"># Step 1: Create an object store configuration (e.g. AWS S3)</span>
+<span class="cmd">storage aggregate object-store config create</span> \
+  <span class="p">-object-store-name</span> <span class="v">aws_s3_tier</span> \
+  <span class="p">-provider-type</span> <span class="v">AWS_S3</span> \
+  <span class="p">-server</span> <span class="v">s3.amazonaws.com</span> \
+  <span class="p">-container-name</span> <span class="v">netapp-cold-tier-bucket</span> \
+  <span class="p">-access-key</span> <span class="v">AKIAIOSFODNN7EXAMPLE</span> \
+  <span class="p">-secret-password</span> <span class="v">***</span>
+
+<span class="c"># Step 2: Attach object store to an aggregate (enables FabricPool)</span>
+<span class="cmd">storage aggregate object-store attach</span> \
+  <span class="p">-aggregate</span> <span class="v">aggr_aff_01</span> \
+  <span class="p">-object-store-name</span> <span class="v">aws_s3_tier</span>
+
+<span class="c"># Verify FabricPool is attached</span>
+<span class="cmd">storage aggregate show</span> <span class="p">-fields</span> <span class="v">name,is-fabricpool,object-store-name</span>
+
+<span class="c"># On-premises: use StorageGRID or ONTAP S3</span>
+<span class="c"># -provider-type SGWS (StorageGRID) or ONTAP_S3</span></pre></div>
+    <div id="fp2" class="tab-pane"><pre><span class="c"># Set tiering policy on an existing volume</span>
+<span class="cmd">volume modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_archive</span> \
+  <span class="p">-tiering-policy</span> <span class="v">auto</span>
+
+<span class="c"># Set minimum cooling days before tiering (default 31 for auto)</span>
+<span class="cmd">volume modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_archive</span> \
+  <span class="p">-tiering-minimum-cooling-days</span> <span class="v">14</span>
+
+<span class="c"># Use 'all' policy for backup/SnapVault destination volumes</span>
+<span class="cmd">volume modify</span> <span class="p">-vserver</span> <span class="v">svm_backup</span> <span class="p">-volume</span> <span class="v">vol_vault_dst</span> \
+  <span class="p">-tiering-policy</span> <span class="v">all</span>
+
+<span class="c"># Create new volume with tiering policy</span>
+<span class="cmd">volume create</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_cold_data</span> \
+  <span class="p">-aggregate</span> <span class="v">aggr_aff_01</span> \
+  <span class="p">-size</span> <span class="v">50t</span> \
+  <span class="p">-tiering-policy</span> <span class="v">auto</span> \
+  <span class="p">-space-guarantee</span> <span class="v">none</span></pre></div>
+    <div id="fp3" class="tab-pane"><pre><span class="c"># Show tiering status per volume</span>
+<span class="cmd">volume object-store tiering show</span> <span class="p">-vserver</span> <span class="v">svm_prod</span>
+
+<span class="c"># Show how much data is on the cloud tier vs performance tier</span>
+<span class="cmd">volume show</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_archive</span> \
+  <span class="p">-fields</span> <span class="v">tiering-policy,cloud-retrieval-policy,size-on-cloud-tier</span>
+
+<span class="c"># Show aggregate FabricPool space usage</span>
+<span class="cmd">storage aggregate show-space</span> <span class="p">-aggregate</span> <span class="v">aggr_aff_01</span>
+
+<span class="c"># Check tiering scan status (background process)</span>
+<span class="cmd">storage aggregate object-store show</span> \
+  <span class="p">-fields</span> <span class="v">object-store-name,object-count,bytes-used</span></pre></div>
+    <div id="fp4" class="tab-pane"><pre><span class="c"># Set cloud retrieval policy (when should tiered data come back?)</span>
+<span class="c"># default: recall on random read, promote to performance tier</span>
+<span class="c"># on-read: always recall on ANY read (default)</span>
+<span class="c"># never: keep cold blocks on cloud tier even when read (never promote)</span>
+<span class="c"># promote: move ALL blocks to performance tier</span>
+
+<span class="cmd">volume modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_archive</span> \
+  <span class="p">-cloud-retrieval-policy</span> <span class="v">on-read</span>
+
+<span class="c"># Manually force recall of all data from cloud tier</span>
+<span class="cmd">volume object-store tiering promote</span> \
+  <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_archive</span>
+
+<span class="c"># Change policy to none = no new data tiered, existing recall as read</span>
+<span class="cmd">volume modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_archive</span> \
+  <span class="p">-tiering-policy</span> <span class="v">none</span></pre></div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ SECTION 8: TSSE ═══════════════════ -->
+<section class="sec" id="tsse">
+  <div class="sec-label">Section 08</div>
+  <h2>Temperature-Sensitive Storage Efficiency (TSSE)</h2>
+  <p class="sec-lead">TSSE is an intelligent, adaptive compression system introduced in ONTAP 9.8. It monitors how frequently each data block is accessed (its "temperature") and applies different compression algorithms based on heat — small fast-decompress blocks for hot data, larger higher-ratio compression for cold data.</p>
+
+  <div class="two-col">
+    <div class="fc fc-colored" style="border-top-color:var(--red)">
+      <h4 style="color:#FCA5A5">🔥 Hot Data — 8KB Compression</h4>
+      <ul>
+        <li>Frequently accessed blocks (last 14 days by default)</li>
+        <li>Compressed in 8KB groups — fast decompression</li>
+        <li>Lower compression ratio but minimal read latency impact</li>
+        <li>Primary goal: performance maintained</li>
+      </ul>
+    </div>
+    <div class="fc fc-colored" style="border-top-color:var(--cyan)">
+      <h4 style="color:#67E8F9">❄️ Cold Data — 32KB Compression</h4>
+      <ul>
+        <li>Infrequently accessed blocks (older than cooling threshold)</li>
+        <li>Recompressed in 32KB groups — 2–3x better ratio than 8KB</li>
+        <li>Slightly higher read latency acceptable for cold data</li>
+        <li>Primary goal: maximum space savings</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="box box-purple" style="margin-top:16px">
+    <span class="box-icon">🌡️</span>
+    <div><div class="box-title">Two TSSE Storage Efficiency Modes</div>
+    <div class="box-body"><strong>default mode</strong>: Standard ONTAP efficiency. Inline dedup, 8K compression, compaction. TSSE temperature scanning enabled but secondary (32K) compression only applied to colder blocks. &nbsp;|&nbsp; <strong>efficient mode</strong>: Full TSSE with adaptive compression. Both 8K (hot) and 32K (cold) compression applied based on block temperature. Maximum space savings. Recommended for AFF C-Series and general storage efficiency optimization.</div></div>
+  </div>
+
+  <div class="tab-container">
+    <div class="tab-bar">
+      <button class="tab-btn on" onclick="tab(this,'ts1')">Enable TSSE</button>
+      <button class="tab-btn" onclick="tab(this,'ts2')">Platform Requirements</button>
+      <button class="tab-btn" onclick="tab(this,'ts3')">Verify &amp; Monitor</button>
+    </div>
+    <div id="ts1" class="tab-pane on"><pre><span class="c"># Check current storage efficiency mode on a volume</span>
+<span class="cmd">volume show</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-fields</span> <span class="v">storage-efficiency-mode</span>
+
+<span class="c"># Enable TSSE 'efficient' mode on a volume</span>
+<span class="cmd">volume modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-storage-efficiency-mode</span> <span class="v">efficient</span>
+
+<span class="c"># Create new volume with TSSE efficient mode from the start</span>
+<span class="cmd">volume create</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_tsse</span> \
+  <span class="p">-aggregate</span> <span class="v">aggr_aff_01</span> \
+  <span class="p">-size</span> <span class="v">10t</span> \
+  <span class="p">-storage-efficiency-mode</span> <span class="v">efficient</span> \
+  <span class="p">-space-guarantee</span> <span class="v">none</span>
+
+<span class="c"># Note: Volumes created BEFORE ONTAP 9.8 do not get TSSE automatically.</span>
+<span class="c"># Migrate old volumes to a new volume to gain TSSE benefits:</span>
+<span class="cmd">volume move start</span> \
+  <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_legacy</span> \
+  <span class="p">-destination-aggregate</span> <span class="v">aggr_aff_01</span></pre></div>
+    <div id="ts2" class="tab-pane"><pre><span class="c"># TSSE availability by platform and ONTAP version:</span>
+<span class="c"></span>
+<span class="c"># AFF C-Series (e.g. C400, C800) — ONTAP 9.13.1+</span>
+<span class="c">#   TSSE enabled by DEFAULT on new thin-provisioned volumes</span>
+<span class="c">#   Storage efficiency mode: efficient (automatic)</span>
+<span class="c"></span>
+<span class="c"># AFF A-Series (e.g. A400, A800) — ONTAP 9.8+</span>
+<span class="c">#   TSSE available, must set -storage-efficiency-mode efficient</span>
+<span class="c">#   Default mode on new volumes is 'default' (8K only)</span>
+<span class="c"></span>
+<span class="c"># FAS (Hybrid/HDD) platforms</span>
+<span class="c">#   TSSE not supported on HDD aggregates</span>
+<span class="c">#   Post-process compression only with scheduled jobs</span>
+<span class="c"></span>
+<span class="c"># Cloud Volumes ONTAP (CVO) — 9.10.1+</span>
+<span class="c">#   TSSE supported on cloud instances</span>
+<span class="c"></span>
+<span class="c"># Check if aggregate is TSSE-capable</span>
+<span class="cmd">storage aggregate show</span> \
+  <span class="p">-fields</span> <span class="v">name,disk-class,is-all-flash,node</span></pre></div>
+    <div id="ts3" class="tab-pane"><pre><span class="c"># Show current efficiency mode on all volumes</span>
+<span class="cmd">volume show</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> \
+  <span class="p">-fields</span> <span class="v">volume,storage-efficiency-mode,compression,inline-compression</span>
+
+<span class="c"># Show efficiency savings breakdown (TSSE contributes to compression)</span>
+<span class="cmd">volume efficiency show</span> <span class="p">-instance</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> \
+  <span class="p">-volume</span> <span class="v">vol_tsse</span>
+
+<span class="c"># Show total data reduction ratios (includes TSSE effect)</span>
+<span class="cmd">storage aggregate show-efficiency</span> <span class="p">-details</span>
+
+<span class="c"># Check TSSE temperature data (advanced privilege)</span>
+<span class="cmd">set</span> <span class="p">-privilege</span> <span class="v">advanced</span>
+<span class="cmd">volume efficiency config show</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> \
+  <span class="p">-volume</span> <span class="v">vol_tsse</span></pre></div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ SECTION 9: REPORTING ═══════════════════ -->
+<section class="sec" id="reporting">
+  <div class="sec-label">Section 09</div>
+  <h2>Efficiency Reporting — Measuring Your Savings</h2>
+  <p class="sec-lead">ONTAP provides comprehensive efficiency reporting at every level — volume, aggregate, and cluster. Always measure before and after enabling features to quantify ROI.</p>
+
+  <div class="tab-container">
+    <div class="tab-bar">
+      <button class="tab-btn on" onclick="tab(this,'r1')">Volume Level</button>
+      <button class="tab-btn" onclick="tab(this,'r2')">Aggregate Level</button>
+      <button class="tab-btn" onclick="tab(this,'r3')">Cluster Summary</button>
+      <button class="tab-btn" onclick="tab(this,'r4')">Active IQ</button>
+    </div>
+    <div id="r1" class="tab-pane on"><pre><span class="c"># Complete space breakdown for a volume</span>
+<span class="cmd">volume show-space</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span>
+
+<span class="c"># Show logical vs physical (the core efficiency metric)</span>
+<span class="cmd">volume show</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-fields</span> <span class="v">size,logical-used,used,dedupe-space-savings,compression-space-savings</span>
+
+<span class="o"># Example output:</span>
+<span class="o">Volume      Size    Logical-Used  Used     Dedupe-Savings  Compression-Savings</span>
+<span class="oh">vol_data    10.0TB  8.2TB         1.9TB    3.8TB           2.5TB</span>
+<span class="c"># → Overall ratio: 8.2TB logical in 1.9TB physical = 4.3:1</span>
+
+<span class="c"># Show all efficiency savings fields</span>
+<span class="cmd">volume efficiency show</span> <span class="p">-instance</span> \
+  <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span></pre></div>
+    <div id="r2" class="tab-pane"><pre><span class="c"># Show aggregate-level efficiency summary</span>
+<span class="cmd">storage aggregate show-efficiency</span>
+
+<span class="c"># Detailed breakdown per aggregate (all efficiency components)</span>
+<span class="cmd">storage aggregate show-efficiency</span> <span class="p">-details</span>
+
+<span class="o"># Example output:</span>
+<span class="oh">Aggregate: aggr_aff_01   Node: node1</span>
+<span class="oh">Total Storage Efficiency Ratio:         4.29:1</span>
+<span class="oh">Total Data Reduction Ratio:             2.39:1</span>
+<span class="oh">Aggregate Dedup &amp; Compaction:           1.00:1</span>
+<span class="oh">Volume Deduplication Efficiency:        5.03:1</span>
+<span class="oh">Compression Efficiency:                 1.82:1</span>
+<span class="oh">Snapshot Volume Storage Efficiency:     8.81:1</span>
+<span class="oh">FlexClone Volume Storage Efficiency:    -</span>
+
+<span class="c"># Show cumulated efficiency across all aggregates</span>
+<span class="cmd">storage aggregate show-cumulated-efficiency</span></pre></div>
+    <div id="r3" class="tab-pane"><pre><span class="c"># Show cluster-wide efficiency savings (all aggregates combined)</span>
+<span class="cmd">storage aggregate show-cumulated-efficiency</span> <span class="p">-details</span>
+
+<span class="c"># Quick check: per-node efficiency summary</span>
+<span class="cmd">system node show</span> <span class="p">-fields</span> <span class="v">node,model,serial-number</span>
+
+<span class="c"># Show all volumes with their efficiency ratios (SVM wide)</span>
+<span class="cmd">volume show</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> \
+  <span class="p">-fields</span> <span class="v">volume,size,logical-used,used,dedupe-space-savings,compression-space-savings</span>
+
+<span class="c"># Total logical space vs physical across all volumes</span>
+<span class="cmd">volume show</span> \
+  <span class="p">-fields</span> <span class="v">logical-used,used</span></pre></div>
+    <div id="r4" class="tab-pane"><pre><span class="c"># Active IQ Unified Manager — GUI-based efficiency reporting</span>
+<span class="c"># Dashboard shows per-cluster, per-SVM, per-volume efficiency ratios</span>
+<span class="c"># Historical trending up to 13 months</span>
+<span class="c"># Includes Snapshot, FlexClone, dedup, compression in single view</span>
+<span class="c"></span>
+<span class="c"># ONTAP CLI: Show data reduction ratio (logical/physical)</span>
+<span class="cmd">set</span> <span class="p">-privilege</span> <span class="v">advanced</span>
+<span class="cmd">volume show</span> <span class="p">-fields</span> <span class="v">data-reduction-storage-efficiency-ratio</span>
+
+<span class="c"># Show efficiency stats with and without snapshots</span>
+<span class="cmd">volume show</span> <span class="p">-fields</span> \
+  <span class="v">size,logical-used,used,dedupe-space-savings,</span>
+  <span class="v">compression-space-savings,compaction-space-savings</span>
+
+<span class="c"># Real-time efficiency: shows current savings on a per-volume basis</span>
+<span class="cmd">volume efficiency show</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> \
+  <span class="p">-fields</span> <span class="v">vserver,volume,state,compression,inline-compression,dedupe</span></pre></div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════ SECTION 10: BEST PRACTICES ═══════════════════ -->
+<section class="sec" id="bestpractice">
+  <div class="sec-label">Section 10</div>
+  <h2>Best Practices & Workload Guide</h2>
+  <p class="sec-lead">Use this reference to quickly determine which efficiency features to enable for each workload type, and follow the operational best practices to maintain healthy, efficient storage.</p>
+
+  <table class="cmp-table" style="margin-bottom:40px">
+    <thead>
+      <tr>
+        <th>Workload</th>
+        <th>Inline Dedup</th>
+        <th>Compression</th>
+        <th>Compaction</th>
+        <th>FabricPool</th>
+        <th>TSSE</th>
+        <th>Thin Prov.</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>VMware vSphere Datastores</td><td class="yes">✓ Yes</td><td class="yes">✓ Yes</td><td class="yes">✓ Yes</td><td class="cond">Auto policy</td><td class="yes">✓ Yes</td><td class="yes">✓ Yes</td></tr>
+      <tr><td>Oracle / SQL Databases</td><td class="yes">✓ Yes</td><td class="cond">Inline only</td><td class="yes">✓ Yes</td><td class="cond">Selective</td><td class="cond">Careful</td><td class="yes">✓ Yes</td></tr>
+      <tr><td>NFS File Shares (Office)</td><td class="yes">✓ Yes</td><td class="yes">✓ Yes</td><td class="yes">✓ Yes</td><td class="yes">✓ Auto</td><td class="yes">✓ Yes</td><td class="yes">✓ Yes</td></tr>
+      <tr><td>Backup / SnapVault Destination</td><td class="yes">✓ Yes</td><td class="yes">✓ Yes</td><td class="yes">✓ Yes</td><td class="yes">✓ All policy</td><td class="yes">✓ Yes</td><td class="yes">✓ Yes</td></tr>
+      <tr><td>Media / Video (MP4, MOV)</td><td class="no">✗ No</td><td class="no">✗ No</td><td class="no">✗ No</td><td class="yes">✓ Auto</td><td class="no">✗ No</td><td class="yes">✓ Yes</td></tr>
+      <tr><td>Encrypted Data (NVE)</td><td class="yes">✓ Yes</td><td class="cond">Limited</td><td class="cond">Limited</td><td class="yes">✓ Yes</td><td class="cond">Use NAE</td><td class="yes">✓ Yes</td></tr>
+      <tr><td>VDI / Virtual Desktops</td><td class="yes">✓ Yes</td><td class="yes">✓ Yes</td><td class="yes">✓ Yes</td><td class="cond">Auto</td><td class="yes">✓ Yes</td><td class="yes">✓ Yes</td></tr>
+      <tr><td>Dev / Test Environments</td><td class="yes">✓ Yes</td><td class="yes">✓ Yes</td><td class="yes">✓ Yes</td><td class="yes">✓ Auto</td><td class="yes">✓ Yes</td><td class="yes">✓ FlexClone</td></tr>
+    </tbody>
+  </table>
+
+  <div class="accordion">
+    <div class="acc-item open">
+      <div class="acc-header" onclick="acc(this)">
+        <div class="acc-num">1</div>
+        <div><div class="acc-title">Verify volume space-guarantee before enabling compression / compaction</div>
+        <div class="acc-sub">Both features require space-guarantee=none</div></div>
+        <div class="acc-arrow">▶</div>
+      </div>
+      <div class="acc-body">
+        <h5>Why it matters</h5>
+        <p>Compression and compaction store data in variable-size physical blocks. This is incompatible with thick (space-guaranteed) volumes where block sizes are fixed at creation. Attempting to enable compression on a thick volume will fail or have no effect.</p>
+        <h5>Fix</h5>
+        <pre><span class="cmd">volume modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> <span class="p">-space-guarantee</span> <span class="v">none</span>
+<span class="c"># Then enable compression:</span>
+<span class="cmd">volume efficiency modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> <span class="p">-compression</span> <span class="v">true</span></pre>
+      </div>
+    </div>
+    <div class="acc-item">
+      <div class="acc-header" onclick="acc(this)">
+        <div class="acc-num">2</div>
+        <div><div class="acc-title">Monitor aggregate free space when thin provisioning heavily</div>
+        <div class="acc-sub">Over-commitment is a feature — managed over-commitment is a risk</div></div>
+        <div class="acc-arrow">▶</div>
+      </div>
+      <div class="acc-body">
+        <h5>Why it matters</h5>
+        <p>Thin provisioning lets you present 500TB of volume space from a 100TB aggregate. If all those volumes fill up simultaneously, the aggregate runs out of space and writes fail. Set threshold alerts at 75–80%.</p>
+        <h5>Setup</h5>
+        <pre><span class="c"># Set an EMS alert when aggregate hits 80%</span>
+<span class="cmd">event notification destination create</span> <span class="p">-name</span> <span class="v">capacity_alert</span> <span class="p">-email</span> <span class="v">admin@company.com</span>
+<span class="cmd">storage aggregate show</span> <span class="p">-fields</span> <span class="v">name,percent-used,availsize</span></pre>
+      </div>
+    </div>
+    <div class="acc-item">
+      <div class="acc-header" onclick="acc(this)">
+        <div class="acc-num">3</div>
+        <div><div class="acc-title">Run efficiency jobs on existing data after enabling features</div>
+        <div class="acc-sub">Inline features only apply to new data — scan-old-data catches everything</div></div>
+        <div class="acc-arrow">▶</div>
+      </div>
+      <div class="acc-body">
+        <h5>Why it matters</h5>
+        <p>When you enable inline deduplication or compression on an existing volume, only data written <em>after</em> that point benefits inline. Existing data on disk is not retroactively processed. Use <code>-scan-old-data true</code> to run a full pass.</p>
+        <pre><span class="cmd">volume efficiency start</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> \
+  <span class="p">-scan-old-data</span> <span class="v">true</span> <span class="p">-compression</span> <span class="v">true</span> <span class="p">-dedupe</span> <span class="v">true</span></pre>
+      </div>
+    </div>
+    <div class="acc-item">
+      <div class="acc-header" onclick="acc(this)">
+        <div class="acc-num">4</div>
+        <div><div class="acc-title">Use NAE (Aggregate Encryption) instead of NVE when dedup savings matter</div>
+        <div class="acc-sub">Cross-volume dedup cannot work across NVE volumes with different keys</div></div>
+        <div class="acc-arrow">▶</div>
+      </div>
+      <div class="acc-body">
+        <h5>Why it matters</h5>
+        <p>With NVE, each volume is encrypted with a unique key. Two identical blocks in different volumes encrypt to different ciphertext — deduplication cannot find a match. NAE encrypts at the aggregate level with one shared key, so deduplicated blocks remain identical after encryption.</p>
+        <pre><span class="c"># Enable NAE on an aggregate</span>
+<span class="cmd">storage aggregate modify</span> <span class="p">-aggregate</span> <span class="v">aggr_data</span> <span class="p">-encrypt-with-aggr-key</span> <span class="v">true</span></pre>
+      </div>
+    </div>
+    <div class="acc-item">
+      <div class="acc-header" onclick="acc(this)">
+        <div class="acc-num">5</div>
+        <div><div class="acc-title">Don't enable post-process compression on high-IOPS random-write volumes</div>
+        <div class="acc-sub">Background compression scanner can contend with production I/O</div></div>
+        <div class="acc-arrow">▶</div>
+      </div>
+      <div class="acc-body">
+        <h5>Why it matters</h5>
+        <p>Post-process compression scans existing data and re-writes it compressed. On busy OLTP volumes with 50K+ IOPS, this background work can increase latency by 5–15% during the scan window. Either use inline-only, or schedule the job during a low-activity maintenance window.</p>
+        <pre><span class="c"># Schedule compression to run only at low-traffic times (2am–6am)</span>
+<span class="cmd">volume efficiency modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_oltp</span> \
+  <span class="p">-schedule</span> <span class="s">"sun-sat@2"</span>
+<span class="c"># OR use inline only, disable post-process:</span>
+<span class="cmd">volume efficiency modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_oltp</span> \
+  <span class="p">-inline-compression</span> <span class="v">true</span> <span class="p">-compression</span> <span class="v">false</span></pre>
+      </div>
+    </div>
+    <div class="acc-item">
+      <div class="acc-header" onclick="acc(this)">
+        <div class="acc-num">6</div>
+        <div><div class="acc-title">Use FabricPool 'all' policy on SnapVault destinations, not primary volumes</div>
+        <div class="acc-sub">The 'all' policy marks data cold immediately — not suitable for active data</div></div>
+        <div class="acc-arrow">▶</div>
+      </div>
+      <div class="acc-body">
+        <h5>Why it matters</h5>
+        <p>The <code>all</code> tiering policy tiers data to the cloud tier as fast as possible. On a production volume, this means read performance will suffer because data must be recalled from object storage. On backup destinations, it's ideal — backup data is rarely re-read and should be cheap to store.</p>
+        <pre><span class="c"># SnapVault/backup destination: use 'all'</span>
+<span class="cmd">volume modify</span> <span class="p">-vserver</span> <span class="v">svm_backup</span> <span class="p">-volume</span> <span class="v">vol_vault_dst</span> <span class="p">-tiering-policy</span> <span class="v">all</span>
+<span class="c"># Production volumes: use 'auto' with appropriate cooling days</span>
+<span class="cmd">volume modify</span> <span class="p">-vserver</span> <span class="v">svm_prod</span> <span class="p">-volume</span> <span class="v">vol_data</span> <span class="p">-tiering-policy</span> <span class="v">auto</span></pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="box box-ok" style="margin-top:24px">
+    <span class="box-icon">✅</span>
+    <div><div class="box-title">Golden Rule: Start Efficient, Stay Efficient</div>
+    <div class="box-body">Enable all efficiency features at volume creation time, especially on AFF platforms. Retrofitting efficiency to existing volumes requires scanning all data — expensive and time-consuming. On AFF in ONTAP 9.15.1+, all features are already on by default. Always verify with <code>volume efficiency show -instance</code> and <code>storage aggregate show-efficiency -details</code> to confirm savings are accumulating as expected.</div></div>
+  </div>
+</section>
+
+</div><!-- /wrap -->
+
+<div class="footer">
+  NetApp Storage Efficiency Tutorial &nbsp;·&nbsp; ONTAP 9.x &nbsp;·&nbsp;
+  <a href="https://docs.netapp.com/us-en/ontap/concepts/storage-efficiency-overview.html" target="_blank">ONTAP Efficiency Docs ↗</a>
+  &nbsp;·&nbsp;
+  <a href="https://docs.netapp.com/us-en/ontap-technical-reports/storage-efficiency.html" target="_blank">Technical Report ↗</a>
+  &nbsp;·&nbsp;
+  <a href="https://docs.netapp.com/us-en/ontap-cli/volume-efficiency-show.html" target="_blank">CLI Reference ↗</a>
+</div>
+
+<script>
+// Tab switching
+function tab(btn, id) {
+  const section = btn.closest('.tab-container');
+  section.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('on'));
+  section.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('on'));
+  btn.classList.add('on');
+  const pane = document.getElementById(id);
+  if (pane) pane.classList.add('on');
+}
+
+// Accordion
+function acc(header) {
+  const item = header.closest('.acc-item');
+  item.classList.toggle('open');
+}
+
+// Nav highlight on scroll
+const sections = document.querySelectorAll('.sec');
+const links = document.querySelectorAll('.nav-a');
+window.addEventListener('scroll', () => {
+  let cur = '';
+  sections.forEach(s => { if (window.scrollY >= s.offsetTop - 70) cur = s.id; });
+  links.forEach(l => {
+    l.classList.toggle('act', l.getAttribute('href') === '#' + cur);
+  });
+}, { passive: true });
+
+// Copy buttons
+document.querySelectorAll('.copy-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const code = btn.closest('.code-wrap').querySelector('pre');
+    if (!code) return;
+    navigator.clipboard.writeText(code.innerText).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      btn.style.color = 'var(--green)';
+      setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 1800);
+    });
+  });
+});
+</script>
+</body>
+</html>
+HTMLEOF
+echo "Done — $(wc -c < /home/claude/netapp_storage_efficiency.html) bytes"
+Output
+
+Command argument is 104_777 bytes, exceeding the 100_000-byte per-argument limit. For large content, pipe via stdin or use a file-write API instead of embedding the content inline in the command. Argument preview: 'cat > /home/claude/netapp_storage_efficiency.html << \'HTMLEOF\'\n<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n<ti'
