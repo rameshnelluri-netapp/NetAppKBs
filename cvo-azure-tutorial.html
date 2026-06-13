@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CVO on Azure — Concept Reference</title>
+<style>
+  :root {
+    --bg: #0f1417;
+    --panel: #161c20;
+    --panel-2: #1c2329;
+    --line: #2a3138;
+    --text: #dde3e6;
+    --text-dim: #8b969e;
+    --accent: #5fd0c5;
+    --accent-dim: #2f5c57;
+    --code-bg: #0a0d0f;
+    --warn: #e0a458;
+    --azure: #4ba3e3;
+    --netapp: #d65f4a;
+    --serif: "Source Serif 4", Georgia, serif;
+    --sans: "IBM Plex Sans", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.65;
+  }
+
+  /* ---------- Layout ---------- */
+  .layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    min-height: 100vh;
+  }
+
+  nav.toc {
+    border-right: 1px solid var(--line);
+    background: var(--panel);
+    padding: 32px 22px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  nav.toc .brand {
+    font-family: var(--serif);
+    font-size: 1.5rem;
+    color: var(--text);
+    margin-bottom: 4px;
+    letter-spacing: 0.01em;
+  }
+  nav.toc .brand span { color: var(--accent); }
+
+  nav.toc .sub {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 28px;
+  }
+
+  nav.toc .group-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--text-dim);
+    margin: 22px 0 8px;
+  }
+
+  nav.toc a {
+    display: block;
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 0.92rem;
+    padding: 6px 10px;
+    border-radius: 6px;
+    margin-bottom: 2px;
+    border-left: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+  }
+  nav.toc a:hover {
+    color: var(--text);
+    background: var(--panel-2);
+    border-left-color: var(--accent-dim);
+  }
+  nav.toc a.active {
+    color: var(--accent);
+    border-left-color: var(--accent);
+    background: var(--panel-2);
+  }
+
+  main {
+    padding: 56px 64px 120px;
+    max-width: 880px;
+  }
+
+  header.hero {
+    margin-bottom: 56px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--line);
+  }
+  header.hero h1 {
+    font-family: var(--serif);
+    font-size: 2.6rem;
+    font-weight: 600;
+    margin: 0 0 12px;
+    line-height: 1.15;
+  }
+  header.hero p.lede {
+    font-size: 1.05rem;
+    color: var(--text-dim);
+    max-width: 620px;
+    margin: 0 0 18px;
+  }
+  .badge-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .badge {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 5px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+  }
+  .badge.azure { border-color: var(--azure); color: var(--azure); }
+  .badge.netapp { border-color: var(--netapp); color: var(--netapp); }
+
+  section {
+    margin-bottom: 64px;
+    scroll-margin-top: 24px;
+  }
+
+  section .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+
+  section h2 {
+    font-family: var(--serif);
+    font-size: 1.85rem;
+    font-weight: 600;
+    margin: 0 0 18px;
+    line-height: 1.25;
+  }
+
+  section h3 {
+    font-family: var(--sans);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text);
+    margin: 28px 0 10px;
+  }
+
+  p { margin: 0 0 14px; color: var(--text); }
+  p.dim { color: var(--text-dim); }
+
+  ul, ol { margin: 0 0 16px; padding-left: 1.3em; }
+  li { margin-bottom: 6px; }
+
+  strong { color: #fff; font-weight: 600; }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 2px 6px;
+    color: var(--accent);
+  }
+
+  pre {
+    font-family: var(--mono);
+    font-size: 0.84rem;
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    margin: 14px 0 18px;
+    line-height: 1.6;
+    color: #c8e6e0;
+  }
+  pre .comment { color: var(--text-dim); }
+
+  /* ---------- Callouts ---------- */
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: var(--panel-2);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 18px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); }
+  .callout .label {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .callout.warn .label { color: var(--warn); }
+  .callout p:last-child { margin-bottom: 0; }
+
+  /* ---------- Tables ---------- */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 20px;
+    font-size: 0.92rem;
+  }
+  th, td {
+    border: 1px solid var(--line);
+    padding: 10px 14px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: var(--panel-2);
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+  }
+  td { color: var(--text); }
+  tr:nth-child(even) td { background: rgba(255,255,255,0.015); }
+
+  /* ---------- Compare cards (on-prem vs cloud) ---------- */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 18px 0 20px;
+  }
+  .compare .card {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 16px 18px;
+    background: var(--panel-2);
+  }
+  .compare .card h4 {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin: 0 0 10px;
+    color: var(--text-dim);
+  }
+  .compare .card.onprem h4 { color: var(--netapp); }
+  .compare .card.cloud h4 { color: var(--azure); }
+  .compare .card p, .compare .card ul { margin-bottom: 0; }
+  .compare .card ul { padding-left: 1.1em; }
+
+  @media (max-width: 760px) {
+    .compare { grid-template-columns: 1fr; }
+  }
+
+  /* ---------- Flow diagram ---------- */
+  .flow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 18px 0 22px;
+    font-family: var(--mono);
+    font-size: 0.85rem;
+  }
+  .flow .step {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 8px 14px;
+    color: var(--text);
+  }
+  .flow .arrow { color: var(--accent); font-size: 1.1rem; }
+
+  /* ---------- Numbered steps ---------- */
+  .steps {
+    list-style: none;
+    padding: 0;
+    margin: 18px 0 22px;
+    counter-reset: stepnum;
+  }
+  .steps li {
+    counter-increment: stepnum;
+    position: relative;
+    padding: 4px 0 16px 44px;
+    border-left: 1px solid var(--line);
+    margin-left: 16px;
+  }
+  .steps li:last-child { border-left: 1px solid transparent; padding-bottom: 0; }
+  .steps li::before {
+    content: counter(stepnum);
+    position: absolute;
+    left: -16px;
+    top: 0;
+    width: 30px;
+    height: 30px;
+    background: var(--bg);
+    border: 1px solid var(--accent-dim);
+    color: var(--accent);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 0.85rem;
+  }
+  .steps li strong { display: block; margin-bottom: 4px; color: var(--text); }
+
+  /* ---------- IP / address blocks ---------- */
+  .addr-grid {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 14px 0 20px;
+  }
+  .addr-grid .row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+  .addr-grid .row:last-child { border-bottom: none; }
+  .addr-grid .ip { color: var(--accent); }
+  .addr-grid .role { color: var(--text-dim); }
+
+  footer {
+    margin-top: 80px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    color: var(--text-dim);
+    font-size: 0.85rem;
+  }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    nav.toc { position: relative; height: auto; border-right: none; border-bottom: 1px solid var(--line); }
+    main { padding: 40px 24px 100px; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <nav class="toc">
+    <div class="brand">CVO<span>/</span>Azure</div>
+    <div class="sub">Concept Reference</div>
+
+    <div class="group-label">Foundations</div>
+    <a href="#what-is-cvo">What is CVO?</a>
+    <a href="#working-environment">Working environment</a>
+    <a href="#licensing">Licensing models</a>
+
+    <div class="group-label">Storage</div>
+    <a href="#disks-aggregates">Disks &amp; aggregates</a>
+    <a href="#raid">RAID0 &amp; durability</a>
+    <a href="#disk-failure">Disk failure, plain language</a>
+
+    <div class="group-label">Resilience</div>
+    <a href="#ha-mediator">HA, mediator &amp; VM crashes</a>
+
+    <div class="group-label">Networking</div>
+    <a href="#expressroute">ExpressRoute &amp; connectivity</a>
+    <a href="#deployment-flow">Deployment flow</a>
+    <a href="#ip-lifs">IPs, LIFs &amp; load balancer</a>
+    <a href="#routing">Routes &amp; routing</a>
+    <a href="#cifs-ad">CIFS &amp; Active Directory</a>
+
+    <div class="group-label">Recap</div>
+    <a href="#glossary">Quick glossary</a>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <h1>NetApp Cloud Volumes ONTAP on Azure</h1>
+      <p class="lede">
+        A working reference covering CVO's licensing, storage, networking, and CIFS/AD model on Azure —
+        built around how each concept maps to (or diverges from) on-prem ONTAP.
+      </p>
+      <div class="badge-row">
+        <span class="badge netapp">NetApp ONTAP</span>
+        <span class="badge azure">Microsoft Azure</span>
+        <span class="badge">Interview / Concept Prep</span>
+      </div>
+    </header>
+
+    <!-- ============ WHAT IS CVO ============ -->
+    <section id="what-is-cvo">
+      <div class="eyebrow">01 — Foundations</div>
+      <h2>What is Cloud Volumes ONTAP?</h2>
+      <p>
+        CVO is NetApp's software-defined ONTAP, packaged to run as a virtual machine instance in a
+        public cloud — AWS, Azure, or GCP. It delivers the same data management capabilities you'd get
+        on-prem (Snapshot, SnapMirror, FlexClone, deduplication, compression, multiprotocol NAS/SAN),
+        running on cloud compute and disk resources instead of physical controllers and shelves.
+      </p>
+      <p class="dim">
+        Deployment and lifecycle management happen through <strong>BlueXP</strong> (formerly Cloud Manager) —
+        a SaaS console that orchestrates CVO instances across cloud accounts.
+      </p>
+    </section>
+
+    <!-- ============ WORKING ENVIRONMENT ============ -->
+    <section id="working-environment">
+      <div class="eyebrow">01 — Foundations</div>
+      <h2>Working Environment &amp; Working Environment ID</h2>
+      <p>
+        A <strong>Working Environment</strong> in BlueXP represents a single CVO deployment (or a
+        discovered on-prem ONTAP cluster). Each one gets a unique
+        <strong>Working Environment ID</strong> — the identifier BlueXP and its APIs use for all
+        subsequent operations on that system.
+      </p>
+      <ul>
+        <li>Calling the BlueXP REST API for automation</li>
+        <li>Setting up SnapMirror between two CVO instances — each side has its own ID</li>
+        <li>Referencing a specific deployment in support cases or troubleshooting</li>
+      </ul>
+    </section>
+
+    <!-- ============ LICENSING ============ -->
+    <section id="licensing">
+      <div class="eyebrow">01 — Foundations</div>
+      <h2>Licensing models: PAYGO vs BYOL</h2>
+      <p>
+        Three independent "meters" run at the same time for any CVO deployment. It's easy to conflate
+        them — keep them separate:
+      </p>
+
+      <table>
+        <thead>
+          <tr><th>What</th><th>Who bills it</th><th>Based on</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Azure VM + Managed Disks</td>
+            <td>Azure (standard infrastructure billing)</td>
+            <td>Compute size &amp; disk capacity, hourly</td>
+          </tr>
+          <tr>
+            <td>ONTAP software entitlement</td>
+            <td>NetApp (BYOL) <em>or</em> Azure Marketplace (PAYGO)</td>
+            <td>Total provisioned capacity (TiB)</td>
+          </tr>
+          <tr>
+            <td>SnapMirror copy traffic (on-prem → CVO)</td>
+            <td>Not billed by NetApp licensing; possible Azure egress</td>
+            <td>Data volume crossing regions</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>PAYGO</h3>
+      <p>
+        An hourly pay-as-you-go subscription via Azure Marketplace. The ONTAP software entitlement is
+        billed alongside — but separate from — your VM and disk charges. No upfront purchase from NetApp.
+      </p>
+
+      <h3>BYOL</h3>
+      <p>
+        A capacity license (e.g. 20 TiB) purchased directly from NetApp/reseller ahead of time, installed
+        on the CVO system. It covers your provisioned capacity instead of marketplace charging for it —
+        Azure VM/disk costs still apply regardless. Usage is charged against the license first; any
+        overage spills into PAYGO rates.
+      </p>
+
+      <div class="callout warn">
+        <div class="label">Current restriction</div>
+        <p>
+          NetApp has restricted the purchase, extension, and renewal of BYOL licensing — new deployments
+          are increasingly steered toward marketplace subscription models (PAYGO / Annual) rather than
+          traditional BYOL.
+        </p>
+      </div>
+
+      <h3>Does creating a volume itself cost extra?</h3>
+      <p>
+        No single "create volume" event is billed. A new volume simply consumes against your
+        <strong>total provisioned capacity</strong>, which is what the ONTAP license (PAYGO or BYOL) is
+        metered against. SnapMirror destination (DP) volumes count the same way — they consume capacity
+        on whichever CVO system hosts them, often at a different package rate (e.g. "Essentials Secondary
+        HA" for DP/read-only volumes on an HA-capable system).
+      </p>
+      <p class="dim">
+        Important: replication I/O itself (SnapMirror, SnapVault, NDMP) is <strong>not</strong> separately
+        charged by NetApp's licensing — only the provisioned capacity of the volumes involved matters.
+      </p>
+    </section>
+
+    <!-- ============ DISKS & AGGREGATES ============ -->
+    <section id="disks-aggregates">
+      <div class="eyebrow">02 — Storage</div>
+      <h2>Managed disks, aggregates &amp; volumes</h2>
+      <p>
+        You pay Azure for the VM instance and its attached <strong>Managed Disks</strong>. ONTAP then
+        carves those disks into <strong>aggregates</strong>, and volumes are created inside those
+        aggregates — same hierarchy as on-prem (disk → aggregate → volume).
+      </p>
+
+      <table>
+        <thead>
+          <tr><th>Detail</th><th>Single-node</th><th>HA pair</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Disk type</td>
+            <td>Azure Managed Disks (typically Premium SSD)</td>
+            <td>Premium SSD Shared Managed Disks (pre-9.12.1: Premium page blobs)</td>
+          </tr>
+          <tr>
+            <td>Disks per aggregate</td>
+            <td colspan="2">Up to 12 disks, all the same type and size</td>
+          </tr>
+          <tr>
+            <td>Disk visibility</td>
+            <td>Attached only to its own node</td>
+            <td>Shared — each HA node has access to the other node's storage</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        After deployment, CVO automatically creates a small <strong>root aggregate (aggr0)</strong> per
+        node for system volumes/configuration (not for user data), plus a <strong>data aggregate
+        (aggr1)</strong> where NFS/SMB volumes are provisioned.
+      </p>
+      <p class="dim">
+        Disk size affects more than capacity: it determines the maximum volume size in that aggregate,
+        total CVO capacity, and performance — Azure Premium Storage throughput scales with disk size.
+      </p>
+    </section>
+
+    <!-- ============ RAID ============ -->
+    <section id="raid">
+      <div class="eyebrow">02 — Storage</div>
+      <h2>RAID0 — and why no RAID-DP</h2>
+      <p>
+        The RAID type for every CVO aggregate, on every cloud, is <strong>RAID0 (striping)</strong>.
+        No RAID-DP, no RAID-TEC, no parity disks, no hot spares — RAID0 doesn't support hot spares
+        because there's nothing to reconstruct.
+      </p>
+
+      <div class="compare">
+        <div class="card onprem">
+          <h4>On-prem ONTAP</h4>
+          <ul>
+            <li>Physical disks can fail outright</li>
+            <li>RAID-DP / RAID-TEC provide parity protection</li>
+            <li>ONTAP owns disk-failure recovery (reconstruction)</li>
+          </ul>
+        </div>
+        <div class="card cloud">
+          <h4>CVO on Azure</h4>
+          <ul>
+            <li>A "Managed Disk" is a durable, replicated service — not one physical drive</li>
+            <li>RAID0 stripes across disks for capacity/performance only</li>
+            <li>Azure's storage layer owns durability beneath the disk abstraction</li>
+          </ul>
+        </div>
+      </div>
+
+      <p>
+        Doing RAID-DP <em>on top of</em> Azure's own replication would mean paying for redundancy twice —
+        Azure's replication and ONTAP's parity overhead — for no real benefit. So ONTAP's role shifts
+        from disk-failure protection to pure aggregation/striping.
+      </p>
+    </section>
+
+    <!-- ============ DISK FAILURE PLAIN LANGUAGE ============ -->
+    <section id="disk-failure">
+      <div class="eyebrow">02 — Storage</div>
+      <h2>If a disk fails, what actually happens?</h2>
+      <p>
+        On-prem, a "disk" is one physical drive — a single point of failure. In Azure, a Managed Disk is
+        a <strong>virtual disk backed by Azure's storage service</strong>, which already keeps multiple
+        copies of your data across different physical hardware (and sometimes different datacenters,
+        depending on the redundancy option — LRS vs ZRS).
+      </p>
+
+      <div class="flow">
+        <div class="step">Physical drive holding a data copy dies</div>
+        <span class="arrow">→</span>
+        <div class="step">Azure detects it (it already has 2–3 copies)</div>
+        <span class="arrow">→</span>
+        <div class="step">Azure serves I/O from surviving copies</div>
+        <span class="arrow">→</span>
+        <div class="step">Azure rebuilds a fresh copy in the background</div>
+      </div>
+
+      <p>
+        Your VM/CVO never sees any of this — the Managed Disk, from ONTAP's point of view, never goes
+        offline or degrades. The "copy to another disk, replace the failed one" behavior absolutely
+        happens — just one layer below anything ONTAP can observe.
+      </p>
+
+      <div class="callout">
+        <div class="label">Where redundancy planning actually shifts to</div>
+        <p>
+          Since disk-level failure is essentially Azure's problem, the resilience questions that matter
+          for CVO move up a layer: the <strong>VM/node</strong> crashing (→ HA pairs + Mediator), and an
+          entire <strong>Availability Zone or region</strong> going down (→ multi-AZ HA, or DR via
+          SnapMirror to another region).
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ HA / MEDIATOR / VM CRASH ============ -->
+    <section id="ha-mediator">
+      <div class="eyebrow">03 — Resilience</div>
+      <h2>VM crashes, HA pairs &amp; the Mediator</h2>
+
+      <h3>Single-node CVO</h3>
+      <p>
+        If the underlying Azure VM crashes, Azure's infrastructure typically restarts/migrates the VM
+        onto healthy hardware — Managed Disks remain attached throughout, since they're network-attached
+        and decoupled from the VM lifecycle. But there's downtime during the restart, and
+        <strong>no automatic failover to a different VM</strong> — it's the same VM coming back, not a
+        new one taking over.
+      </p>
+
+      <h3>HA CVO — the real failover story</h3>
+      <ul>
+        <li>Two CVO nodes run in <strong>different Availability Zones</strong>, each with its own set of
+          Managed Disks, mirrored between nodes (SyncMirror-style)</li>
+        <li>A small <strong>Mediator VM</strong> monitors both nodes' health and arbitrates failover
+          decisions — analogous to "epsilon" / quorum tie-breaking on-prem</li>
+        <li>If Node A crashes, the Mediator detects it and triggers <strong>automatic failover</strong> —
+          Node B takes over using its own already-synced copy of the data; LIFs/IPs migrate to Node B</li>
+        <li>When Node A recovers, it rejoins the HA pair and resyncs</li>
+      </ul>
+
+      <div class="callout warn">
+        <div class="label">What HA does <em>not</em> do</div>
+        <p>
+          It is <em>not</em> "Azure detects a crash, spins up a brand-new VM, then attaches the old disks
+          to it." That would involve redeployment and significant downtime. Failover goes to an
+          <strong>already-running second node</strong> with its own storage — not disk reattachment to a
+          fresh instance.
+        </p>
+      </div>
+
+      <p class="dim">
+        Note for interviews: Azure's general VM-recovery behavior for single-node systems is a platform
+        characteristic, not a CVO feature or guaranteed SLA — don't present it as one.
+      </p>
+    </section>
+
+    <!-- ============ EXPRESSROUTE ============ -->
+    <section id="expressroute">
+      <div class="eyebrow">04 — Networking</div>
+      <h2>ExpressRoute &amp; hybrid connectivity</h2>
+      <p>
+        <strong>Azure ExpressRoute</strong> is a dedicated, private connection between an on-prem
+        datacenter and Azure, bypassing the public internet. For CVO, it's commonly used to:
+      </p>
+      <ul>
+        <li>Provide low-latency, high-bandwidth connectivity for <strong>SnapMirror replication</strong>
+          from on-prem ONTAP to CVO (hybrid DR)</li>
+        <li>Give on-prem clients/applications access to CVO NFS/CIFS shares without traversing the
+          public internet</li>
+        <li>Meet compliance requirements that prohibit storage traffic over public networks</li>
+      </ul>
+      <p class="dim">
+        ExpressRoute circuits come in bandwidth tiers (50 Mbps – 10 Gbps+); CVO's network interfaces need
+        to sit in a VNet peered/connected to the ExpressRoute gateway. A site-to-site VPN is the
+        alternative when ExpressRoute isn't available — both ultimately serve the same purpose: giving
+        CVO a private path back to on-prem AD, DNS, and replication sources.
+      </p>
+    </section>
+
+    <!-- ============ DEPLOYMENT FLOW ============ -->
+    <section id="deployment-flow">
+      <div class="eyebrow">04 — Networking</div>
+      <h2>Deployment flow — where to start</h2>
+
+      <ol class="steps">
+        <li>
+          <strong>Azure subscription</strong>
+          Your billing/account boundary — everything else lives inside it.
+        </li>
+        <li>
+          <strong>Resource Group</strong>
+          A logical container for all CVO-related resources: VM, disks, NICs, load balancer, etc.
+          Makes cleanup and management easier.
+        </li>
+        <li>
+          <strong>VNet + Subnet(s)</strong>
+          The network where CVO's NICs live. Needs connectivity (peering, VPN, or ExpressRoute) to
+          wherever your on-prem AD, DNS, and clients are.
+        </li>
+        <li>
+          <strong>BlueXP Connector</strong>
+          A small VM deployed first into your subscription/VNet — the orchestration agent BlueXP SaaS
+          uses to provision CVO into your environment.
+        </li>
+        <li>
+          <strong>Deploy CVO</strong> (via BlueXP or Azure Marketplace)
+          Choose single-node or HA, VM size, disk type/size for the initial aggregate, and licensing
+          model (PAYGO/BYOL).
+        </li>
+        <li>
+          <strong>Networking auto-provisioning</strong>
+          BlueXP creates required NICs and private IPs, a Network Security Group, and — for HA — an
+          Internal Load Balancer.
+        </li>
+        <li>
+          <strong>Post-deployment configuration</strong>
+          Create/extend the data SVM, set up CIFS/NFS, create volumes, configure AD/DNS, and add any
+          missing SVM routes.
+        </li>
+      </ol>
+
+      <div class="callout">
+        <div class="label">Bundled at deploy time</div>
+        <p>
+          The marketplace deployment installs licenses for NFS, CIFS (SMB), iSCSI, Autonomous Ransomware
+          Protection (ARP), SnapLock, and SnapMirror automatically — protocol licensing isn't a separate
+          manual step.
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ IP / LIFs / LOAD BALANCER ============ -->
+    <section id="ip-lifs">
+      <div class="eyebrow">04 — Networking</div>
+      <h2>IP addressing, LIFs &amp; the load balancer</h2>
+      <p>
+        Azure CVO doesn't use <code>ifgrp</code> (that's a physical-port bundling concept). The closer
+        analogy is <strong>LIFs</strong> — logical interfaces still assigned to roles, just mapped onto
+        Azure NICs and Load Balancer frontends instead of physical ports.
+      </p>
+
+      <h3>What gets allocated</h3>
+      <ul>
+        <li>The Console automatically allocates the required private IPs — the count depends on
+          single-node vs HA</li>
+        <li>IPs are assigned across <strong>4 NICs per node</strong> during deployment</li>
+        <li>An <strong>SVM management LIF</strong> is created automatically on HA pairs, but not on
+          single-node systems</li>
+      </ul>
+
+      <h3>HA floating IPs</h3>
+      <div class="addr-grid">
+        <div class="row"><span class="role">Cluster management</span><span class="ip">1 floating IP</span></div>
+        <div class="row"><span class="role">NFS/CIFS data — Node 1</span><span class="ip">1 floating IP</span></div>
+        <div class="row"><span class="role">NFS/CIFS data — Node 2</span><span class="ip">1 floating IP</span></div>
+        <div class="row"><span class="role">SVM management (optional)</span><span class="ip">1 floating IP</span></div>
+      </div>
+
+      <p>
+        4 frontend IPs (FIPs) live in the <strong>Azure Internal Load Balancer</strong> and are configured
+        to migrate on failover events. The per-NIC IPs themselves do <em>not</em> migrate on failover.
+      </p>
+
+      <div class="callout warn">
+        <div class="label">Manual step often missed</div>
+        <p>
+          For each new LIF you create after initial deployment, you must manually add a frontend IP
+          configuration, health probe, and load-balancing rule to the ILB. BlueXP automates this for the
+          LIFs created at deployment time — not for ones added afterward.
+        </p>
+      </div>
+
+      <h3>What the IPs look like</h3>
+      <p>
+        Standard private IPs from your VNet's subnet range (e.g. <code>10.x.x.x</code>) — no different in
+        format from any other Azure private IP. The "type" (mgmt / data / SVM-mgmt / cluster) is a role
+        ONTAP and BlueXP assign, not a different IP format.
+      </p>
+
+      <h3>Speed / throughput factors</h3>
+      <ul>
+        <li>The <strong>VM SKU</strong> — larger instance types have higher network bandwidth caps</li>
+        <li>The <strong>disk type/size</strong> backing the aggregate — Premium Storage performance
+          scales with disk size</li>
+        <li>Whether traffic flows through the ILB (HA) — negligible overhead, but an architectural
+          dependency</li>
+      </ul>
+      <p class="dim">
+        There's no on-prem-style "set MTU to 9000" tuning exposed the same way — Azure VNets typically
+        run at 1500 MTU by default; this is mostly an Azure platform setting, not something configured
+        inside ONTAP.
+      </p>
+    </section>
+
+    <!-- ============ ROUTING ============ -->
+    <section id="routing">
+      <div class="eyebrow">04 — Networking</div>
+      <h2>Routes &amp; routing</h2>
+      <p>
+        A route tells an SVM "to reach network X, send traffic via gateway Y" — same concept as on-prem.
+        Each SVM has its own routing table; without a route, its LIFs can only reach hosts in their own
+        subnet.
+      </p>
+
+      <h3>The Azure twist: the gateway is the fabric itself</h3>
+      <p>
+        In Azure, the <strong>first usable IP of every subnet is always reserved as the default
+        gateway</strong>, implemented by Azure's software-defined network (SDN). This gateway is not a
+        VM, not visible, and not configurable — it's Azure's internal routing fabric.
+      </p>
+
+      <div class="addr-grid">
+        <div class="row"><span class="role">172.18.10.0</span><span class="ip">network address</span></div>
+        <div class="row"><span class="role">172.18.10.1</span><span class="ip">Azure default gateway (SDN)</span></div>
+        <div class="row"><span class="role">172.18.10.2 – .3</span><span class="ip">reserved, Azure internal use</span></div>
+        <div class="row"><span class="role">172.18.10.4+</span><span class="ip">usable for VMs / NICs</span></div>
+      </div>
+
+      <h3>Why you need this for a new SVM</h3>
+      <p>
+        After creating a management LIF on an SVM, it's <strong>not reachable automatically</strong> —
+        not even from within the same subnet, and the same is true for LIFs in general on CVO nodes.
+        Before going further, verify whether a default route exists for the new SVM; if missing, create
+        one so the SVM can reach external services like DNS and Active Directory — required for CIFS/SMB.
+      </p>
+
+      <pre>network route show -vserver svm_matrix_cifs
+
+network route create -vserver svm_matrix_cifs \
+    -destination 0.0.0.0/0 \
+    -gateway 172.18.10.1</pre>
+
+      <p class="dim">
+        Same <code>network route</code> syntax as on-prem — the only conceptual shift is that the "next
+        hop" is an abstraction Azure guarantees exists at a fixed address, rather than physical
+        infrastructure someone provisioned.
+      </p>
+
+      <div class="compare">
+        <div class="card onprem">
+          <h4>On-prem</h4>
+          <ul>
+            <li>Gateway = a real router's IP on the VLAN</li>
+            <li>Route configured once, applies broadly</li>
+            <li>Router is hardware your network team manages</li>
+          </ul>
+        </div>
+        <div class="card cloud">
+          <h4>CVO on Azure</h4>
+          <ul>
+            <li>Gateway = Azure's invisible SDN router at the subnet's <code>.1</code></li>
+            <li>Each SVM needs its own default route explicitly created</li>
+            <li>"Router" is the platform — always present, never configured</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout">
+        <div class="label">Consequence of a missing route</div>
+        <p>
+          Without it, an SVM can serve clients in its own subnet fine, but cannot reach AD/DNS/NTP in a
+          different subnet, peered VNet, or on-prem (via VPN/ExpressRoute) — so CIFS server creation and
+          Kerberos authentication fail, and SnapMirror to peers elsewhere won't work either.
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ CIFS & AD ============ -->
+    <section id="cifs-ad">
+      <div class="eyebrow">04 — Networking</div>
+      <h2>CIFS &amp; Active Directory — AD doesn't have to live in Azure</h2>
+      <p>
+        CIFS still requires AD, but the domain controllers don't need to physically run in Azure. Three
+        common options:
+      </p>
+
+      <ol class="steps">
+        <li>
+          <strong>Extend on-prem AD to Azure</strong>
+          Deploy AD domain controller VMs in your Azure VNet (or a peered hub VNet), replicating from
+          your existing on-prem domain.
+        </li>
+        <li>
+          <strong>Connect to on-prem AD over VPN/ExpressRoute</strong>
+          CVO's SVM just needs network reachability and DNS resolution to your existing on-prem domain
+          controllers — no AD infrastructure needs to exist in Azure at all.
+        </li>
+        <li>
+          <strong>Azure AD Domain Services</strong>
+          A managed, AD-compatible domain Microsoft hosts — useful if you don't want to manage DC VMs
+          yourself (verify current availability/roadmap, as Microsoft has been evolving this offering).
+        </li>
+      </ol>
+
+      <p>
+        Whichever path you choose, you must set up DNS and Active Directory reachable from Azure — the
+        DNS server must provide name resolution for the AD environment. And as covered above, if no
+        default route exists for the SVM, one must be created so it can reach DNS servers and domain
+        controllers.
+      </p>
+
+      <h3>Once connectivity exists</h3>
+      <p>
+        CIFS server creation and share access on CVO work <strong>exactly like on-prem</strong> — same
+        commands, same model:
+      </p>
+      <pre>vserver cifs create -vserver svm1 -cifs-server FILESRV01 -domain example.com
+
+vserver cifs share access-control create -vserver svm1 -share apps \
+    -user-or-group "EXAMPLE\Domain Users" -permission Change</pre>
+      <p class="dim">
+        ONTAP doesn't know or care that the domain controllers are remote — as long as DNS, Kerberos, and
+        LDAP traffic can reach them, share-level ACEs and underlying NTFS permissions combine the same
+        way they do on a physical cluster.
+      </p>
+    </section>
+
+    <!-- ============ GLOSSARY ============ -->
+    <section id="glossary">
+      <div class="eyebrow">05 — Recap</div>
+      <h2>Quick glossary</h2>
+      <table>
+        <thead><tr><th>Term</th><th>Meaning in CVO/Azure context</th></tr></thead>
+        <tbody>
+          <tr><td>Working Environment</td><td>A single CVO deployment as represented in BlueXP, identified by a unique Working Environment ID</td></tr>
+          <tr><td>PAYGO</td><td>Hourly software entitlement billed via Azure Marketplace, alongside VM/disk costs</td></tr>
+          <tr><td>BYOL</td><td>Prepaid capacity license purchased from NetApp, covering provisioned capacity instead of marketplace charges</td></tr>
+          <tr><td>Managed Disk</td><td>Azure's durable, replicated virtual disk — the building block of CVO aggregates</td></tr>
+          <tr><td>Aggregate</td><td>A pool of Managed Disks (RAID0, up to 12 disks, same type/size) that volumes are provisioned from</td></tr>
+          <tr><td>Mediator</td><td>Small VM that monitors HA node health and arbitrates failover — analogous to on-prem epsilon/quorum</td></tr>
+          <tr><td>ExpressRoute</td><td>Dedicated private connection between on-prem and Azure, used for SnapMirror and client access without public internet</td></tr>
+          <tr><td>LIF</td><td>Logical interface / IP with a role (mgmt, data, SVM-mgmt) — mapped onto Azure NICs and ILB frontends</td></tr>
+          <tr><td>ILB (Internal Load Balancer)</td><td>Azure component that hosts HA floating IPs and redirects them to the active node on failover</td></tr>
+          <tr><td>Default route</td><td>Per-SVM route to Azure's reserved <code>.1</code> SDN gateway, required for DNS/AD reachability</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer>
+      Compiled from a working discussion on NetApp Cloud Volumes ONTAP deployment, licensing, storage,
+      and networking on Microsoft Azure — for interview and concept-prep use.
+    </footer>
+  </main>
+</div>
+
+<script>
+  // Highlight active section in the TOC while scrolling
+  const links = document.querySelectorAll('nav.toc a');
+  const sections = document.querySelectorAll('main section');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const id = entry.target.getAttribute('id');
+      const link = document.querySelector(`nav.toc a[href="#${id}"]`);
+      if (!link) return;
+      if (entry.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px', threshold: 0 });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
