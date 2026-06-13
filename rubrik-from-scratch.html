@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rubrik — From Scratch: Architecture, Onboarding &amp; Cloud</title>
+<style>
+  :root {
+    --bg: #11151a;
+    --panel: #171c22;
+    --panel-2: #1d242b;
+    --line: #2b333b;
+    --text: #dde3e6;
+    --text-dim: #8b96a0;
+    --accent: #6fb4e0;
+    --accent-dim: #2b4a5c;
+    --code-bg: #0a0d10;
+    --warn: #e0a458;
+    --rubrik: #ff5042;
+    --cloud: #6fb4e0;
+    --serif: "Source Serif 4", Georgia, serif;
+    --sans: "IBM Plex Sans", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.65;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 290px 1fr;
+    min-height: 100vh;
+  }
+
+  nav.toc {
+    border-right: 1px solid var(--line);
+    background: var(--panel);
+    padding: 32px 22px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  nav.toc .brand {
+    font-family: var(--serif);
+    font-size: 1.5rem;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  nav.toc .brand span { color: var(--rubrik); }
+  nav.toc .sub {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 28px;
+  }
+  nav.toc .group-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--text-dim);
+    margin: 22px 0 8px;
+  }
+  nav.toc a {
+    display: block;
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 0.92rem;
+    padding: 6px 10px;
+    border-radius: 6px;
+    margin-bottom: 2px;
+    border-left: 2px solid transparent;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+  }
+  nav.toc a:hover {
+    color: var(--text);
+    background: var(--panel-2);
+    border-left-color: var(--accent-dim);
+  }
+  nav.toc a.active {
+    color: var(--accent);
+    border-left-color: var(--accent);
+    background: var(--panel-2);
+  }
+
+  main {
+    padding: 56px 64px 120px;
+    max-width: 900px;
+  }
+
+  header.hero {
+    margin-bottom: 56px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--line);
+  }
+  header.hero h1 {
+    font-family: var(--serif);
+    font-size: 2.5rem;
+    font-weight: 600;
+    margin: 0 0 12px;
+    line-height: 1.15;
+  }
+  header.hero p.lede {
+    font-size: 1.05rem;
+    color: var(--text-dim);
+    max-width: 640px;
+    margin: 0 0 18px;
+  }
+  .badge-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .badge {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 5px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+  }
+  .badge.rubrik { border-color: var(--rubrik); color: var(--rubrik); }
+  .badge.cloud { border-color: var(--cloud); color: var(--cloud); }
+
+  section { margin-bottom: 64px; scroll-margin-top: 24px; }
+  section .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+  section h2 {
+    font-family: var(--serif);
+    font-size: 1.85rem;
+    font-weight: 600;
+    margin: 0 0 18px;
+    line-height: 1.25;
+  }
+  section h3 {
+    font-family: var(--sans);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text);
+    margin: 28px 0 10px;
+  }
+  section h4.label {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    margin: 18px 0 6px;
+  }
+
+  p { margin: 0 0 14px; color: var(--text); }
+  p.dim { color: var(--text-dim); }
+  ul, ol { margin: 0 0 16px; padding-left: 1.3em; }
+  li { margin-bottom: 6px; }
+  strong { color: #fff; font-weight: 600; }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 2px 6px;
+    color: var(--accent);
+  }
+  pre {
+    font-family: var(--mono);
+    font-size: 0.84rem;
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    margin: 14px 0 18px;
+    line-height: 1.6;
+    color: #cfe6f5;
+  }
+
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: var(--panel-2);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 18px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); }
+  .callout .label {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .callout.warn .label { color: var(--warn); }
+  .callout p:last-child { margin-bottom: 0; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 20px;
+    font-size: 0.92rem;
+  }
+  th, td {
+    border: 1px solid var(--line);
+    padding: 10px 14px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: var(--panel-2);
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+  }
+  td { color: var(--text); }
+  tr:nth-child(even) td { background: rgba(255,255,255,0.015); }
+
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 18px 0 20px;
+  }
+  .compare .card {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 16px 18px;
+    background: var(--panel-2);
+  }
+  .compare .card h4 {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin: 0 0 10px;
+    color: var(--text-dim);
+  }
+  .compare .card p, .compare .card ul { margin-bottom: 0; }
+  .compare .card ul { padding-left: 1.1em; }
+  @media (max-width: 760px) { .compare { grid-template-columns: 1fr; } }
+
+  .flow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 18px 0 22px;
+    font-family: var(--mono);
+    font-size: 0.85rem;
+  }
+  .flow .step {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 8px 14px;
+    color: var(--text);
+  }
+  .flow .arrow { color: var(--accent); font-size: 1.1rem; }
+
+  .steps {
+    list-style: none;
+    padding: 0;
+    margin: 18px 0 22px;
+    counter-reset: stepnum;
+  }
+  .steps li {
+    counter-increment: stepnum;
+    position: relative;
+    padding: 4px 0 16px 44px;
+    border-left: 1px solid var(--line);
+    margin-left: 16px;
+  }
+  .steps li:last-child { border-left: 1px solid transparent; padding-bottom: 0; }
+  .steps li::before {
+    content: counter(stepnum);
+    position: absolute;
+    left: -16px;
+    top: 0;
+    width: 30px;
+    height: 30px;
+    background: var(--bg);
+    border: 1px solid var(--accent-dim);
+    color: var(--accent);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 0.85rem;
+  }
+  .steps li strong { display: block; margin-bottom: 4px; color: var(--text); }
+
+  footer {
+    margin-top: 80px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    color: var(--text-dim);
+    font-size: 0.85rem;
+  }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    nav.toc { position: relative; height: auto; border-right: none; border-bottom: 1px solid var(--line); }
+    main { padding: 40px 24px 100px; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <nav class="toc">
+    <div class="brand">Rubrik<span>/</span>Onboard</div>
+    <div class="sub">From Scratch — Architecture &amp; Setup</div>
+
+    <div class="group-label">Architecture</div>
+    <a href="#what-is-rubrik">What is Rubrik?</a>
+    <a href="#cluster-anatomy">Cluster anatomy: Brik &amp; nodes</a>
+    <a href="#data-engine">Atlas, Cerebro &amp; how data is stored</a>
+    <a href="#ha-resilience">HA &amp; resilience model</a>
+
+    <div class="group-label">Onboarding</div>
+    <a href="#deployment-options">Deployment options</a>
+    <a href="#bootstrap">Bootstrap &amp; cluster setup</a>
+    <a href="#rsc-registration">Registering with Rubrik Security Cloud</a>
+    <a href="#adding-hosts">Adding hosts &amp; the RBS agent</a>
+    <a href="#sla-domains">SLA Domains — the policy model</a>
+    <a href="#backup-flow">How a backup actually runs</a>
+    <a href="#restore">Restore &amp; Live Mount</a>
+
+    <div class="group-label">To the Cloud</div>
+    <a href="#cloud-cluster">Cloud Cluster (CDM in AWS/Azure/GCP)</a>
+    <a href="#archival">Archival &amp; Rubrik Cloud Vault</a>
+    <a href="#putting-together">Putting it together — a realistic rollout</a>
+
+    <div class="group-label">Recap</div>
+    <a href="#glossary">Quick glossary</a>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <h1>Rubrik — From Scratch</h1>
+      <p class="lede">
+        A hands-on reference: how a Rubrik cluster is built (on-prem appliance, HA, own storage), how
+        onboarding actually works step by step, how a backup runs end to end, and how data extends out
+        to the cloud via Cloud Cluster and archival.
+      </p>
+      <div class="badge-row">
+        <span class="badge rubrik">Rubrik CDM / Security Cloud</span>
+        <span class="badge cloud">AWS / Azure / GCP</span>
+        <span class="badge">Hands-on Onboarding</span>
+      </div>
+    </header>
+
+    <!-- ============ WHAT IS RUBRIK ============ -->
+    <section id="what-is-rubrik">
+      <div class="eyebrow">01 — Architecture</div>
+      <h2>What is Rubrik, conceptually?</h2>
+      <p>
+        Rubrik is a <strong>converged backup appliance</strong> — it combines backup software, a
+        scale-out storage filesystem, and compute into a single clustered system. Instead of the
+        traditional model (separate backup software + media servers + a SAN/NAS target for backup data),
+        Rubrik is one product that does all three.
+      </p>
+      <p>
+        Two deployment philosophies exist side by side:
+      </p>
+      <div class="compare">
+        <div class="card">
+          <h4>Rubrik CDM (Cloud Data Management)</h4>
+          <ul>
+            <li>The software running on each node — does the actual backup, storage, and recovery work</li>
+            <li>Runs on physical appliances ("Briks"), as a virtual cluster, or as a Cloud Cluster</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>Rubrik Security Cloud (RSC)</h4>
+          <ul>
+            <li>A SaaS management plane that all CDM clusters register/report into</li>
+            <li>Where you create SLA Domains, monitor jobs, manage archival locations, and do most
+              day-to-day admin (current direction — replacing per-cluster local UI for most tasks)</li>
+          </ul>
+        </div>
+      </div>
+      <p class="dim">
+        Mental model: <strong>CDM is the engine in each cluster; RSC is the single dashboard you drive
+        all your engines from.</strong>
+      </p>
+    </section>
+
+    <!-- ============ CLUSTER ANATOMY ============ -->
+    <section id="cluster-anatomy">
+      <div class="eyebrow">01 — Architecture</div>
+      <h2>Cluster anatomy: Brik &amp; nodes</h2>
+      <p>
+        A <strong>Brik</strong> is a physical chassis containing multiple <strong>Rubrik nodes</strong>.
+        Nodes work together to form a <strong>Rubrik cluster</strong>.
+      </p>
+      <ul>
+        <li>Each node is made up of <strong>storage, network, and compute</strong> resources — it's a
+          self-contained mini-server, not a passive disk shelf</li>
+        <li>A Brik chassis commonly ships with 3 or 4 nodes — a fourth node can be added later to a
+          3-node chassis</li>
+        <li>A production on-prem cluster requires a <strong>minimum of 4 physical nodes</strong></li>
+        <li>The cluster is <strong>linearly scalable</strong> — adding capacity and I/O performance is
+          just a matter of adding more nodes (or more Briks)</li>
+      </ul>
+
+      <div class="flow">
+        <div class="step">Disks + NICs + CPU/RAM</div>
+        <span class="arrow">→</span>
+        <div class="step">= 1 Node</div>
+        <span class="arrow">→</span>
+        <div class="step">3–4 Nodes</div>
+        <span class="arrow">→</span>
+        <div class="step">= 1 Brik (chassis)</div>
+        <span class="arrow">→</span>
+        <div class="step">1+ Briks</div>
+        <span class="arrow">→</span>
+        <div class="step">= 1 Cluster</div>
+      </div>
+
+      <p class="dim">
+        This is the "own storage" part of your question — Rubrik's storage isn't external; each node
+        contributes its local disks to a cluster-wide distributed filesystem (covered next).
+      </p>
+    </section>
+
+    <!-- ============ DATA ENGINE: ATLAS / CEREBRO ============ -->
+    <section id="data-engine">
+      <div class="eyebrow">01 — Architecture</div>
+      <h2>Atlas, Cerebro &amp; how data is actually stored</h2>
+      <p>
+        Two internal components are worth knowing by name — they come up constantly in Rubrik docs and
+        in interviews:
+      </p>
+
+      <h4 class="label">Atlas — the distributed filesystem</h4>
+      <p>
+        Atlas is Rubrik's scale-out filesystem. When CDM ingests data from your environment, Atlas writes
+        both the <strong>data and its metadata using erasure coding, spread across disks, nodes, and
+        clusters</strong>. This is the storage layer underneath every backup.
+      </p>
+
+      <h4 class="label">Cerebro — the orchestration brain</h4>
+      <p>
+        Cerebro is the distributed, intelligent system that controls <strong>scheduling and data
+        movement</strong> across the cluster — it's what decides when backups run, where data lands, and
+        coordinates replication/archival jobs.
+      </p>
+
+      <h4 class="label">Self-healing &amp; resilience features</h4>
+      <ul>
+        <li><strong>Erasure coding</strong> across disks, nodes, and clusters means individual disk or
+          node failures don't cause data loss — Atlas rebuilds automatically</li>
+        <li><strong>Self-heal time is typically under an hour</strong> for a failed disk/node</li>
+        <li><strong>Copysets</strong> (introduced in CDM 5.1) intelligently distribute metadata copies
+          across nodes — roughly a 50x reduction in the risk of data loss if two nodes fail
+          simultaneously, compared to clusters without Copysets</li>
+        <li><strong>Zero-byte clones</strong> — Rubrik creates multiple logical copies from a single
+          "golden image" without consuming additional storage, enabling instant recovery / Live Mount
+          without a storage penalty</li>
+      </ul>
+
+      <div class="callout">
+        <div class="label">Why this matters for "own storage"</div>
+        <p>
+          There's no separate SAN/NAS to provision for backup targets. The cluster's nodes <em>are</em>
+          the storage — capacity and resilience scale together as you add nodes, and Atlas/Cerebro handle
+          placement and protection transparently.
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ HA / RESILIENCE ============ -->
+    <section id="ha-resilience">
+      <div class="eyebrow">01 — Architecture</div>
+      <h2>HA &amp; resilience model</h2>
+      <p>
+        "HA" in Rubrik isn't a separate bolt-on feature like an on-prem ONTAP HA pair — it's
+        <strong>built into the cluster's distributed design</strong>:
+      </p>
+      <ul>
+        <li>With a minimum of 4 nodes, the cluster tolerates node failures without downtime — erasure
+          coding ensures data remains accessible from surviving nodes</li>
+        <li>Each node carries storage + compute + network, so losing one node doesn't take a "controller"
+          offline the way it would in an active/passive array</li>
+        <li>The cluster continues accepting backup jobs and serving restores during a single-node (or, in
+          larger clusters, multi-node) failure, while Atlas rebuilds redundancy in the background</li>
+      </ul>
+      <p>
+        Network-wise, each node typically has <strong>two bonded network interfaces</strong>
+        (commonly referred to as bond0/bond1), each supporting active-passive failover — one network is
+        often used for management traffic and the other for backup data traffic, which can be segregated
+        onto separate VLANs after the cluster is bootstrapped and registered.
+      </p>
+      <div class="callout warn">
+        <div class="label">Encryption note</div>
+        <p>
+          If your cluster supports encryption of data at rest, CDM enables it <strong>by default during
+          initial configuration</strong>. Disabling it afterward requires a full cluster reset (which
+          deletes all stored data) — so this is a decision to make correctly at bootstrap time, not
+          later.
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ DEPLOYMENT OPTIONS ============ -->
+    <section id="deployment-options">
+      <div class="eyebrow">02 — Onboarding</div>
+      <h2>Deployment options</h2>
+      <p>
+        Before bootstrapping, you choose the form factor. This maps directly to "own storage" vs. cloud:
+      </p>
+      <table>
+        <thead><tr><th>Form factor</th><th>Where it runs</th><th>Storage model</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Physical appliance (Brik)</td>
+            <td>Your datacenter — purpose-built hardware (e.g. Cisco UCS C-Series)</td>
+            <td>Local disks per node, pooled via Atlas — this is "own storage"</td>
+          </tr>
+          <tr>
+            <td>Virtual Cluster</td>
+            <td>VMware/Hyper-V in your datacenter</td>
+            <td>VMDK/VHD-backed virtual disks per node</td>
+          </tr>
+          <tr>
+            <td>Cloud Cluster</td>
+            <td>AWS, Azure, or GCP — runs CDM software on cloud VM instances in a VPC/VNet</td>
+            <td>Cloud block storage (EBS/Managed Disk/Persistent Disk) per node</td>
+          </tr>
+          <tr>
+            <td>Cloud Cluster Elastic Storage (ES)</td>
+            <td>Same clouds, dense node configuration only</td>
+            <td>Decouples compute scaling from storage scaling — storage backed by object storage</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="dim">
+        Cloud Cluster supports standard or dense node configurations (not mixed); ES only supports dense
+        nodes. Dense nodes have higher resource requirements but are recommended for full feature
+        support.
+      </p>
+    </section>
+
+    <!-- ============ BOOTSTRAP ============ -->
+    <section id="bootstrap">
+      <div class="eyebrow">02 — Onboarding</div>
+      <h2>Bootstrap &amp; cluster setup — the actual first steps</h2>
+      <p>
+        "Bootstrap" is the process that takes a set of freshly-installed/powered-on nodes and turns them
+        into a working cluster. This is genuinely step 1 of onboarding.
+      </p>
+
+      <ol class="steps">
+        <li>
+          <strong>Physical/network prerequisites</strong>
+          Cable and power on the nodes. Each node needs an IP from the same subnet. Verify IPv6
+          connectivity is enabled at the switch — the initial onboarding UI is accessed via a node's
+          IPv6 address.
+        </li>
+        <li>
+          <strong>Access the onboarding UI</strong>
+          From a browser, access a Rubrik cluster node using its IPv6 address (found on a sticker on the
+          node, or via <code>ifconfig</code> from the Rubrik CLI). The onboarding page appears — click
+          <strong>Start Setup</strong>.
+        </li>
+        <li>
+          <strong>Node discovery</strong>
+          The guided configuration wizard starts at a "Nodes Discover" step, automatically discovering
+          all nodes that belong to this cluster.
+        </li>
+        <li>
+          <strong>Cluster bootstrap (CLI alternative)</strong>
+          Bootstrap can also be triggered via CLI: <code>cluster bootstrap</code> (optionally
+          <code>--skipIpmiSetup</code> if you don't want CDM managing IPMI/out-of-band management —
+          virtual platforms don't support IPMI configuration anyway).
+        </li>
+        <li>
+          <strong>User &amp; cluster configuration</strong>
+          During bootstrap you provide: an admin email (for notifications/alerts), an admin password
+          (minimum 8 characters), and a cluster name (how this cluster identifies itself in the UI and to
+          other Rubrik clusters).
+        </li>
+        <li>
+          <strong>NTP configuration</strong>
+          Time sync is configured during bootstrap — verify NTP servers are reachable (ping test) before
+          proceeding; replace the default pool with your own NTP server IPs if the defaults aren't
+          reachable.
+        </li>
+        <li>
+          <strong>Bootstrap progress</strong>
+          The CLI/UI displays progress as the cluster initializes its filesystem (Atlas) and internal
+          services. When complete, the cluster is ready to register.
+        </li>
+      </ol>
+
+      <pre>cluster bootstrap
+# (or, to skip IPMI configuration on physical nodes)
+cluster bootstrap --skipIpmiSetup
+
+# check progress
+status watch</pre>
+    </section>
+
+    <!-- ============ RSC REGISTRATION ============ -->
+    <section id="rsc-registration">
+      <div class="eyebrow">02 — Onboarding</div>
+      <h2>Registering with Rubrik Security Cloud</h2>
+      <p>
+        Once bootstrap completes, the cluster is functional but unregistered. Registration connects the
+        cluster to <strong>Rubrik Security Cloud (RSC)</strong> — the SaaS management plane.
+      </p>
+      <ol class="steps">
+        <li>
+          <strong>Sign in to the bootstrap-complete page</strong>
+          Enter the admin username/password you set during bootstrap.
+        </li>
+        <li>
+          <strong>Provide your RSC domain URL</strong>
+          This is your organization's RSC account URL — found in the Rubrik Welcome email, or via the
+          Rubrik Support portal (My Products tab) if you don't have it handy.
+        </li>
+        <li>
+          <strong>Log in to RSC</strong>
+          The Online Cluster Registration dialog appears.
+        </li>
+        <li>
+          <strong>Select service type</strong>
+          <ul>
+            <li><strong>Rubrik Security Cloud (SaaS)</strong> — manage all data protection through RSC
+              (the current recommended/default direction)</li>
+            <li><strong>CDM (Software)</strong> — manage this cluster locally instead</li>
+          </ul>
+        </li>
+      </ol>
+
+      <div class="callout">
+        <div class="label">Offline registration option</div>
+        <p>
+          If the cluster has no internet access for online registration, use <strong>offline
+          registration</strong>: retrieve a registration key (as a JSON file) from the cluster, then open
+          the Welcome email's registration link (or navigate to
+          <code>rubrik_account_name.&lt;domain&gt;/offlineregistration</code>) in a separate browser
+          session to complete pairing.
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ ADDING HOSTS / RBS ============ -->
+    <section id="adding-hosts">
+      <div class="eyebrow">02 — Onboarding</div>
+      <h2>Adding hosts &amp; the Rubrik Backup Service (RBS)</h2>
+      <p>
+        With the cluster registered, the next onboarding step is connecting it to the things you want to
+        protect. There are two broad protection styles:
+      </p>
+
+      <div class="compare">
+        <div class="card">
+          <h4>Agentless (hypervisor-integrated)</h4>
+          <ul>
+            <li>VMware vSphere VMs via <strong>VADP</strong> (vSphere Storage APIs for Data Protection)</li>
+            <li>Rubrik requests/retrieves VM data directly from ESXi — no agent inside the guest OS</li>
+            <li>Backup processing is offloaded to ESXi hosts + the Rubrik cluster</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>Agent-based (Rubrik Backup Service / RBS)</h4>
+          <ul>
+            <li>For physical/virtual Windows, Linux, Unix, AIX, Solaris hosts, filesets, and applications
+              (SQL Server, Oracle via RMAN, etc.)</li>
+            <li>RBS installed as a service/daemon on the host</li>
+            <li>Enables app-aware backups, volume-level protection, and granular SLA assignment</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Adding a fileset host (typical flow)</h3>
+      <ol class="steps">
+        <li>
+          <strong>Install RBS on the target host</strong>
+          The RBS connector is downloadable from RSC or the cluster UI — RSC also offers to download and
+          install RBS automatically while adding a host that doesn't have it yet. RBS runs as a Windows
+          service (or daemon on Linux/Unix) and requires no reboot to install.
+        </li>
+        <li>
+          <strong>Add the host to the cluster</strong>
+          In RSC: Inventory → select the fileset card matching the host's OS type → Add Hosts.
+        </li>
+        <li>
+          <strong>Discovery</strong>
+          Once RBS is installed and the host is added, application instances are auto-discovered — e.g.
+          for SQL Server, instances and databases appear automatically without further configuration.
+        </li>
+        <li>
+          <strong>Create a fileset (for file-level protection)</strong>
+          Pair a fileset definition (include/exclude rules for folders and file types) with the host or
+          NAS share.
+        </li>
+        <li>
+          <strong>Assign an SLA Domain</strong>
+          Apply protection by assigning an SLA Domain to the host, fileset, instance, database, or VM —
+          covered next.
+        </li>
+      </ol>
+
+      <p class="dim">
+        For VMware environments, connecting CDM to vCenter (or a Hyper-V Manager for Hyper-V hosts)
+        surfaces the full VM inventory directly — no RBS install needed per-VM unless you also want
+        application-aware (e.g. in-guest SQL) protection.
+      </p>
+    </section>
+
+    <!-- ============ SLA DOMAINS ============ -->
+    <section id="sla-domains">
+      <div class="eyebrow">02 — Onboarding</div>
+      <h2>SLA Domains — the policy model</h2>
+      <p>
+        This is the core conceptual shift from traditional backup software: Rubrik replaces the
+        "imperative" model (manually define backup jobs, schedules, media agents, retention rules per
+        job) with a <strong>declarative policy model</strong>.
+      </p>
+      <p>
+        An <strong>SLA Domain</strong> defines, in one object:
+      </p>
+      <ul>
+        <li><strong>Snapshot frequency</strong> — how often backups are taken (e.g. hourly, daily)</li>
+        <li><strong>Retention</strong> — how long each snapshot is kept</li>
+        <li><strong>Archival policy</strong> (optional, up to two per SLA Domain) — where and when
+          snapshots get tiered to an archival location (cloud, NFS, tape, etc.)</li>
+        <li><strong>Replication policy</strong> (optional) — whether/where snapshots replicate to another
+          Rubrik cluster</li>
+      </ul>
+
+      <h3>Assigning protection</h3>
+      <p>
+        You assign an SLA Domain to an object — and that's the whole "job definition." No backup
+        windows to schedule, no media agents to pick.
+      </p>
+
+      <h3>Auto-protection (inheritance)</h3>
+      <p>
+        SLA Domains can auto-assign protection hierarchically:
+      </p>
+      <ul>
+        <li>Assign an SLA Domain to a top-level object (e.g. a vCenter Server, a Database Server, a
+          folder)</li>
+        <li>Any new VM/database/object created under that parent <strong>automatically inherits</strong>
+          the SLA Domain</li>
+        <li>Moving an object into a protected hierarchy also applies inherited protection</li>
+      </ul>
+
+      <div class="callout">
+        <div class="label">Why this matters for onboarding at scale</div>
+        <p>
+          Instead of remembering to add every new VM to a backup job, you assign SLA Domains at the
+          vCenter/folder/cluster level once — new VMs are protected automatically from the moment they're
+          created, with zero additional admin action.
+        </p>
+      </div>
+
+      <h3>Remote Domains (multi-cluster visibility)</h3>
+      <p>
+        If you're using replication between clusters, SLA Domains used for replication are visible on
+        the destination cluster's <strong>Remote Domains</strong> page — the only setting modifiable
+        remotely is the archival policy, to avoid configuration drift across sites.
+      </p>
+    </section>
+
+    <!-- ============ BACKUP FLOW ============ -->
+    <section id="backup-flow">
+      <div class="eyebrow">02 — Onboarding</div>
+      <h2>How a backup actually runs, end to end</h2>
+      <div class="flow">
+        <div class="step">SLA Domain triggers schedule</div>
+        <span class="arrow">→</span>
+        <div class="step">Cerebro schedules the job</div>
+        <span class="arrow">→</span>
+        <div class="step">Snapshot taken (VADP / RBS / RMAN)</div>
+        <span class="arrow">→</span>
+        <div class="step">Data ingested &amp; deduped</div>
+        <span class="arrow">→</span>
+        <div class="step">Atlas writes data + metadata (erasure coded)</div>
+        <span class="arrow">→</span>
+        <div class="step">Retention/archival rules applied per SLA</div>
+      </div>
+
+      <h3>For a VMware VM</h3>
+      <p>
+        Rubrik uses VADP to request a snapshot from ESXi — no agent inside the VM. The changed-block data
+        since the last snapshot is read and ingested into the cluster, deduplicated against existing
+        data, and written via Atlas. The VM's own snapshot is then released on the ESXi side (Rubrik
+        doesn't leave its own snapshots accumulating on the datastore).
+      </p>
+
+      <h3>For a SQL Server database (via RBS)</h3>
+      <p>
+        RBS coordinates with the SQL VSS writer (or operates in crash-consistent mode if configured) to
+        produce an application-consistent backup, plus periodic log backups per the SLA Domain — enabling
+        point-in-time recovery between full snapshots.
+      </p>
+
+      <h3>For a fileset</h3>
+      <p>
+        RBS walks the configured include/exclude paths, identifies changed files since the last backup,
+        and ingests only the deltas.
+      </p>
+
+      <p class="dim">
+        In all cases, the result lands in the same place conceptually: a new, space-efficient,
+        erasure-coded snapshot in Atlas, tracked by Cerebro, governed by the retention/archival rules in
+        the assigned SLA Domain.
+      </p>
+    </section>
+
+    <!-- ============ RESTORE / LIVE MOUNT ============ -->
+    <section id="restore">
+      <div class="eyebrow">02 — Onboarding</div>
+      <h2>Restore &amp; Live Mount</h2>
+      <p>
+        Because of zero-byte clones and zero-copy recovery, Rubrik's restore model is fast by design:
+      </p>
+      <ul>
+        <li><strong>Live Mount</strong> — instantly mount a snapshot (a VM, a database, a fileset/share)
+          as a usable, writable clone without copying data first. Useful for test/dev, ransomware
+          investigation, or quick file-level recovery without a full restore</li>
+        <li><strong>Export/Restore</strong> — write the snapshot data back to the original or a new
+          location (e.g. restore a VM to a different datastore, restore files to an original path)</li>
+        <li><strong>Granular recovery</strong> — for SQL/Oracle, recover individual databases to a
+          specific point in time using full snapshot + log backups, without restoring the entire VM</li>
+        <li><strong>Recovery from archive</strong> — for snapshots already tiered to cloud archival,
+          Rubrik can recover at the snapshot or file level selectively, without downloading the entire
+          archived dataset (reducing egress costs)</li>
+      </ul>
+    </section>
+
+    <!-- ============ CLOUD CLUSTER ============ -->
+    <section id="cloud-cluster">
+      <div class="eyebrow">03 — To the Cloud</div>
+      <h2>Cloud Cluster — running CDM in AWS / Azure / GCP</h2>
+      <p>
+        This is the most literal answer to "moved the data to cloud": Rubrik CDM itself can run as a
+        <strong>cluster of VM instances inside a cloud VPC/VNet</strong> — same software, same Atlas/
+        Cerebro architecture, just on cloud compute and cloud block storage instead of physical Briks.
+      </p>
+
+      <table>
+        <thead><tr><th>Aspect</th><th>On-prem Brik</th><th>Cloud Cluster</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Compute</td>
+            <td>Physical node (UCS C-Series etc.)</td>
+            <td>Cloud VM instance (EC2 / Azure VM / GCE)</td>
+          </tr>
+          <tr>
+            <td>Storage</td>
+            <td>Local disks per node, Atlas across them</td>
+            <td>Cloud block storage (EBS / Managed Disk / Persistent Disk) per node, Atlas across them</td>
+          </tr>
+          <tr>
+            <td>Minimum nodes</td>
+            <td>4 (production)</td>
+            <td>Same minimums apply for standard clusters</td>
+          </tr>
+          <tr>
+            <td>Network</td>
+            <td>Physical switches, VLANs</td>
+            <td>VPC/VNet security groups — inbound 22/443, outbound allowed</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Setup flow (conceptually identical to on-prem)</h3>
+      <ol class="steps">
+        <li>
+          <strong>Network prep</strong>
+          Create a security group/NSG allowing all outbound traffic and inbound on ports 22 and 443.
+        </li>
+        <li>
+          <strong>Instantiate nodes</strong>
+          Launch the Cloud Cluster instances from the cloud marketplace image (AMI for AWS, equivalent
+          for Azure/GCP) — minimum node count per the standard/dense node requirements for that cloud.
+        </li>
+        <li>
+          <strong>System setup / bootstrap</strong>
+          Open an SSH (or console) connection to one of the nodes and run the system setup script — same
+          <code>cluster bootstrap</code> flow as on-prem: NTP check, admin email/password, cluster name.
+        </li>
+        <li>
+          <strong>Log in to CDM web UI</strong>
+          First login uses the admin account created during bootstrap.
+        </li>
+        <li>
+          <strong>Node entitlement</strong>
+          Online entitlement via Rubrik CLI ties the cloud nodes to your Rubrik account/license; offline
+          entitlement is available for nodes without internet access.
+        </li>
+        <li>
+          <strong>Prepare hosts for protection</strong>
+          Same as on-prem: obtain and install the RBS connector on hosts you want to protect — which can
+          include workloads running in the cloud (cloud-native VMs) alongside on-prem hosts reachable via
+          VPN/peering.
+        </li>
+      </ol>
+
+      <h3>Standard vs Dense nodes</h3>
+      <p>
+        Standard and dense node configurations have different minimum resource requirements per cloud.
+        Standard nodes have lower requirements but don't support all CDM features; dense nodes have
+        higher requirements but are recommended for full feature parity with on-prem. Cloud Cluster
+        Elastic Storage (ES) supports dense nodes only, and decouples storage scaling from compute by
+        backing capacity with object storage.
+      </p>
+
+      <div class="callout">
+        <div class="label">"Own storage" → cloud, the direct path</div>
+        <p>
+          A Cloud Cluster is functionally a second Rubrik cluster — your on-prem cluster can
+          <strong>replicate</strong> SLA-protected snapshots to it, just like replicating to a second
+          on-prem cluster at a DR site. This is the most common "moved to cloud" pattern: on-prem cluster
+          stays the primary backup target, Cloud Cluster becomes the DR/secondary copy.
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ ARCHIVAL / CLOUD VAULT ============ -->
+    <section id="archival">
+      <div class="eyebrow">03 — To the Cloud</div>
+      <h2>Archival &amp; Rubrik Cloud Vault</h2>
+      <p>
+        The other "moved to cloud" path — and the more common one for cost-driven long-term
+        retention — is <strong>archival</strong>: tiering older snapshots from the Rubrik cluster's local
+        storage out to object storage, governed entirely by the SLA Domain's archival policy.
+      </p>
+
+      <h3>Supported archival locations</h3>
+      <ul>
+        <li><strong>Rubrik Cloud Vault</strong> — Rubrik-managed cloud storage, hosted in AWS or Azure</li>
+        <li><strong>Microsoft Azure</strong> (Blob storage, customer-owned)</li>
+        <li><strong>Amazon S3</strong></li>
+        <li><strong>Google Cloud Platform</strong></li>
+        <li><strong>NFS Shares</strong></li>
+        <li><strong>Object Store (S3-compatible)</strong> — for on-prem object storage like StorageGRID</li>
+        <li><strong>Tape</strong></li>
+      </ul>
+
+      <h3>How it's configured</h3>
+      <ol class="steps">
+        <li>
+          <strong>Create an archival location</strong>
+          In RSC, define the target (e.g. a Rubrik Cloud Vault location): select the cluster(s) it
+          applies to, give it a name, choose a storage tier (Backup or Archive), and select a region.
+        </li>
+        <li>
+          <strong>Add it to an SLA Domain</strong>
+          An SLA Domain can include up to two archival policies, each specifying which archival location
+          to use and the minimum time after backup before data is archived.
+        </li>
+        <li>
+          <strong>Assign the SLA Domain</strong>
+          Once assigned to a workload, RSC begins archiving snapshots to the archival location based on
+          the SLA's frequency/timing rules — fully automatic from here.
+        </li>
+      </ol>
+
+      <h3>Archival behaviors worth knowing</h3>
+      <table>
+        <thead><tr><th>Term</th><th>What it means</th></tr></thead>
+        <tbody>
+          <tr><td>Instant Archive</td><td>Archive a snapshot to the archival location immediately, outside the normal SLA schedule</td></tr>
+          <tr><td>Instant Tiering</td><td>Supported for Rubrik Cloud Vault Archive-tier locations — tier data as soon as it's eligible</td></tr>
+          <tr><td>Tier existing snapshots</td><td>Rapidly tier already-existing local snapshots to the Archive tier when configuring the policy</td></tr>
+          <tr><td>Immutable (container-level)</td><td>Optional setting for Rubrik Cloud Vault Backup-tier locations — protects archived data from deletion/modification</td></tr>
+          <tr><td>Bypass proxy</td><td>Route archival traffic directly, skipping the system proxy, if configured</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout warn">
+        <div class="label">Rubrik Cloud Vault feature limits</div>
+        <p>
+          Rubrik Cloud Vault (Archive-tier) locations do <strong>not</strong> support Consolidation, Smart
+          Tiering, or CloudOn — these features are available with customer-owned Azure/AWS/GCP archival
+          locations instead. Check feature support against your chosen archival target before designing
+          retention policies around it.
+        </p>
+      </div>
+
+      <h3>Recovery from archive</h3>
+      <p>
+        Archived data doesn't need to be fully rehydrated to restore from — Rubrik supports recovering at
+        the snapshot or file level selectively from archive, avoiding the cost and time of downloading an
+        entire archived dataset just to pull one file.
+      </p>
+    </section>
+
+    <!-- ============ PUTTING IT TOGETHER ============ -->
+    <section id="putting-together">
+      <div class="eyebrow">03 — To the Cloud</div>
+      <h2>Putting it together — a realistic rollout</h2>
+      <p>
+        A typical end-to-end onboarding that matches "HA + own storage, then moved data to cloud" looks
+        like this:
+      </p>
+      <ol class="steps">
+        <li>
+          <strong>Deploy the on-prem cluster</strong>
+          Rack 4+ nodes (1+ Briks), cable bond0/bond1 networks, verify IPv6 at the switch.
+        </li>
+        <li>
+          <strong>Bootstrap</strong>
+          <code>cluster bootstrap</code> — set admin credentials, cluster name, NTP, encryption-at-rest
+          decision.
+        </li>
+        <li>
+          <strong>Register with RSC</strong>
+          Online or offline registration, choose RSC (SaaS) management.
+        </li>
+        <li>
+          <strong>Onboard workloads</strong>
+          Connect vCenter/Hyper-V for VM protection (VADP, agentless); install RBS on physical/VM hosts
+          needing app-aware or fileset protection.
+        </li>
+        <li>
+          <strong>Define SLA Domains</strong>
+          Create policies (e.g. "Gold: hourly snapshots, 30-day retention"); assign at the vCenter/folder
+          level for auto-protection of new VMs.
+        </li>
+        <li>
+          <strong>Validate backups &amp; test restores</strong>
+          Confirm jobs run per SLA; test Live Mount for a sample VM and a sample database.
+        </li>
+        <li>
+          <strong>Extend to cloud — pick one or both:</strong>
+          <ul>
+            <li><strong>Replication to a Cloud Cluster</strong> (AWS/Azure/GCP) for DR — a second full
+              Rubrik cluster running in the cloud</li>
+            <li><strong>Archival to Rubrik Cloud Vault or customer-owned object storage</strong> for
+              long-term, cost-efficient retention of older snapshots</li>
+          </ul>
+        </li>
+        <li>
+          <strong>Add the archival/replication policy to existing SLA Domains</strong>
+          No new jobs to create — the existing protected workloads automatically start sending data to
+          the cloud target per the updated policy.
+        </li>
+      </ol>
+
+      <div class="callout">
+        <div class="label">The throughline</div>
+        <p>
+          Every stage — local backup, replication to a cloud cluster, archival to object storage — is
+          driven by the <strong>same SLA Domain object</strong>. Onboarding a new workload to "cloud
+          protection" is just assigning it the SLA Domain that already has the cloud policy attached, not
+          building a parallel cloud backup pipeline.
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ GLOSSARY ============ -->
+    <section id="glossary">
+      <div class="eyebrow">04 — Recap</div>
+      <h2>Quick glossary</h2>
+      <table>
+        <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>Brik</td><td>Physical chassis containing multiple Rubrik nodes</td></tr>
+          <tr><td>Node</td><td>A self-contained unit of storage + compute + network within a Brik or Cloud Cluster instance</td></tr>
+          <tr><td>Atlas</td><td>Rubrik's distributed filesystem — stores data/metadata with erasure coding across disks, nodes, clusters</td></tr>
+          <tr><td>Cerebro</td><td>Distributed orchestration system — controls scheduling and data movement cluster-wide</td></tr>
+          <tr><td>Copysets</td><td>Intelligent metadata distribution across nodes — drastically reduces risk of data loss from simultaneous multi-node failure</td></tr>
+          <tr><td>RBS</td><td>Rubrik Backup Service — host-installed agent for filesets, applications (SQL/Oracle), and physical servers</td></tr>
+          <tr><td>VADP</td><td>vSphere Storage APIs for Data Protection — agentless VM backup via ESXi/vCenter</td></tr>
+          <tr><td>SLA Domain</td><td>Declarative policy object: snapshot frequency, retention, archival, and replication rules in one place</td></tr>
+          <tr><td>Auto-protection</td><td>Hierarchical inheritance of SLA Domains to new/child objects</td></tr>
+          <tr><td>Live Mount</td><td>Instant, writable clone of a snapshot — no data copy required first</td></tr>
+          <tr><td>Cloud Cluster</td><td>Rubrik CDM running as a VM cluster inside AWS/Azure/GCP — same architecture, cloud compute/storage</td></tr>
+          <tr><td>Rubrik Cloud Vault (RCV)</td><td>Rubrik-managed archival storage hosted in AWS/Azure, with Backup and Archive tiers</td></tr>
+          <tr><td>RSC</td><td>Rubrik Security Cloud — the SaaS management plane all clusters register into</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer>
+      Compiled as a hands-on onboarding reference for Rubrik CDM/RSC — from initial cluster bootstrap
+      through SLA-driven protection, replication, and cloud archival.
+    </footer>
+  </main>
+</div>
+
+<script>
+  const links = document.querySelectorAll('nav.toc a');
+  const sections = document.querySelectorAll('main section');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const id = entry.target.getAttribute('id');
+      const link = document.querySelector(`nav.toc a[href="#${id}"]`);
+      if (!link) return;
+      if (entry.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px', threshold: 0 });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
