@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetApp MetroCluster – Complete Tutorial</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0a0e1a;
+    --bg2: #111827;
+    --bg3: #1a2235;
+    --bg4: #1e2d45;
+    --border: rgba(99,179,237,0.15);
+    --border2: rgba(99,179,237,0.3);
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --text3: #64748b;
+    --blue: #3b82f6;
+    --blue-light: #60a5fa;
+    --blue-dim: rgba(59,130,246,0.12);
+    --teal: #14b8a6;
+    --teal-dim: rgba(20,184,166,0.12);
+    --amber: #f59e0b;
+    --amber-dim: rgba(245,158,11,0.12);
+    --red: #ef4444;
+    --red-dim: rgba(239,68,68,0.12);
+    --green: #22c55e;
+    --green-dim: rgba(34,197,94,0.12);
+    --purple: #a855f7;
+    --purple-dim: rgba(168,85,247,0.12);
+    --radius: 10px;
+    --radius-lg: 16px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 15px;
+  }
+
+  /* ─── HERO ─────────────────────────────── */
+  .hero {
+    background: linear-gradient(135deg, #0a0e1a 0%, #0d1b3e 50%, #0a1628 100%);
+    border-bottom: 1px solid var(--border2);
+    padding: 60px 40px 50px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -80px; right: -80px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(59,130,246,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--blue-light);
+    margin-bottom: 16px;
+  }
+  .hero h1 {
+    font-size: 38px;
+    font-weight: 700;
+    line-height: 1.15;
+    color: #fff;
+    max-width: 700px;
+    margin-bottom: 16px;
+  }
+  .hero h1 span { color: var(--blue-light); }
+  .hero-sub {
+    color: var(--text2);
+    font-size: 16px;
+    max-width: 580px;
+    margin-bottom: 32px;
+  }
+  .hero-badges { display: flex; gap: 10px; flex-wrap: wrap; }
+  .badge {
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid;
+  }
+  .badge-blue  { background: var(--blue-dim);   color: var(--blue-light); border-color: rgba(96,165,250,0.3); }
+  .badge-teal  { background: var(--teal-dim);   color: var(--teal);       border-color: rgba(20,184,166,0.3); }
+  .badge-amber { background: var(--amber-dim);  color: var(--amber);      border-color: rgba(245,158,11,0.3); }
+
+  /* ─── NAV ───────────────────────────────── */
+  .toc {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 40px;
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .toc a {
+    color: var(--text2);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 14px 18px;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .toc a:hover { color: var(--blue-light); border-bottom-color: var(--blue); }
+
+  /* ─── LAYOUT ────────────────────────────── */
+  .container { max-width: 1000px; margin: 0 auto; padding: 0 40px 80px; }
+
+  /* ─── SECTIONS ──────────────────────────── */
+  .section { padding: 56px 0 0; }
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--blue);
+    margin-bottom: 8px;
+  }
+  .section h2 {
+    font-size: 26px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 14px;
+    line-height: 1.25;
+  }
+  .section p { color: var(--text2); margin-bottom: 14px; }
+  .section p strong { color: var(--text); font-weight: 600; }
+
+  /* ─── DIAGRAM CARDS ─────────────────────── */
+  .diagram-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    margin: 28px 0;
+    overflow: hidden;
+  }
+  .diagram-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text3);
+    margin-bottom: 20px;
+  }
+
+  /* ─── INFO BOXES ─────────────────────────── */
+  .info-box {
+    border-radius: var(--radius);
+    padding: 18px 22px;
+    margin: 20px 0;
+    border-left: 3px solid;
+    font-size: 14px;
+  }
+  .info-box.blue  { background: var(--blue-dim);  border-color: var(--blue);  color: #93c5fd; }
+  .info-box.teal  { background: var(--teal-dim);  border-color: var(--teal);  color: #5eead4; }
+  .info-box.amber { background: var(--amber-dim); border-color: var(--amber); color: #fcd34d; }
+  .info-box.red   { background: var(--red-dim);   border-color: var(--red);   color: #fca5a5; }
+  .info-box.green { background: var(--green-dim); border-color: var(--green); color: #86efac; }
+  .info-box strong { font-weight: 600; display: block; margin-bottom: 4px; }
+
+  /* ─── KEY TERM ───────────────────────────── */
+  .key-term {
+    display: inline-block;
+    background: var(--blue-dim);
+    color: var(--blue-light);
+    border: 1px solid rgba(96,165,250,0.25);
+    border-radius: 5px;
+    padding: 1px 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+  }
+
+  /* ─── COMPARISON TABLE ───────────────────── */
+  .comp-table { width: 100%; border-collapse: collapse; margin: 28px 0; font-size: 14px; }
+  .comp-table th {
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border2);
+    color: var(--text3);
+  }
+  .comp-table th:first-child { color: var(--text2); }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); color: var(--text2); vertical-align: top; }
+  .comp-table td:first-child { color: var(--text); font-weight: 500; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .comp-table th.col-mc { color: var(--blue-light); }
+  .comp-table th.col-sm { color: var(--teal); }
+  .comp-table th.col-sv { color: var(--amber); }
+  .win  { color: var(--green); font-weight: 600; }
+  .mid  { color: var(--amber); font-weight: 500; }
+  .lose { color: var(--red-dim); color: #f87171; }
+
+  /* ─── FEATURE GRID ───────────────────────── */
+  .feat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin: 28px 0; }
+  .feat-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+  }
+  .feat-icon { font-size: 22px; margin-bottom: 10px; }
+  .feat-card h4 { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 6px; }
+  .feat-card p  { font-size: 13px; color: var(--text2); line-height: 1.5; }
+
+  /* ─── TIER TABLE ─────────────────────────── */
+  .tier-table { width: 100%; border-collapse: collapse; margin: 28px 0; font-size: 14px; }
+  .tier-table th { background: var(--bg3); padding: 10px 14px; text-align: left; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--text3); border: 1px solid var(--border); }
+  .tier-table td { padding: 11px 14px; border: 1px solid var(--border); color: var(--text2); }
+  .tier-table td:first-child { font-weight: 600; color: var(--text); }
+  .tier-0 { border-left: 3px solid var(--red)   !important; }
+  .tier-1 { border-left: 3px solid var(--amber) !important; }
+  .tier-2 { border-left: 3px solid var(--blue)  !important; }
+  .tier-3 { border-left: 3px solid var(--text3) !important; }
+
+  /* ─── SVG DIAGRAMS ───────────────────────── */
+  svg text { font-family: 'Inter', sans-serif; }
+  .diagram-svg { width: 100%; overflow: visible; }
+
+  /* ─── DIVIDER ────────────────────────────── */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+
+  /* ─── FOOTER ─────────────────────────────── */
+  .footer {
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    padding: 32px 40px;
+    color: var(--text3);
+    font-size: 13px;
+    text-align: center;
+  }
+
+  /* ─── STEP LIST ──────────────────────────── */
+  .step-list { list-style: none; margin: 20px 0; }
+  .step-list li {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    margin-bottom: 14px;
+    font-size: 14px;
+    color: var(--text2);
+  }
+  .step-num {
+    flex-shrink: 0;
+    width: 26px; height: 26px;
+    background: var(--blue-dim);
+    border: 1px solid rgba(96,165,250,0.3);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+    color: var(--blue-light);
+    margin-top: 1px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<div class="hero">
+  <div class="hero-eyebrow">NetApp Storage Architecture</div>
+  <h1>MetroCluster &amp; <span>SnapMirror Sync</span><br>Complete Tutorial</h1>
+  <p class="hero-sub">Understand how NetApp delivers zero-RPO, zero-RTO disaster recovery — and when to use MetroCluster vs SnapMirror Sync vs SVM-DR.</p>
+  <div class="hero-badges">
+    <span class="badge badge-blue">MetroCluster</span>
+    <span class="badge badge-teal">SnapMirror Sync</span>
+    <span class="badge badge-amber">SVM-DR</span>
+  </div>
+</div>
+
+<!-- ═══════════════ TOC NAV ═══════════════ -->
+<nav class="toc">
+  <a href="#overview">Overview</a>
+  <a href="#metrocluster">MetroCluster</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#syncmirror">SyncMirror</a>
+  <a href="#snapmirror">SnapMirror Sync</a>
+  <a href="#svmdr">SVM-DR</a>
+  <a href="#comparison">Comparison</a>
+  <a href="#usecase">Use Cases</a>
+</nav>
+
+<div class="container">
+
+<!-- ═══════════════ SECTION 1: OVERVIEW ═══════════════ -->
+<div class="section" id="overview">
+  <div class="section-label">Section 01</div>
+  <h2>Why Disaster Recovery Matters</h2>
+  <p>Enterprise storage must guarantee two things during a failure: no data loss (<strong>RPO = 0</strong>) and no downtime (<strong>RTO ≈ 0</strong>). NetApp provides multiple technologies to achieve this, and understanding <em>which layer</em> each one protects is the key to designing a bulletproof storage architecture.</p>
+
+  <div class="diagram-card">
+    <div class="diagram-title">The Recovery Spectrum</div>
+    <svg class="diagram-svg" viewBox="0 0 900 160">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+      <!-- Arrow axis -->
+      <line x1="50" y1="80" x2="850" y2="80" stroke="#334155" stroke-width="2" marker-end="url(#arr)"/>
+      <text x="455" y="130" fill="#475569" font-size="12" text-anchor="middle">Recovery Time Objective (RTO) →  Worse</text>
+
+      <!-- MC block -->
+      <rect x="60" y="44" width="180" height="56" rx="8" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1.5"/>
+      <text x="150" y="70" fill="#60a5fa" font-size="13" font-weight="600" text-anchor="middle">MetroCluster</text>
+      <text x="150" y="87" fill="#3b82f6" font-size="11" text-anchor="middle">RTO &lt;60s  |  RPO=0</text>
+
+      <!-- SM-S block -->
+      <rect x="270" y="44" width="200" height="56" rx="8" fill="rgba(20,184,166,0.1)" stroke="#14b8a6" stroke-width="1.5"/>
+      <text x="370" y="70" fill="#2dd4bf" font-size="13" font-weight="600" text-anchor="middle">SnapMirror Sync</text>
+      <text x="370" y="87" fill="#0d9488" font-size="11" text-anchor="middle">RTO mins–hours  |  RPO=0</text>
+
+      <!-- SVM-DR block -->
+      <rect x="500" y="44" width="170" height="56" rx="8" fill="rgba(245,158,11,0.1)" stroke="#f59e0b" stroke-width="1.5"/>
+      <text x="585" y="70" fill="#fbbf24" font-size="13" font-weight="600" text-anchor="middle">SVM-DR</text>
+      <text x="585" y="87" fill="#d97706" font-size="11" text-anchor="middle">RTO hours  |  RPO mins</text>
+
+      <!-- Async block -->
+      <rect x="700" y="44" width="140" height="56" rx="8" fill="rgba(100,116,139,0.1)" stroke="#475569" stroke-width="1"/>
+      <text x="770" y="70" fill="#94a3b8" font-size="13" font-weight="600" text-anchor="middle">Async SM</text>
+      <text x="770" y="87" fill="#64748b" font-size="11" text-anchor="middle">RTO hours  |  RPO mins</text>
+    </svg>
+  </div>
+
+  <div class="info-box blue">
+    <strong>Core Concept</strong>
+    RPO (Recovery Point Objective) = how much data can you afford to lose?<br>
+    RTO (Recovery Time Objective) = how long can you afford to be down?<br>
+    Both must be zero for Tier-0 mission-critical workloads.
+  </div>
+</div>
+
+<hr class="divider" style="margin-top:48px">
+
+<!-- ═══════════════ SECTION 2: METROCLUSTER ═══════════════ -->
+<div class="section" id="metrocluster">
+  <div class="section-label">Section 02</div>
+  <h2>What is NetApp MetroCluster?</h2>
+  <p>MetroCluster is <strong>not just replication</strong> — it is a <em>stretched hardware cluster</em> that mirrors the entire storage infrastructure across two geographically separate sites. When one site fails, the surviving site takes over <strong>automatically and transparently</strong>, typically within 60 seconds, with zero data loss.</p>
+  <p>Think of it as RAID-1 for your entire data centre — not just your disks, but your controllers, aggregates, LUNs, NFS paths, and network identity.</p>
+
+  <div class="feat-grid">
+    <div class="feat-card">
+      <div class="feat-icon">🔄</div>
+      <h4>Automatic Failover</h4>
+      <p>No human intervention required. Hosts don't see a disruption — paths fail over via ALUA/multipathing.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🏗️</div>
+      <h4>Infrastructure Mirror</h4>
+      <p>Mirrors controllers, aggregates, LUNs, SVMs, and config — not just volume data.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">⚡</div>
+      <h4>Zero RPO</h4>
+      <p>Every write is committed to both sites synchronously before the application gets an ACK.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🌐</div>
+      <h4>Metro Distance</h4>
+      <p>Supported up to 300km between sites (IP MetroCluster). FC MetroCluster supports up to ~700km.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🔒</div>
+      <h4>FC & NAS Support</h4>
+      <p>Works with FC SAN, iSCSI, NFS, CIFS/SMB. WWPNs and LUN IDs remain the same after failover.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">🛡️</div>
+      <h4>Split-Brain Protection</h4>
+      <p>Mediator (3rd site) or Tiebreaker software prevents both sites from claiming ownership simultaneously.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ SECTION 3: ARCHITECTURE ═══════════════ -->
+<div class="section" id="architecture">
+  <div class="section-label">Section 03</div>
+  <h2>MetroCluster Architecture</h2>
+  <p>A MetroCluster configuration consists of two HA pairs (one per site) connected via inter-switch links (ISLs). Each site has its own controllers, switches, and disk shelves, but they operate as a single ONTAP cluster.</p>
+
+  <div class="diagram-card">
+    <div class="diagram-title">MetroCluster Two-Site Architecture</div>
+    <svg class="diagram-svg" viewBox="0 0 900 400">
+      <defs>
+        <marker id="arr2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+
+      <!-- Site A -->
+      <rect x="20" y="20" width="380" height="340" rx="16" fill="rgba(59,130,246,0.05)" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="8,4"/>
+      <text x="210" y="46" fill="#60a5fa" font-size="13" font-weight="700" text-anchor="middle">SITE A — Primary</text>
+
+      <!-- Node A1 -->
+      <rect x="50" y="70" width="140" height="60" rx="8" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="1"/>
+      <text x="120" y="97" fill="#93c5fd" font-size="13" font-weight="600" text-anchor="middle">Node A1</text>
+      <text x="120" y="114" fill="#3b82f6" font-size="11" text-anchor="middle">Controller</text>
+
+      <!-- Node A2 -->
+      <rect x="210" y="70" width="140" height="60" rx="8" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="1"/>
+      <text x="280" y="97" fill="#93c5fd" font-size="13" font-weight="600" text-anchor="middle">Node A2</text>
+      <text x="280" y="114" fill="#3b82f6" font-size="11" text-anchor="middle">Controller</text>
+
+      <!-- HA link A -->
+      <line x1="192" y1="100" x2="208" y2="100" stroke="#60a5fa" stroke-width="2" stroke-dasharray="4,2"/>
+      <text x="200" y="88" fill="#475569" font-size="10" text-anchor="middle">HA</text>
+
+      <!-- Switch A -->
+      <rect x="100" y="170" width="200" height="44" rx="8" fill="rgba(100,116,139,0.15)" stroke="#475569" stroke-width="1"/>
+      <text x="200" y="196" fill="#94a3b8" font-size="13" font-weight="600" text-anchor="middle">FC / IP Switch A</text>
+
+      <line x1="120" y1="130" x2="160" y2="170" stroke="#334155" stroke-width="1.5"/>
+      <line x1="280" y1="130" x2="240" y2="170" stroke="#334155" stroke-width="1.5"/>
+
+      <!-- Disks A -->
+      <rect x="50" y="255" width="140" height="80" rx="8" fill="rgba(20,184,166,0.1)" stroke="#14b8a6" stroke-width="1"/>
+      <text x="120" y="290" fill="#2dd4bf" font-size="13" font-weight="600" text-anchor="middle">Local Plexes</text>
+      <text x="120" y="308" fill="#0d9488" font-size="11" text-anchor="middle">Disk Shelves A</text>
+
+      <!-- Remote Disks mirrored at A -->
+      <rect x="210" y="255" width="160" height="80" rx="8" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1" stroke-dasharray="5,3"/>
+      <text x="290" y="285" fill="#c084fc" font-size="12" font-weight="600" text-anchor="middle">Remote Plexes</text>
+      <text x="290" y="303" fill="#9333ea" font-size="10" text-anchor="middle">(Mirror of Site B)</text>
+      <text x="290" y="320" fill="#9333ea" font-size="10" text-anchor="middle">via SyncMirror</text>
+
+      <line x1="200" y1="214" x2="120" y2="255" stroke="#334155" stroke-width="1.5"/>
+      <line x1="200" y1="214" x2="290" y2="255" stroke="#7c3aed" stroke-width="1" stroke-dasharray="3,3"/>
+
+      <!-- Site B -->
+      <rect x="500" y="20" width="380" height="340" rx="16" fill="rgba(239,68,68,0.04)" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="8,4"/>
+      <text x="690" y="46" fill="#f87171" font-size="13" font-weight="700" text-anchor="middle">SITE B — Secondary / DR</text>
+
+      <!-- Node B1 -->
+      <rect x="530" y="70" width="140" height="60" rx="8" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1"/>
+      <text x="600" y="97" fill="#fca5a5" font-size="13" font-weight="600" text-anchor="middle">Node B1</text>
+      <text x="600" y="114" fill="#ef4444" font-size="11" text-anchor="middle">Controller</text>
+
+      <!-- Node B2 -->
+      <rect x="690" y="70" width="140" height="60" rx="8" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1"/>
+      <text x="760" y="97" fill="#fca5a5" font-size="13" font-weight="600" text-anchor="middle">Node B2</text>
+      <text x="760" y="114" fill="#ef4444" font-size="11" text-anchor="middle">Controller</text>
+
+      <line x1="672" y1="100" x2="688" y2="100" stroke="#f87171" stroke-width="2" stroke-dasharray="4,2"/>
+      <text x="680" y="88" fill="#475569" font-size="10" text-anchor="middle">HA</text>
+
+      <!-- Switch B -->
+      <rect x="580" y="170" width="200" height="44" rx="8" fill="rgba(100,116,139,0.15)" stroke="#475569" stroke-width="1"/>
+      <text x="680" y="196" fill="#94a3b8" font-size="13" font-weight="600" text-anchor="middle">FC / IP Switch B</text>
+
+      <line x1="600" y1="130" x2="640" y2="170" stroke="#334155" stroke-width="1.5"/>
+      <line x1="760" y1="130" x2="720" y2="170" stroke="#334155" stroke-width="1.5"/>
+
+      <!-- Disks B remote plex -->
+      <rect x="530" y="255" width="160" height="80" rx="8" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="1" stroke-dasharray="5,3"/>
+      <text x="610" y="285" fill="#c084fc" font-size="12" font-weight="600" text-anchor="middle">Remote Plexes</text>
+      <text x="610" y="303" fill="#9333ea" font-size="10" text-anchor="middle">(Mirror of Site A)</text>
+      <text x="610" y="320" fill="#9333ea" font-size="10" text-anchor="middle">via SyncMirror</text>
+
+      <!-- Disks B local -->
+      <rect x="710" y="255" width="150" height="80" rx="8" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1"/>
+      <text x="785" y="290" fill="#fca5a5" font-size="13" font-weight="600" text-anchor="middle">Local Plexes</text>
+      <text x="785" y="308" fill="#ef4444" font-size="11" text-anchor="middle">Disk Shelves B</text>
+
+      <line x1="680" y1="214" x2="610" y2="255" stroke="#7c3aed" stroke-width="1" stroke-dasharray="3,3"/>
+      <line x1="680" y1="214" x2="785" y2="255" stroke="#334155" stroke-width="1.5"/>
+
+      <!-- ISL Arrows between switches (horizontal) -->
+      <line x1="302" y1="192" x2="578" y2="192" stroke="#f59e0b" stroke-width="2.5" marker-end="url(#arr2)" marker-start="url(#arr2)"/>
+      <rect x="380" y="180" width="140" height="24" rx="6" fill="rgba(245,158,11,0.12)" stroke="#f59e0b" stroke-width="1"/>
+      <text x="450" y="196" fill="#fbbf24" font-size="12" font-weight="600" text-anchor="middle">ISL  —  SyncMirror</text>
+
+      <!-- Mediator -->
+      <rect x="360" y="340" width="180" height="44" rx="8" fill="rgba(100,116,139,0.12)" stroke="#475569" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="450" y="360" fill="#94a3b8" font-size="12" font-weight="600" text-anchor="middle">Mediator / Tiebreaker</text>
+      <text x="450" y="376" fill="#64748b" font-size="10" text-anchor="middle">3rd site  —  prevents split-brain</text>
+      <line x1="210" y1="350" x2="358" y2="362" stroke="#475569" stroke-width="1" stroke-dasharray="3,3"/>
+      <line x1="690" y1="350" x2="542" y2="362" stroke="#475569" stroke-width="1" stroke-dasharray="3,3"/>
+    </svg>
+  </div>
+
+  <div class="info-box amber">
+    <strong>Key Insight — Two Plexes per Aggregate</strong>
+    Every aggregate in a MetroCluster has exactly two plexes: one on local disk shelves and one on remote disk shelves. SyncMirror keeps both plexes in sync. This is the foundation of zero-RPO.
+  </div>
+
+  <h3 style="color:#fff;font-size:18px;margin:28px 0 14px;font-weight:600;">MetroCluster Variants</h3>
+  <table class="tier-table">
+    <thead><tr><th>Type</th><th>Interconnect</th><th>Max Distance</th><th>Best For</th></tr></thead>
+    <tbody>
+      <tr><td>FC MetroCluster</td><td>Fibre Channel ISL</td><td>~700 km</td><td>Legacy FC environments, ultra-long distance</td></tr>
+      <tr><td>IP MetroCluster</td><td>Ethernet / IP WAN</td><td>300 km</td><td>Modern environments, lower cost interconnect</td></tr>
+      <tr><td>Stretch MetroCluster</td><td>FC, shared switches</td><td>&lt;500 m</td><td>Same campus, building-to-building DR</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<hr class="divider" style="margin-top:48px">
+
+<!-- ═══════════════ SECTION 4: SYNCMIRROR ═══════════════ -->
+<div class="section" id="syncmirror">
+  <div class="section-label">Section 04</div>
+  <h2>SyncMirror — The Engine Inside MetroCluster</h2>
+  <p>SyncMirror is the <strong>RAID-level synchronous mirroring technology</strong> that powers MetroCluster. It operates below the ONTAP file system and ensures every write is committed to both plexes before acknowledging to the host.</p>
+
+  <div class="diagram-card">
+    <div class="diagram-title">SyncMirror Write Path</div>
+    <svg class="diagram-svg" viewBox="0 0 900 260">
+      <defs>
+        <marker id="arr3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+
+      <!-- Host -->
+      <rect x="20" y="100" width="110" height="56" rx="8" fill="rgba(100,116,139,0.15)" stroke="#475569" stroke-width="1"/>
+      <text x="75" y="126" fill="#94a3b8" font-size="13" font-weight="600" text-anchor="middle">Host App</text>
+      <text x="75" y="143" fill="#64748b" font-size="11" text-anchor="middle">WRITE req</text>
+
+      <!-- Arrow to controller -->
+      <line x1="132" y1="128" x2="178" y2="128" stroke="#60a5fa" stroke-width="2" marker-end="url(#arr3)"/>
+      <text x="155" y="120" fill="#3b82f6" font-size="10" text-anchor="middle">①</text>
+
+      <!-- ONTAP Controller -->
+      <rect x="180" y="80" width="160" height="96" rx="8" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="1.5"/>
+      <text x="260" y="108" fill="#93c5fd" font-size="13" font-weight="600" text-anchor="middle">ONTAP Controller</text>
+      <text x="260" y="126" fill="#60a5fa" font-size="11" text-anchor="middle">SyncMirror Layer</text>
+      <text x="260" y="143" fill="#60a5fa" font-size="11" text-anchor="middle">splits write → 2 plexes</text>
+      <text x="260" y="160" fill="#3b82f6" font-size="10" text-anchor="middle">blocks until BOTH ACK</text>
+
+      <!-- Arrow to local plex -->
+      <line x1="342" y1="108" x2="430" y2="80" stroke="#14b8a6" stroke-width="2" marker-end="url(#arr3)"/>
+      <text x="385" y="86" fill="#0d9488" font-size="10">②a</text>
+
+      <!-- Arrow to remote plex -->
+      <line x1="342" y1="148" x2="430" y2="190" stroke="#a855f7" stroke-width="2" marker-end="url(#arr3)"/>
+      <text x="385" y="185" fill="#9333ea" font-size="10">②b</text>
+
+      <!-- Local plex -->
+      <rect x="432" y="50" width="160" height="60" rx="8" fill="rgba(20,184,166,0.12)" stroke="#14b8a6" stroke-width="1"/>
+      <text x="512" y="78" fill="#2dd4bf" font-size="13" font-weight="600" text-anchor="middle">Local Plex</text>
+      <text x="512" y="95" fill="#0d9488" font-size="11" text-anchor="middle">Disk Shelves — Site A</text>
+
+      <!-- Remote plex -->
+      <rect x="432" y="160" width="160" height="60" rx="8" fill="rgba(168,85,247,0.12)" stroke="#a855f7" stroke-width="1"/>
+      <text x="512" y="188" fill="#c084fc" font-size="13" font-weight="600" text-anchor="middle">Remote Plex</text>
+      <text x="512" y="205" fill="#9333ea" font-size="11" text-anchor="middle">Disk Shelves — Site B</text>
+
+      <!-- ACK arrows back to controller -->
+      <line x1="594" y1="80" x2="670" y2="80" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arr3)"/>
+      <line x1="594" y1="190" x2="670" y2="190" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arr3)"/>
+      <text x="632" y="73" fill="#16a34a" font-size="10" text-anchor="middle">ACK</text>
+      <text x="632" y="207" fill="#16a34a" font-size="10" text-anchor="middle">ACK</text>
+
+      <!-- AND gate -->
+      <rect x="672" y="60" width="90" height="150" rx="8" fill="rgba(34,197,94,0.08)" stroke="#22c55e" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="717" y="128" fill="#4ade80" font-size="11" font-weight="600" text-anchor="middle">BOTH</text>
+      <text x="717" y="143" fill="#4ade80" font-size="11" font-weight="600" text-anchor="middle">ACK'd</text>
+
+      <!-- Final ACK to host -->
+      <line x1="763" y1="135" x2="820" y2="135" stroke="#22c55e" stroke-width="2.5" marker-end="url(#arr3)"/>
+      <rect x="822" y="112" width="70" height="44" rx="8" fill="rgba(34,197,94,0.15)" stroke="#22c55e" stroke-width="1"/>
+      <text x="857" y="131" fill="#4ade80" font-size="12" font-weight="600" text-anchor="middle">ACK ✓</text>
+      <text x="857" y="147" fill="#16a34a" font-size="10" text-anchor="middle">to host</text>
+
+      <!-- step label -->
+      <text x="790" y="126" fill="#16a34a" font-size="10" text-anchor="middle">③</text>
+    </svg>
+  </div>
+
+  <div class="info-box teal">
+    <strong>Why this guarantees RPO = 0</strong>
+    The host never receives an ACK until <em>both</em> plexes have confirmed the write. If Site A explodes 1 millisecond after the ACK, the data is already safely on Site B's disks. There is no window for data loss.
+  </div>
+
+  <h3 style="color:#fff;font-size:18px;margin:28px 0 14px;font-weight:600;">MetroCluster Failover Process (Automatic)</h3>
+  <ul class="step-list">
+    <li><span class="step-num">1</span>Site A loses power / connectivity. Nodes on Site A stop responding.</li>
+    <li><span class="step-num">2</span>Mediator/Tiebreaker detects the failure and grants Site B the right to take over (prevents split-brain).</li>
+    <li><span class="step-num">3</span>Site B performs <strong>Automatic Unplanned Switchover (AUFO)</strong> — takes ownership of all aggregates.</li>
+    <li><span class="step-num">4</span>The remote plexes on Site B are promoted to active. Data is fully accessible.</li>
+    <li><span class="step-num">5</span>SAN hosts reconnect automatically via surviving FC/iSCSI paths — same WWPNs, same LUN IDs.</li>
+    <li><span class="step-num">6</span>NAS clients experience a brief mount pause, then reconnect — no remapping needed.</li>
+  </ul>
+</div>
+
+<hr class="divider" style="margin-top:48px">
+
+<!-- ═══════════════ SECTION 5: SNAPMIRROR SYNC ═══════════════ -->
+<div class="section" id="snapmirror">
+  <div class="section-label">Section 05</div>
+  <h2>SnapMirror Synchronous (SM-S)</h2>
+  <p>SnapMirror Sync is a <strong>volume-level replication technology</strong> that synchronously replicates data from a source volume to a destination volume on another cluster, ensuring RPO = 0 for individual volumes or groups of volumes.</p>
+  <p>Unlike MetroCluster, SM-S protects <em>data</em> — not the entire storage infrastructure. After a failure, someone (or something via ONTAP Mediator) must actively trigger a failover process.</p>
+
+  <div class="diagram-card">
+    <div class="diagram-title">SnapMirror Sync Write Path</div>
+    <svg class="diagram-svg" viewBox="0 0 900 220">
+      <defs>
+        <marker id="arr4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+
+      <!-- Source Cluster -->
+      <rect x="20" y="30" width="340" height="160" rx="12" fill="rgba(59,130,246,0.05)" stroke="#3b82f6" stroke-width="1" stroke-dasharray="6,3"/>
+      <text x="190" y="54" fill="#60a5fa" font-size="12" font-weight="600" text-anchor="middle">Source Cluster — Site A</text>
+
+      <rect x="40" y="70" width="120" height="100" rx="8" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1"/>
+      <text x="100" y="95" fill="#93c5fd" font-size="12" font-weight="600" text-anchor="middle">Source</text>
+      <text x="100" y="111" fill="#60a5fa" font-size="11" text-anchor="middle">Volume</text>
+      <text x="100" y="128" fill="#3b82f6" font-size="10" text-anchor="middle">Write committed</text>
+      <text x="100" y="143" fill="#3b82f6" font-size="10" text-anchor="middle">to NVRAM first</text>
+
+      <line x1="162" y1="120" x2="220" y2="120" stroke="#60a5fa" stroke-width="1.5" marker-end="url(#arr4)"/>
+
+      <!-- ONTAP mediator link -->
+      <rect x="222" y="88" width="120" height="64" rx="8" fill="rgba(100,116,139,0.12)" stroke="#475569" stroke-width="1"/>
+      <text x="282" y="113" fill="#94a3b8" font-size="12" font-weight="600" text-anchor="middle">SM-S</text>
+      <text x="282" y="129" fill="#64748b" font-size="11" text-anchor="middle">Sync Engine</text>
+      <text x="282" y="144" fill="#475569" font-size="10" text-anchor="middle">sends IOs to dest</text>
+
+      <!-- ISL Arrow -->
+      <line x1="362" y1="120" x2="458" y2="120" stroke="#f59e0b" stroke-width="2.5" marker-end="url(#arr4)" marker-start="url(#arr4)"/>
+      <text x="410" y="112" fill="#fbbf24" font-size="11" font-weight="600" text-anchor="middle">IP / FC WAN</text>
+      <text x="410" y="133" fill="#d97706" font-size="10" text-anchor="middle">RTT sensitive</text>
+
+      <!-- Dest cluster -->
+      <rect x="460" y="30" width="340" height="160" rx="12" fill="rgba(20,184,166,0.05)" stroke="#14b8a6" stroke-width="1" stroke-dasharray="6,3"/>
+      <text x="630" y="54" fill="#2dd4bf" font-size="12" font-weight="600" text-anchor="middle">Destination Cluster — Site B</text>
+
+      <rect x="480" y="70" width="130" height="100" rx="8" fill="rgba(20,184,166,0.12)" stroke="#14b8a6" stroke-width="1"/>
+      <text x="545" y="95" fill="#2dd4bf" font-size="12" font-weight="600" text-anchor="middle">Destination</text>
+      <text x="545" y="111" fill="#14b8a6" font-size="11" text-anchor="middle">Volume (DP)</text>
+      <text x="545" y="128" fill="#0d9488" font-size="10" text-anchor="middle">Read-only mirror</text>
+      <text x="545" y="143" fill="#0d9488" font-size="10" text-anchor="middle">until break/failover</text>
+
+      <!-- ACK path -->
+      <line x1="612" y1="120" x2="680" y2="120" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arr4)"/>
+      <rect x="682" y="88" width="100" height="64" rx="8" fill="rgba(34,197,94,0.1)" stroke="#22c55e" stroke-width="1"/>
+      <text x="732" y="116" fill="#4ade80" font-size="12" font-weight="600" text-anchor="middle">ACK to</text>
+      <text x="732" y="132" fill="#4ade80" font-size="12" font-weight="600" text-anchor="middle">source</text>
+      <text x="732" y="148" fill="#16a34a" font-size="10" text-anchor="middle">then host ACK'd</text>
+
+      <!-- Mediator box -->
+      <rect x="360" y="175" width="180" height="36" rx="8" fill="rgba(100,116,139,0.1)" stroke="#475569" stroke-width="1" stroke-dasharray="3,2"/>
+      <text x="450" y="197" fill="#64748b" font-size="11" text-anchor="middle">ONTAP Mediator (3rd site)</text>
+    </svg>
+  </div>
+
+  <div class="info-box amber">
+    <strong>What happens after failure with SM-S?</strong>
+    After Site A goes down: (1) Mirror relationship enters "broken-off" state. (2) Admin must manually run <code style="font-family:monospace;background:rgba(0,0,0,0.3);padding:2px 6px;border-radius:4px">snapmirror break</code>. (3) Destination volume becomes read-write. (4) Applications must be pointed to the new volume path. This takes minutes to hours, not seconds.
+  </div>
+
+  <h3 style="color:#fff;font-size:18px;margin:28px 0 14px;font-weight:600;">SM-S Policies</h3>
+  <table class="tier-table">
+    <thead><tr><th>Policy Type</th><th>RPO</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td>Sync</td><td>Zero</td><td>Every write synchronously mirrored before ACK. Strict zero data loss.</td></tr>
+      <tr><td>StrictSync</td><td>Zero</td><td>Same as Sync but I/O is halted if mirror is broken — no divergence allowed.</td></tr>
+      <tr><td>AutomatedFailover (SMBC)</td><td>Zero</td><td>SnapMirror Business Continuity — automatic transparent failover for SAN. Closest to MetroCluster at the volume level.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="info-box blue">
+    <strong>SnapMirror Business Continuity (SMBC / AutomatedFailover)</strong>
+    SMBC is SM-S with automatic failover triggered by ONTAP Mediator. It delivers near-MetroCluster RTO (~60–120s) for SAN (iSCSI, FC) workloads without requiring full MetroCluster hardware. But it still operates at the volume level — not the full infrastructure level.
+  </div>
+</div>
+
+<hr class="divider" style="margin-top:48px">
+
+<!-- ═══════════════ SECTION 6: SVM-DR ═══════════════ -->
+<div class="section" id="svmdr">
+  <div class="section-label">Section 06</div>
+  <h2>SVM Disaster Recovery (SVM-DR)</h2>
+  <p>SVM-DR replicates an <strong>entire Storage Virtual Machine (SVM)</strong> — including all volumes, LUNs, NFS/CIFS export policies, LIFS, igroups, and schedules — to a destination cluster. It is a <strong>comprehensive DR for all workloads inside an SVM</strong>, but with async replication (minutes of RPO) and manual failover (hours of RTO).</p>
+
+  <div class="diagram-card">
+    <div class="diagram-title">SVM-DR Replication Scope</div>
+    <svg class="diagram-svg" viewBox="0 0 900 300">
+      <defs>
+        <marker id="arr5" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+
+      <!-- Source SVM -->
+      <rect x="20" y="20" width="360" height="260" rx="14" fill="rgba(59,130,246,0.05)" stroke="#3b82f6" stroke-width="1.5"/>
+      <text x="200" y="46" fill="#60a5fa" font-size="13" font-weight="700" text-anchor="middle">Source SVM — Site A</text>
+
+      <rect x="40" y="60" width="100" height="40" rx="6" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="0.5"/>
+      <text x="90" y="84" fill="#93c5fd" font-size="11" text-anchor="middle">Volumes</text>
+
+      <rect x="155" y="60" width="100" height="40" rx="6" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="0.5"/>
+      <text x="205" y="84" fill="#93c5fd" font-size="11" text-anchor="middle">LUNs / NVMe</text>
+
+      <rect x="270" y="60" width="90" height="40" rx="6" fill="rgba(59,130,246,0.15)" stroke="#3b82f6" stroke-width="0.5"/>
+      <text x="315" y="84" fill="#93c5fd" font-size="11" text-anchor="middle">Exports</text>
+
+      <rect x="40" y="120" width="100" height="40" rx="6" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="0.5"/>
+      <text x="90" y="144" fill="#60a5fa" font-size="11" text-anchor="middle">igroups</text>
+
+      <rect x="155" y="120" width="100" height="40" rx="6" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="0.5"/>
+      <text x="205" y="144" fill="#60a5fa" font-size="11" text-anchor="middle">CIFS / NFS</text>
+
+      <rect x="270" y="120" width="90" height="40" rx="6" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="0.5"/>
+      <text x="315" y="144" fill="#60a5fa" font-size="11" text-anchor="middle">LIFs / IPs</text>
+
+      <rect x="40" y="180" width="100" height="40" rx="6" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="0.5"/>
+      <text x="90" y="204" fill="#3b82f6" font-size="11" text-anchor="middle">Schedules</text>
+
+      <rect x="155" y="180" width="100" height="40" rx="6" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="0.5"/>
+      <text x="205" y="204" fill="#3b82f6" font-size="11" text-anchor="middle">Quotas</text>
+
+      <rect x="270" y="180" width="90" height="40" rx="6" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="0.5"/>
+      <text x="315" y="204" fill="#3b82f6" font-size="11" text-anchor="middle">Policies</text>
+
+      <text x="200" y="252" fill="#475569" font-size="11" text-anchor="middle">All replicated as a unit via SVM-DR</text>
+
+      <!-- Arrow -->
+      <line x1="382" y1="150" x2="476" y2="150" stroke="#f59e0b" stroke-width="2.5" marker-end="url(#arr5)"/>
+      <text x="429" y="142" fill="#fbbf24" font-size="11" font-weight="600" text-anchor="middle">Async</text>
+      <text x="429" y="158" fill="#d97706" font-size="10" text-anchor="middle">SnapMirror</text>
+
+      <!-- Dest SVM -->
+      <rect x="480" y="20" width="380" height="260" rx="14" fill="rgba(100,116,139,0.06)" stroke="#475569" stroke-width="1.5" stroke-dasharray="6,3"/>
+      <text x="670" y="46" fill="#94a3b8" font-size="13" font-weight="700" text-anchor="middle">Destination SVM — Site B</text>
+      <text x="670" y="66" fill="#475569" font-size="11" text-anchor="middle">(Inactive until DR activation)</text>
+
+      <rect x="500" y="80" width="340" height="150" rx="10" fill="rgba(100,116,139,0.05)" stroke="#334155" stroke-width="0.5"/>
+      <text x="670" y="130" fill="#475569" font-size="28" text-anchor="middle">💤</text>
+      <text x="670" y="165" fill="#64748b" font-size="13" font-weight="600" text-anchor="middle">Dormant DR Copy</text>
+      <text x="670" y="183" fill="#475569" font-size="11" text-anchor="middle">All config replicated</text>
+      <text x="670" y="199" fill="#475569" font-size="11" text-anchor="middle">Volumes are read-only</text>
+
+      <!-- Activation steps -->
+      <rect x="500" y="245" width="340" height="24" rx="6" fill="rgba(239,68,68,0.08)" stroke="#ef4444" stroke-width="0.5"/>
+      <text x="670" y="261" fill="#f87171" font-size="11" text-anchor="middle">Manual activation required → snapmirror break → re-IP hosts</text>
+    </svg>
+  </div>
+
+  <div class="info-box red">
+    <strong>SVM-DR Limitation</strong>
+    After a site failure, SVM-DR requires: (1) breaking the SnapMirror relationship, (2) activating the DR SVM, (3) bringing up LIFs with potentially new IPs, (4) remounting NFS exports, (5) rescanning LUNs. This process typically takes 30 minutes to several hours depending on automation.
+  </div>
+</div>
+
+<hr class="divider" style="margin-top:48px">
+
+<!-- ═══════════════ SECTION 7: COMPARISON ═══════════════ -->
+<div class="section" id="comparison">
+  <div class="section-label">Section 07</div>
+  <h2>MetroCluster vs SnapMirror Sync vs SVM-DR</h2>
+  <p>This is the most critical section. Understanding the differences at each layer helps you design the right protection for each workload tier.</p>
+
+  <div class="diagram-card">
+    <div class="diagram-title">What Each Technology Protects</div>
+    <svg class="diagram-svg" viewBox="0 0 900 300">
+      <defs>
+        <marker id="arr6" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+
+      <!-- Stack layers -->
+      <!-- Application -->
+      <rect x="30" y="20" width="840" height="44" rx="8" fill="rgba(100,116,139,0.1)" stroke="#334155" stroke-width="1"/>
+      <text x="450" y="46" fill="#64748b" font-size="13" font-weight="600" text-anchor="middle">Application Layer (VMs, Databases, File Services)</text>
+
+      <!-- SVM / Protocol Layer -->
+      <rect x="30" y="76" width="840" height="44" rx="8" fill="rgba(245,158,11,0.08)" stroke="#f59e0b" stroke-width="1"/>
+      <text x="200" y="102" fill="#fbbf24" font-size="13" font-weight="600" text-anchor="middle">SVM / Protocol Layer</text>
+      <text x="200" y="116" fill="#d97706" font-size="10" text-anchor="middle">(NFS, CIFS, iSCSI, FC, NVMe)</text>
+      <!-- SVM-DR bracket -->
+      <rect x="520" y="72" width="340" height="52" rx="6" fill="rgba(245,158,11,0.06)" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5,3"/>
+      <text x="690" y="101" fill="#fbbf24" font-size="12" font-weight="700" text-anchor="middle">← SVM-DR covers this + below</text>
+
+      <!-- Volume Layer -->
+      <rect x="30" y="132" width="840" height="44" rx="8" fill="rgba(20,184,166,0.08)" stroke="#14b8a6" stroke-width="1"/>
+      <text x="200" y="158" fill="#2dd4bf" font-size="13" font-weight="600" text-anchor="middle">Volume / Data Layer</text>
+      <text x="200" y="172" fill="#0d9488" font-size="10" text-anchor="middle">(Volumes, LUNs, Files, Snapshots)</text>
+      <!-- SM-S bracket -->
+      <rect x="430" y="128" width="200" height="52" rx="6" fill="rgba(20,184,166,0.06)" stroke="#14b8a6" stroke-width="1.5" stroke-dasharray="5,3"/>
+      <text x="530" y="154" fill="#2dd4bf" font-size="12" font-weight="700" text-anchor="middle">← SM-S / SMBC</text>
+      <text x="530" y="170" fill="#0d9488" font-size="10" text-anchor="middle">covers this layer</text>
+
+      <!-- Aggregate Layer -->
+      <rect x="30" y="188" width="840" height="44" rx="8" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1"/>
+      <text x="200" y="214" fill="#93c5fd" font-size="13" font-weight="600" text-anchor="middle">Aggregate / RAID Layer</text>
+      <text x="200" y="228" fill="#3b82f6" font-size="10" text-anchor="middle">(Aggregates, Plexes, RAID groups)</text>
+
+      <!-- Controller Layer -->
+      <rect x="30" y="244" width="840" height="44" rx="8" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1.5"/>
+      <text x="200" y="270" fill="#93c5fd" font-size="13" font-weight="600" text-anchor="middle">Controller / Cluster Layer</text>
+      <text x="200" y="284" fill="#3b82f6" font-size="10" text-anchor="middle">(Nodes, HA, SAN identity, config)</text>
+
+      <!-- MetroCluster bracket -->
+      <rect x="660" y="184" width="200" height="108" rx="8" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="2" stroke-dasharray="5,3"/>
+      <text x="760" y="230" fill="#60a5fa" font-size="13" font-weight="700" text-anchor="middle">MetroCluster</text>
+      <text x="760" y="248" fill="#3b82f6" font-size="11" text-anchor="middle">protects ALL layers</text>
+      <text x="760" y="264" fill="#3b82f6" font-size="11" text-anchor="middle">automatically</text>
+    </svg>
+  </div>
+
+  <table class="comp-table">
+    <thead>
+      <tr>
+        <th>Attribute</th>
+        <th class="col-mc">MetroCluster</th>
+        <th class="col-sm">SnapMirror Sync / SMBC</th>
+        <th class="col-sv">SVM-DR</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Protection Layer</td>
+        <td>Full infrastructure (controller + disk + config)</td>
+        <td>Volume / LUN data only</td>
+        <td>SVM config + volume data</td>
+      </tr>
+      <tr>
+        <td>RPO</td>
+        <td class="win">Zero (always)</td>
+        <td class="win">Zero (sync policy)</td>
+        <td class="mid">Minutes (async)</td>
+      </tr>
+      <tr>
+        <td>RTO</td>
+        <td class="win">&lt; 60 seconds (automatic)</td>
+        <td class="mid">Seconds–minutes (SMBC) / hours (manual SM-S)</td>
+        <td class="lose">30 min – several hours</td>
+      </tr>
+      <tr>
+        <td>Failover Type</td>
+        <td class="win">Transparent, automatic (AUFO)</td>
+        <td class="mid">Automatic (SMBC) / Manual (SM-S)</td>
+        <td class="lose">Manual activation required</td>
+      </tr>
+      <tr>
+        <td>What Fails Over</td>
+        <td>Entire site — all SVMs, volumes, LUNs, network identity</td>
+        <td>Selected volumes / consistency groups only</td>
+        <td>Entire SVM and its volumes</td>
+      </tr>
+      <tr>
+        <td>SAN (FC) Continuity</td>
+        <td class="win">Same WWPNs, same LUN IDs — hosts reconnect automatically</td>
+        <td class="win">SMBC: same LUN IDs (iSCSI/FC) — transparent</td>
+        <td class="lose">Rezoning required, hosts must rescan</td>
+      </tr>
+      <tr>
+        <td>NAS Continuity</td>
+        <td class="mid">Brief reconnect delay</td>
+        <td class="lose">Manual remount required</td>
+        <td class="lose">New mount paths / IPs required</td>
+      </tr>
+      <tr>
+        <td>Max Distance</td>
+        <td>300 km (IP) / 700 km (FC)</td>
+        <td>No hard limit (latency dependent)</td>
+        <td>No limit (async)</td>
+      </tr>
+      <tr>
+        <td>Latency Sensitivity</td>
+        <td class="lose">High — adds RTT to every write</td>
+        <td class="lose">High — adds RTT to every write</td>
+        <td class="win">Low — async, no write latency impact</td>
+      </tr>
+      <tr>
+        <td>Complexity</td>
+        <td class="lose">High — requires specific HW layout, ISLs, mediator</td>
+        <td class="mid">Medium — per-volume relationships, mediator for SMBC</td>
+        <td class="mid">Medium — SVM relationship management</td>
+      </tr>
+      <tr>
+        <td>Cost</td>
+        <td class="lose">Highest — requires full duplicate hardware</td>
+        <td class="mid">Moderate — any compatible cluster</td>
+        <td class="mid">Moderate — any compatible cluster</td>
+      </tr>
+      <tr>
+        <td>Mediator Required?</td>
+        <td>Yes (Tiebreaker / ONTAP Mediator)</td>
+        <td>Yes (for SMBC / AutomatedFailover)</td>
+        <td>No</td>
+      </tr>
+      <tr>
+        <td>Ideal Workloads</td>
+        <td>Oracle RAC, Tier-0 DBs, VMware vSphere, FC SAN, mission-critical NAS</td>
+        <td>Tier-1 applications, specific critical volumes, SAN without full MC</td>
+        <td>Tier-2 NAS DR, application-level DR with scheduled RPO</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<hr class="divider" style="margin-top:48px">
+
+<!-- ═══════════════ SECTION 8: USE CASES ═══════════════ -->
+<div class="section" id="usecase">
+  <div class="section-label">Section 08</div>
+  <h2>Workload Tiering &amp; Technology Selection</h2>
+  <p>The right protection technology depends entirely on the <strong>business impact</strong> of downtime and data loss for each workload. Here is the standard tiering model:</p>
+
+  <table class="tier-table">
+    <thead><tr><th>Tier</th><th>Workloads</th><th>RPO</th><th>RTO</th><th>Recommended Technology</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="tier-0">Tier-0 Mission Critical</td>
+        <td>Oracle RAC, SQL Always-On, Core Banking, Trading Systems, VMware vSphere HA clusters</td>
+        <td class="win">Zero</td>
+        <td class="win">&lt; 60s</td>
+        <td><strong style="color:#60a5fa">MetroCluster</strong></td>
+      </tr>
+      <tr>
+        <td class="tier-1">Tier-1 Business Critical</td>
+        <td>ERP, CRM, Tier-1 databases, specific critical volumes within a cluster</td>
+        <td class="win">Zero</td>
+        <td class="mid">1–10 min</td>
+        <td><strong style="color:#2dd4bf">SnapMirror Sync / SMBC</strong></td>
+      </tr>
+      <tr>
+        <td class="tier-2">Tier-2 Business Important</td>
+        <td>Dev/test, web servers, file sharing, email, DR copies of Tier-1</td>
+        <td class="mid">Minutes</td>
+        <td class="lose">1–4 hrs</td>
+        <td><strong style="color:#fbbf24">SVM-DR + Async SnapMirror</strong></td>
+      </tr>
+      <tr>
+        <td class="tier-3">Tier-3 Standard</td>
+        <td>Archives, backups, non-critical workloads</td>
+        <td>Hours</td>
+        <td>Hours–Days</td>
+        <td><strong style="color:#94a3b8">SnapVault / Object Store</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="info-box green">
+    <strong>Best Practice: Layered Architecture</strong>
+    MetroCluster and SnapMirror technologies are <strong>complementary, not competing</strong>. A well-designed enterprise architecture typically uses:
+    <ul style="margin-top:8px;padding-left:18px;line-height:2">
+      <li>MetroCluster for Tier-0 within metro distance (&lt;300km)</li>
+      <li>SnapMirror Sync / SMBC for Tier-1 volumes needing zero RPO without full MC hardware</li>
+      <li>SVM-DR + async SnapMirror for long-distance DR (&gt;300km) and Tier-2 workloads</li>
+      <li>SnapVault for backup retention and compliance</li>
+    </ul>
+  </div>
+
+  <div class="diagram-card">
+    <div class="diagram-title">Layered DR Architecture — Reference Design</div>
+    <svg class="diagram-svg" viewBox="0 0 900 360">
+      <defs>
+        <marker id="arr7" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+
+      <!-- Site A -->
+      <rect x="20" y="20" width="260" height="300" rx="14" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.5"/>
+      <text x="150" y="46" fill="#60a5fa" font-size="13" font-weight="700" text-anchor="middle">Site A — Primary</text>
+
+      <rect x="40" y="65" width="220" height="50" rx="8" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1"/>
+      <text x="150" y="88" fill="#fca5a5" font-size="12" font-weight="600" text-anchor="middle">MetroCluster Cluster A</text>
+      <text x="150" y="103" fill="#ef4444" font-size="10" text-anchor="middle">Tier-0 Volumes (Oracle, vSphere)</text>
+
+      <rect x="40" y="130" width="220" height="50" rx="8" fill="rgba(20,184,166,0.1)" stroke="#14b8a6" stroke-width="1"/>
+      <text x="150" y="153" fill="#2dd4bf" font-size="12" font-weight="600" text-anchor="middle">SM-S Source Volumes</text>
+      <text x="150" y="168" fill="#0d9488" font-size="10" text-anchor="middle">Tier-1 Volumes (ERP, CRM)</text>
+
+      <rect x="40" y="195" width="220" height="50" rx="8" fill="rgba(245,158,11,0.08)" stroke="#f59e0b" stroke-width="1"/>
+      <text x="150" y="218" fill="#fbbf24" font-size="12" font-weight="600" text-anchor="middle">Source SVM (SVM-DR)</text>
+      <text x="150" y="233" fill="#d97706" font-size="10" text-anchor="middle">Tier-2 Volumes (File, Web)</text>
+
+      <rect x="40" y="260" width="220" height="44" rx="8" fill="rgba(100,116,139,0.08)" stroke="#475569" stroke-width="1"/>
+      <text x="150" y="284" fill="#64748b" font-size="12" font-weight="600" text-anchor="middle">SnapVault Source</text>
+
+      <!-- Site B (MC DR) -->
+      <rect x="320" y="20" width="260" height="110" rx="14" fill="rgba(59,130,246,0.04)" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="6,3"/>
+      <text x="450" y="46" fill="#3b82f6" font-size="13" font-weight="700" text-anchor="middle">Site B — Metro DR</text>
+      <text x="450" y="62" fill="#1d4ed8" font-size="10" text-anchor="middle">&lt; 300km from Site A</text>
+      <rect x="340" y="70" width="220" height="44" rx="8" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="1"/>
+      <text x="450" y="90" fill="#93c5fd" font-size="12" font-weight="600" text-anchor="middle">MetroCluster Cluster B</text>
+      <text x="450" y="106" fill="#3b82f6" font-size="10" text-anchor="middle">Auto-failover mirror of Site A</text>
+
+      <!-- Site C (SM-S) -->
+      <rect x="320" y="150" width="260" height="110" rx="14" fill="rgba(20,184,166,0.04)" stroke="#14b8a6" stroke-width="1.5" stroke-dasharray="6,3"/>
+      <text x="450" y="174" fill="#14b8a6" font-size="13" font-weight="700" text-anchor="middle">Site C — SM-S DR Cluster</text>
+      <rect x="340" y="188" width="220" height="56" rx="8" fill="rgba(20,184,166,0.08)" stroke="#14b8a6" stroke-width="1"/>
+      <text x="450" y="212" fill="#2dd4bf" font-size="12" font-weight="600" text-anchor="middle">SM-S Destination</text>
+      <text x="450" y="228" fill="#0d9488" font-size="10" text-anchor="middle">Tier-1 volumes (read-only)</text>
+
+      <!-- Site D (SVM-DR / async) -->
+      <rect x="620" y="20" width="260" height="300" rx="14" fill="rgba(245,158,11,0.04)" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="6,3"/>
+      <text x="750" y="46" fill="#f59e0b" font-size="13" font-weight="700" text-anchor="middle">Site D — Remote DR</text>
+      <text x="750" y="62" fill="#92400e" font-size="10" text-anchor="middle">Long distance (&gt; 300km)</text>
+
+      <rect x="640" y="70" width="220" height="56" rx="8" fill="rgba(245,158,11,0.08)" stroke="#f59e0b" stroke-width="1"/>
+      <text x="750" y="94" fill="#fbbf24" font-size="12" font-weight="600" text-anchor="middle">DR SVM</text>
+      <text x="750" y="110" fill="#d97706" font-size="10" text-anchor="middle">Tier-2 SVM-DR (dormant)</text>
+
+      <rect x="640" y="140" width="220" height="56" rx="8" fill="rgba(100,116,139,0.08)" stroke="#475569" stroke-width="1"/>
+      <text x="750" y="164" fill="#94a3b8" font-size="12" font-weight="600" text-anchor="middle">SnapVault Target</text>
+      <text x="750" y="180" fill="#64748b" font-size="10" text-anchor="middle">Backup retention copies</text>
+
+      <!-- Arrows -->
+      <line x1="282" y1="90" x2="318" y2="90" stroke="#3b82f6" stroke-width="2" marker-end="url(#arr7)"/>
+      <text x="300" y="82" fill="#3b82f6" font-size="9" text-anchor="middle">MC</text>
+
+      <line x1="282" y1="156" x2="318" y2="210" stroke="#14b8a6" stroke-width="1.5" marker-end="url(#arr7)"/>
+      <text x="290" y="184" fill="#14b8a6" font-size="9">SM-S</text>
+
+      <line x1="282" y1="220" x2="618" y2="100" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr7)"/>
+      <text x="450" y="148" fill="#d97706" font-size="9">SVM-DR async</text>
+
+      <line x1="282" y1="282" x2="618" y2="170" stroke="#475569" stroke-width="1.5" stroke-dasharray="4,4" marker-end="url(#arr7)"/>
+      <text x="420" y="230" fill="#475569" font-size="9">SnapVault</text>
+
+      <!-- Mediator -->
+      <rect x="360" y="290" width="160" height="40" rx="8" fill="rgba(100,116,139,0.08)" stroke="#475569" stroke-width="0.5" stroke-dasharray="3,2"/>
+      <text x="440" y="313" fill="#64748b" font-size="10" text-anchor="middle">Mediator (3rd site)</text>
+    </svg>
+  </div>
+
+  <div class="info-box blue">
+    <strong>The Key Answer to "Why MetroCluster if we have SnapMirror Sync?"</strong>
+    SnapMirror Sync guarantees your <em>data</em> survives. MetroCluster guarantees your <em>business</em> survives — no downtime, no manual steps, no re-mapping, no re-zoning, no host-side intervention. For Tier-0 workloads where every second of downtime costs thousands of dollars, MetroCluster's automatic, transparent, infrastructure-level failover is irreplaceable.
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<div class="footer">
+  NetApp MetroCluster &amp; SnapMirror Architecture Tutorial &nbsp;·&nbsp; Based on ONTAP 9.x concepts &nbsp;·&nbsp; For education and reference purposes
+</div>
+
+</body>
+</html>
