@@ -1,0 +1,1493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ansible for NetApp Storage Automation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --bg:        #080c14;
+    --bg2:       #0d1525;
+    --bg3:       #111e30;
+    --bg4:       #162238;
+    --border:    rgba(56,189,248,0.1);
+    --border2:   rgba(56,189,248,0.22);
+    --text:      #e2e8f0;
+    --text2:     #94a3b8;
+    --text3:     #475569;
+    --sky:       #38bdf8;
+    --sky-dim:   rgba(56,189,248,0.1);
+    --sky-mid:   rgba(56,189,248,0.2);
+    --green:     #4ade80;
+    --green-dim: rgba(74,222,128,0.1);
+    --amber:     #fbbf24;
+    --amber-dim: rgba(251,191,36,0.1);
+    --violet:    #a78bfa;
+    --violet-dim:rgba(167,139,250,0.1);
+    --red:       #f87171;
+    --red-dim:   rgba(248,113,113,0.1);
+    --teal:      #2dd4bf;
+    --teal-dim:  rgba(45,212,191,0.1);
+    --radius:    10px;
+    --radius-lg: 16px;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Inter', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 15px;
+  }
+
+  /* ── HERO ────────────────────────────── */
+  .hero {
+    min-height: 340px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 60px 48px 52px;
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border2);
+    background: var(--bg2);
+  }
+  .hero-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(56,189,248,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56,189,248,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  .hero-glow {
+    position: absolute;
+    top: -100px; left: -80px;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(56,189,248,0.06) 0%, transparent 65%);
+  }
+  .hero-glow2 {
+    position: absolute;
+    bottom: -60px; right: 60px;
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(167,139,250,0.05) 0%, transparent 65%);
+  }
+  .hero-content { position: relative; z-index: 1; max-width: 700px; }
+  .hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--sky);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    padding: 5px 14px;
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    background: var(--sky-dim);
+  }
+  .hero-eyebrow::before { content: '●'; font-size: 7px; }
+  .hero h1 {
+    font-size: 44px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -1px;
+    color: #fff;
+    margin-bottom: 18px;
+  }
+  .hero h1 em { font-style: normal; color: var(--sky); }
+  .hero-sub {
+    font-size: 16px;
+    color: var(--text2);
+    max-width: 560px;
+    margin-bottom: 32px;
+  }
+  .hero-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: 5px;
+    border: 1px solid;
+  }
+  .pill-sky    { color: var(--sky);    background: var(--sky-dim);    border-color: rgba(56,189,248,0.3); }
+  .pill-green  { color: var(--green);  background: var(--green-dim);  border-color: rgba(74,222,128,0.3); }
+  .pill-violet { color: var(--violet); background: var(--violet-dim); border-color: rgba(167,139,250,0.3); }
+  .pill-amber  { color: var(--amber);  background: var(--amber-dim);  border-color: rgba(251,191,36,0.3); }
+
+  /* ── NAV ─────────────────────────────── */
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(8,12,20,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 48px;
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+  }
+  .nav a {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text3);
+    text-decoration: none;
+    padding: 13px 16px;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: color .2s, border-color .2s;
+  }
+  .nav a:hover { color: var(--sky); border-bottom-color: var(--sky); }
+
+  /* ── LAYOUT ──────────────────────────── */
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 48px 100px; }
+
+  /* ── SECTIONS ────────────────────────── */
+  .section { padding: 60px 0 0; }
+  .sec-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--sky);
+    margin-bottom: 6px;
+  }
+  .section h2 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 12px;
+    letter-spacing: -0.5px;
+    line-height: 1.2;
+  }
+  .section > p { color: var(--text2); margin-bottom: 14px; max-width: 760px; }
+  .section > p strong { color: var(--text); font-weight: 600; }
+
+  hr.div { border: none; border-top: 1px solid var(--border); margin-top: 60px; }
+
+  /* ── CARDS ───────────────────────────── */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px 28px;
+    margin: 24px 0;
+  }
+  .card-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 20px;
+  }
+
+  /* ── INFO BOXES ──────────────────────── */
+  .info {
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin: 20px 0;
+    border-left: 3px solid;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .info strong { display: block; margin-bottom: 4px; font-weight: 600; }
+  .info.sky    { background: var(--sky-dim);    border-color: var(--sky);    color: #7dd3fc; }
+  .info.green  { background: var(--green-dim);  border-color: var(--green);  color: #86efac; }
+  .info.amber  { background: var(--amber-dim);  border-color: var(--amber);  color: #fde68a; }
+  .info.violet { background: var(--violet-dim); border-color: var(--violet); color: #c4b5fd; }
+  .info.teal   { background: var(--teal-dim);   border-color: var(--teal);   color: #5eead4; }
+
+  /* ── CODE BLOCKS ─────────────────────── */
+  .code-wrap {
+    background: #040810;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin: 20px 0;
+    overflow: hidden;
+  }
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 18px;
+    background: rgba(56,189,248,0.05);
+    border-bottom: 1px solid var(--border);
+  }
+  .code-lang {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--sky);
+    letter-spacing: 1px;
+  }
+  .code-file {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+  }
+  .code-body {
+    padding: 20px 22px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.8;
+    color: #cbd5e1;
+  }
+  .code-body .c  { color: var(--text3); font-style: italic; }
+  .code-body .k  { color: var(--sky); }
+  .code-body .s  { color: var(--green); }
+  .code-body .v  { color: var(--violet); }
+  .code-body .m  { color: var(--amber); }
+  .code-body .kw { color: var(--teal); }
+
+  /* ── INLINE CODE ─────────────────────── */
+  code {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--bg3);
+    color: var(--sky);
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+
+  /* ── CONCEPT GRID ────────────────────── */
+  .concept-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 14px; margin: 24px 0; }
+  .concept-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    transition: border-color .2s;
+  }
+  .concept-card:hover { border-color: var(--border2); }
+  .concept-icon { font-size: 10px; font-family: var(--mono); font-weight: 700; color: var(--sky); background: var(--sky-dim); border: 1px solid rgba(56,189,248,0.3); padding: 3px 9px; border-radius: 4px; display: inline-block; margin-bottom: 12px; }
+  .concept-card h4 { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 6px; }
+  .concept-card p  { font-size: 13px; color: var(--text2); line-height: 1.5; }
+
+  /* ── MODULE TABLE ────────────────────── */
+  .mod-section { margin: 24px 0; }
+  .mod-group { margin-bottom: 28px; }
+  .mod-group-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 5px;
+    display: inline-block;
+    margin-bottom: 12px;
+  }
+  .mg-sky    { color: var(--sky);    background: var(--sky-dim);    border: 1px solid rgba(56,189,248,0.25); }
+  .mg-green  { color: var(--green);  background: var(--green-dim);  border: 1px solid rgba(74,222,128,0.25); }
+  .mg-violet { color: var(--violet); background: var(--violet-dim); border: 1px solid rgba(167,139,250,0.25); }
+  .mg-amber  { color: var(--amber);  background: var(--amber-dim);  border: 1px solid rgba(251,191,36,0.25); }
+  .mg-teal   { color: var(--teal);   background: var(--teal-dim);   border: 1px solid rgba(45,212,191,0.25); }
+  .mg-red    { color: var(--red);    background: var(--red-dim);    border: 1px solid rgba(248,113,113,0.25); }
+
+  .mod-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .mod-chip {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 5px 12px;
+    border-radius: 5px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    transition: border-color .2s, color .2s;
+    cursor: default;
+  }
+  .mod-chip:hover { border-color: var(--border2); color: var(--text); }
+
+  /* ── COMPARISON TABLE ────────────────── */
+  .comp { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px; }
+  .comp th { padding: 10px 16px; font-size: 11px; font-family: var(--mono); font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text3); border-bottom: 1px solid var(--border2); text-align: left; }
+  .comp td { padding: 11px 16px; border-bottom: 1px solid var(--border); color: var(--text2); font-size: 13px; vertical-align: top; }
+  .comp td:first-child { color: var(--text); font-weight: 500; }
+  .comp tr:last-child td { border-bottom: none; }
+  .comp tr:hover td { background: rgba(255,255,255,0.015); }
+  .win  { color: var(--green); font-weight: 600; }
+  .warn { color: var(--amber); }
+  .bad  { color: var(--red); }
+
+  /* ── ROADMAP ─────────────────────────── */
+  .roadmap { margin: 28px 0; }
+  .rm-phase {
+    display: flex;
+    gap: 18px;
+    margin-bottom: 16px;
+    align-items: flex-start;
+  }
+  .rm-num {
+    flex-shrink: 0;
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    border: 1px solid var(--border2);
+    background: var(--bg3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--sky);
+    margin-top: 2px;
+  }
+  .rm-body {
+    flex: 1;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+  }
+  .rm-title { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 2px; }
+  .rm-time  { font-size: 11px; font-family: var(--mono); color: var(--text3); margin-bottom: 10px; }
+  .rm-tags  { display: flex; flex-wrap: wrap; gap: 6px; }
+  .rm-tag   { font-family: var(--mono); font-size: 11px; padding: 3px 9px; border-radius: 4px; background: var(--bg3); border: 1px solid var(--border); color: var(--text2); }
+  .rm-connector { width: 2px; height: 12px; background: var(--border2); margin: 0 0 0 18px; }
+
+  /* ── ARCH DIAGRAM ────────────────────── */
+  .arch-svg { width: 100%; overflow: visible; }
+
+  /* ── STEP LIST ───────────────────────── */
+  .steps { list-style: none; margin: 20px 0; }
+  .steps li {
+    display: flex; gap: 14px; align-items: flex-start;
+    margin-bottom: 12px; font-size: 14px; color: var(--text2);
+  }
+  .step-n {
+    flex-shrink: 0;
+    width: 26px; height: 26px;
+    background: var(--sky-dim);
+    border: 1px solid rgba(56,189,248,0.3);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    color: var(--sky); margin-top: 1px;
+  }
+
+  /* ── FOOTER ──────────────────────────── */
+  .footer {
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    padding: 28px 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .footer span { color: var(--sky); }
+</style>
+</head>
+<body>
+
+<!-- ════ HERO ════ -->
+<div class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-glow"></div>
+  <div class="hero-glow2"></div>
+  <div class="hero-content">
+    <div class="hero-eyebrow">Storage Automation Tutorial</div>
+    <h1>Ansible for<br><em>NetApp ONTAP</em></h1>
+    <p class="hero-sub">Learn to automate NetApp storage tasks — volume provisioning, SnapMirror replication, SVM-DR, and SAN — using Ansible and the official <code style="background:rgba(56,189,248,0.1);border-color:rgba(56,189,248,0.3);color:var(--sky)">netapp.ontap</code> collection.</p>
+    <div class="hero-pills">
+      <span class="pill pill-sky">Ansible Core</span>
+      <span class="pill pill-green">netapp.ontap</span>
+      <span class="pill pill-violet">YAML Playbooks</span>
+      <span class="pill pill-amber">REST API</span>
+    </div>
+  </div>
+</div>
+
+<!-- ════ NAV ════ -->
+<nav class="nav">
+  <a href="#what">What is Ansible</a>
+  <a href="#concepts">Core Concepts</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#install">Setup</a>
+  <a href="#modules">ONTAP Modules</a>
+  <a href="#playbooks">Playbooks</a>
+  <a href="#dataprotection">Data Protection</a>
+  <a href="#san">SAN Automation</a>
+  <a href="#advanced">Advanced</a>
+  <a href="#roadmap">Roadmap</a>
+</nav>
+
+<div class="wrap">
+
+<!-- ════ SECTION 1: WHAT IS ANSIBLE ════ -->
+<div class="section" id="what">
+  <div class="sec-label">Section 01</div>
+  <h2>What is Ansible?</h2>
+  <p>Ansible is an open-source <strong>IT automation engine</strong> that lets you describe infrastructure tasks in simple human-readable YAML files called <strong>playbooks</strong>. Instead of logging into every system and running commands manually, you define what you want — and Ansible figures out how to do it.</p>
+  <p>For NetApp storage engineers, Ansible is transformative: tasks that used to take 30 CLI commands across multiple SVMs can be reduced to a single playbook run that executes in seconds, is repeatable, and is safe to commit to Git.</p>
+
+  <div class="concept-grid">
+    <div class="concept-card">
+      <div class="concept-icon">agentless</div>
+      <h4>No agent required</h4>
+      <p>Ansible talks to ONTAP via REST API over HTTPS. Nothing is installed on your NetApp cluster.</p>
+    </div>
+    <div class="concept-card">
+      <div class="concept-icon">idempotent</div>
+      <h4>Safe to re-run</h4>
+      <p>Running a playbook 10 times has the same result as once. If the volume already exists, Ansible skips it — no error, no duplicate.</p>
+    </div>
+    <div class="concept-card">
+      <div class="concept-icon">yaml</div>
+      <h4>Human-readable</h4>
+      <p>Playbooks are plain YAML. Storage admins with zero programming background can read and write them within days.</p>
+    </div>
+    <div class="concept-card">
+      <div class="concept-icon">certified</div>
+      <h4>NetApp-certified</h4>
+      <p>NetApp maintains an official Ansible Galaxy collection with 100+ modules covering the entire ONTAP API surface.</p>
+    </div>
+    <div class="concept-card">
+      <div class="concept-icon">scalable</div>
+      <h4>Multi-cluster</h4>
+      <p>One playbook can target 50 clusters simultaneously. Scale from 1 to 500 nodes with no code change.</p>
+    </div>
+    <div class="concept-card">
+      <div class="concept-icon">git</div>
+      <h4>Version controlled</h4>
+      <p>Your entire storage config lives in Git. Every change is tracked, reviewable, and rollback-able.</p>
+    </div>
+  </div>
+
+  <div class="info sky">
+    <strong>Why Ansible specifically for NetApp?</strong>
+    NetApp provides the <code>netapp.ontap</code> Ansible Galaxy collection — maintained by NetApp engineers — with modules for every ONTAP operation: volumes, SVMs, LUNs, SnapMirror, SVM-DR, NFS/CIFS, igroups, QoS policies, and much more. You don't need to write API calls yourself.
+  </div>
+</div>
+
+<hr class="div">
+
+<!-- ════ SECTION 2: CORE CONCEPTS ════ -->
+<div class="section" id="concepts">
+  <div class="sec-label">Section 02</div>
+  <h2>Core Ansible Concepts</h2>
+  <p>Before writing NetApp playbooks, understand these six building blocks. Every automation you build uses all of them.</p>
+
+  <div class="card">
+    <div class="card-title">The six pillars of Ansible</div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;">
+      <div style="background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--sky);border-radius:0 var(--radius) var(--radius) 0;padding:16px 18px;">
+        <div style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--sky);margin-bottom:6px;">01 — Inventory</div>
+        <p style="font-size:13px;color:var(--text2);line-height:1.5;">A file listing all the hosts (clusters) Ansible will manage. Contains IPs, usernames, and variable references. Can be static YAML or dynamic (pulled from CMDB).</p>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--green);border-radius:0 var(--radius) var(--radius) 0;padding:16px 18px;">
+        <div style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--green);margin-bottom:6px;">02 — Playbook</div>
+        <p style="font-size:13px;color:var(--text2);line-height:1.5;">A YAML file describing <em>what</em> to do and <em>where</em>. Contains one or more plays, each targeting a host group and running a list of tasks.</p>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--violet);border-radius:0 var(--radius) var(--radius) 0;padding:16px 18px;">
+        <div style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--violet);margin-bottom:6px;">03 — Module</div>
+        <p style="font-size:13px;color:var(--text2);line-height:1.5;">The unit of work. <code>na_ontap_volume</code> creates/modifies/deletes volumes. <code>na_ontap_snapmirror</code> manages SnapMirror. Each module handles one resource type.</p>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--amber);border-radius:0 var(--radius) var(--radius) 0;padding:16px 18px;">
+        <div style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--amber);margin-bottom:6px;">04 — Variables</div>
+        <p style="font-size:13px;color:var(--text2);line-height:1.5;">Named values used across tasks. Can be defined in inventory, playbooks, or separate var files. Referenced as <code>{{ variable_name }}</code> in YAML. Enables reusable playbooks.</p>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--teal);border-radius:0 var(--radius) var(--radius) 0;padding:16px 18px;">
+        <div style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--teal);margin-bottom:6px;">05 — Role</div>
+        <p style="font-size:13px;color:var(--text2);line-height:1.5;">A packaged, reusable bundle of tasks with its own defaults, vars, and templates. Example: a "provision_svm" role you call with different var files per environment.</p>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--red);border-radius:0 var(--radius) var(--radius) 0;padding:16px 18px;">
+        <div style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--red);margin-bottom:6px;">06 — Vault</div>
+        <p style="font-size:13px;color:var(--text2);line-height:1.5;">Ansible's encryption system. Encrypts passwords and sensitive data so your playbooks can be committed to Git safely. Decrypted at runtime using a vault password.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="info green">
+    <strong>Key mental model — Ansible is declarative</strong>
+    You don't write a script saying "if volume doesn't exist, run this command". You write "I want a volume with these properties". Ansible figures out whether to create, modify, or do nothing. This is what "idempotent" means in practice.
+  </div>
+</div>
+
+<hr class="div">
+
+<!-- ════ SECTION 3: ARCHITECTURE ════ -->
+<div class="section" id="architecture">
+  <div class="sec-label">Section 03</div>
+  <h2>How Ansible talks to NetApp ONTAP</h2>
+  <p>Ansible runs on a <strong>control node</strong> (your laptop, a CI server, or AWX) and talks to ONTAP clusters over <strong>HTTPS REST API</strong>. Nothing is installed on the NetApp side — the <code>netapp.ontap</code> modules handle the API calls.</p>
+
+  <div class="card">
+    <div class="card-title">Ansible + ONTAP Architecture</div>
+    <svg class="arch-svg" viewBox="0 0 880 340">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+
+      <!-- Control node -->
+      <rect x="20" y="20" width="230" height="290" rx="12" fill="rgba(56,189,248,0.06)" stroke="rgba(56,189,248,0.25)" stroke-width="1"/>
+      <text x="135" y="46" fill="#7dd3fc" font-size="13" font-weight="600" font-family="Inter,sans-serif" text-anchor="middle">Ansible Control Node</text>
+      <text x="135" y="62" fill="#475569" font-size="11" font-family="Inter,sans-serif" text-anchor="middle">laptop · CI server · AWX</text>
+
+      <rect x="38" y="78" width="194" height="40" rx="7" fill="rgba(56,189,248,0.08)" stroke="rgba(56,189,248,0.2)" stroke-width="0.5"/>
+      <text x="135" y="97" fill="#93c5fd" font-size="12" font-weight="500" font-family="JetBrains Mono,monospace" text-anchor="middle">inventory.yml</text>
+      <text x="135" y="111" fill="#475569" font-size="10" font-family="Inter,sans-serif" text-anchor="middle">cluster IPs &amp; creds</text>
+
+      <rect x="38" y="128" width="194" height="40" rx="7" fill="rgba(74,222,128,0.07)" stroke="rgba(74,222,128,0.2)" stroke-width="0.5"/>
+      <text x="135" y="147" fill="#86efac" font-size="12" font-weight="500" font-family="JetBrains Mono,monospace" text-anchor="middle">playbook.yml</text>
+      <text x="135" y="161" fill="#475569" font-size="10" font-family="Inter,sans-serif" text-anchor="middle">tasks to execute</text>
+
+      <rect x="38" y="178" width="194" height="40" rx="7" fill="rgba(167,139,250,0.07)" stroke="rgba(167,139,250,0.2)" stroke-width="0.5"/>
+      <text x="135" y="197" fill="#c4b5fd" font-size="12" font-weight="500" font-family="JetBrains Mono,monospace" text-anchor="middle">netapp.ontap</text>
+      <text x="135" y="211" fill="#475569" font-size="10" font-family="Inter,sans-serif" text-anchor="middle">100+ ONTAP modules</text>
+
+      <rect x="38" y="228" width="194" height="64" rx="7" fill="rgba(251,191,36,0.07)" stroke="rgba(251,191,36,0.2)" stroke-width="0.5"/>
+      <text x="135" y="248" fill="#fde68a" font-size="12" font-weight="500" font-family="JetBrains Mono,monospace" text-anchor="middle">ansible-vault</text>
+      <text x="135" y="264" fill="#475569" font-size="10" font-family="Inter,sans-serif" text-anchor="middle">passwords encrypted</text>
+      <text x="135" y="279" fill="#475569" font-size="10" font-family="Inter,sans-serif" text-anchor="middle">safe to store in Git</text>
+
+      <!-- Arrow + labels -->
+      <line x1="252" y1="165" x2="308" y2="165" stroke="#2dd4bf" stroke-width="2" marker-end="url(#ar)"/>
+      <text x="280" y="155" fill="#2dd4bf" font-size="10" font-family="Inter,sans-serif" text-anchor="middle">REST API</text>
+      <text x="280" y="179" fill="#0d9488" font-size="10" font-family="Inter,sans-serif" text-anchor="middle">HTTPS 443</text>
+
+      <!-- Cluster A -->
+      <rect x="310" y="20" width="200" height="130" rx="12" fill="rgba(56,189,248,0.05)" stroke="rgba(56,189,248,0.2)" stroke-width="1"/>
+      <text x="410" y="46" fill="#7dd3fc" font-size="13" font-weight="600" font-family="Inter,sans-serif" text-anchor="middle">ONTAP Cluster A</text>
+      <text x="410" y="62" fill="#475569" font-size="10" font-family="Inter,sans-serif" text-anchor="middle">primary site</text>
+      <rect x="328" y="74" width="164" height="30" rx="6" fill="rgba(56,189,248,0.06)" stroke="rgba(56,189,248,0.15)" stroke-width="0.5"/>
+      <text x="410" y="93" fill="#94a3b8" font-size="11" font-family="Inter,sans-serif" text-anchor="middle">SVM · volumes · LUNs</text>
+      <rect x="328" y="110" width="164" height="30" rx="6" fill="rgba(56,189,248,0.06)" stroke="rgba(56,189,248,0.15)" stroke-width="0.5"/>
+      <text x="410" y="129" fill="#94a3b8" font-size="11" font-family="Inter,sans-serif" text-anchor="middle">SnapMirror · policies</text>
+
+      <!-- Arrow 2 -->
+      <line x1="252" y1="230" x2="308" y2="260" stroke="#2dd4bf" stroke-width="1.5" marker-end="url(#ar)"/>
+
+      <!-- Cluster B -->
+      <rect x="310" y="170" width="200" height="130" rx="12" fill="rgba(74,222,128,0.04)" stroke="rgba(74,222,128,0.18)" stroke-width="1"/>
+      <text x="410" y="196" fill="#86efac" font-size="13" font-weight="600" font-family="Inter,sans-serif" text-anchor="middle">ONTAP Cluster B</text>
+      <text x="410" y="212" fill="#475569" font-size="10" font-family="Inter,sans-serif" text-anchor="middle">DR / secondary site</text>
+      <rect x="328" y="222" width="164" height="30" rx="6" fill="rgba(74,222,128,0.05)" stroke="rgba(74,222,128,0.15)" stroke-width="0.5"/>
+      <text x="410" y="241" fill="#94a3b8" font-size="11" font-family="Inter,sans-serif" text-anchor="middle">SVM-DR · mirrors</text>
+      <rect x="328" y="258" width="164" height="30" rx="6" fill="rgba(74,222,128,0.05)" stroke="rgba(74,222,128,0.15)" stroke-width="0.5"/>
+      <text x="410" y="277" fill="#94a3b8" font-size="11" font-family="Inter,sans-serif" text-anchor="middle">SnapVault · schedules</text>
+
+      <!-- Output box -->
+      <rect x="540" y="80" width="190" height="175" rx="12" fill="rgba(251,191,36,0.05)" stroke="rgba(251,191,36,0.2)" stroke-width="1"/>
+      <text x="635" y="106" fill="#fde68a" font-size="13" font-weight="600" font-family="Inter,sans-serif" text-anchor="middle">Run output</text>
+
+      <rect x="558" y="118" width="154" height="30" rx="6" fill="rgba(74,222,128,0.08)" stroke="rgba(74,222,128,0.15)" stroke-width="0.5"/>
+      <text x="635" y="137" fill="#86efac" font-size="11" font-family="Inter,sans-serif" text-anchor="middle">ok / changed / failed</text>
+      <rect x="558" y="156" width="154" height="30" rx="6" fill="rgba(56,189,248,0.06)" stroke="rgba(56,189,248,0.15)" stroke-width="0.5"/>
+      <text x="635" y="175" fill="#93c5fd" font-size="11" font-family="Inter,sans-serif" text-anchor="middle">idempotent — safe to retry</text>
+      <rect x="558" y="194" width="154" height="30" rx="6" fill="rgba(167,139,250,0.07)" stroke="rgba(167,139,250,0.15)" stroke-width="0.5"/>
+      <text x="635" y="213" fill="#c4b5fd" font-size="11" font-family="Inter,sans-serif" text-anchor="middle">audit log · CI report</text>
+      <rect x="558" y="232" width="154" height="18" rx="6" fill="rgba(45,212,191,0.07)" stroke="rgba(45,212,191,0.15)" stroke-width="0.5"/>
+      <text x="635" y="244" fill="#5eead4" font-size="10" font-family="Inter,sans-serif" text-anchor="middle">AWX / Tower integration</text>
+
+      <line x1="512" y1="100" x2="538" y2="148" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#ar)"/>
+      <line x1="512" y1="260" x2="538" y2="215" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#ar)"/>
+    </svg>
+  </div>
+</div>
+
+<hr class="div">
+
+<!-- ════ SECTION 4: INSTALL ════ -->
+<div class="section" id="install">
+  <div class="sec-label">Section 04</div>
+  <h2>Installation &amp; Setup</h2>
+  <p>Three commands and you're ready to automate your first ONTAP cluster.</p>
+
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-lang">BASH</span>
+      <span class="code-file">terminal</span>
+    </div>
+    <div class="code-body"><span class="c"># Step 1 — Install Ansible and the NetApp Python library</span>
+pip install ansible netapp-lib requests
+
+<span class="c"># Step 2 — Install the official NetApp ONTAP collection from Ansible Galaxy</span>
+ansible-galaxy collection install netapp.ontap
+
+<span class="c"># Step 3 — Verify the collection is installed</span>
+ansible-galaxy collection list | grep netapp</div>
+  </div>
+
+  <h3 style="color:#fff;font-size:18px;margin:28px 0 12px;font-weight:600;">Inventory file</h3>
+  <p>The inventory file tells Ansible which clusters to manage and how to connect to them.</p>
+
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-lang">YAML</span>
+      <span class="code-file">inventory.yml</span>
+    </div>
+    <div class="code-body"><span class="k">all:</span>
+  <span class="k">children:</span>
+    <span class="k">ontap_clusters:</span>
+      <span class="k">hosts:</span>
+        <span class="m">cluster_primary:</span>
+          <span class="v">ansible_host:</span> <span class="s">192.168.1.10</span>    <span class="c"># cluster management IP</span>
+          <span class="v">ansible_user:</span> <span class="s">admin</span>
+          <span class="v">ansible_password:</span> <span class="s">"{{ vault_ontap_password }}"</span>
+          <span class="v">https:</span> <span class="kw">true</span>
+          <span class="v">validate_certs:</span> <span class="kw">false</span>         <span class="c"># set true in production with valid cert</span>
+
+        <span class="m">cluster_dr:</span>
+          <span class="v">ansible_host:</span> <span class="s">192.168.2.10</span>
+          <span class="v">ansible_user:</span> <span class="s">admin</span>
+          <span class="v">ansible_password:</span> <span class="s">"{{ vault_ontap_password }}"</span>
+          <span class="v">https:</span> <span class="kw">true</span>
+          <span class="v">validate_certs:</span> <span class="kw">false</span></div>
+  </div>
+
+  <h3 style="color:#fff;font-size:18px;margin:28px 0 12px;font-weight:600;">Encrypting passwords with Vault</h3>
+
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-lang">BASH</span>
+      <span class="code-file">terminal</span>
+    </div>
+    <div class="code-body"><span class="c"># Create an encrypted vars file — you'll be prompted for a vault password</span>
+ansible-vault create group_vars/all/vault.yml
+
+<span class="c"># Inside vault.yml add:</span>
+<span class="v">vault_ontap_password:</span> <span class="s">YourSecretPassword123</span>
+
+<span class="c"># Run a playbook with vault decryption</span>
+ansible-playbook -i inventory.yml playbook.yml --ask-vault-pass</div>
+  </div>
+
+  <div class="info amber">
+    <strong>Lab environment tip</strong>
+    Use <strong>ONTAP Select</strong> (free developer licence from NetApp support) or <strong>ONTAP Simulator</strong> to build a real ONTAP cluster on your laptop or a VM. Practice every playbook here before touching production. You get a fully functional two-node cluster with all ONTAP features enabled.
+  </div>
+</div>
+
+<hr class="div">
+
+<!-- ════ SECTION 5: MODULES ════ -->
+<div class="section" id="modules">
+  <div class="sec-label">Section 05</div>
+  <h2>The <code>netapp.ontap</code> Module Library</h2>
+  <p>NetApp's Ansible collection covers every ONTAP operation. Here are the most important modules grouped by task area — these are the ones you'll use 90% of the time.</p>
+
+  <div class="mod-section">
+
+    <div class="mod-group">
+      <div class="mod-group-title mg-sky">SVM &amp; Cluster</div>
+      <div class="mod-row">
+        <span class="mod-chip">na_ontap_svm</span>
+        <span class="mod-chip">na_ontap_cluster</span>
+        <span class="mod-chip">na_ontap_cluster_peer</span>
+        <span class="mod-chip">na_ontap_svm_peer</span>
+        <span class="mod-chip">na_ontap_license</span>
+        <span class="mod-chip">na_ontap_rest_info</span>
+      </div>
+    </div>
+
+    <div class="mod-group">
+      <div class="mod-group-title mg-green">Storage Provisioning</div>
+      <div class="mod-row">
+        <span class="mod-chip">na_ontap_volume</span>
+        <span class="mod-chip">na_ontap_aggregate</span>
+        <span class="mod-chip">na_ontap_qtree</span>
+        <span class="mod-chip">na_ontap_quota</span>
+        <span class="mod-chip">na_ontap_lun</span>
+        <span class="mod-chip">na_ontap_volume_clone</span>
+        <span class="mod-chip">na_ontap_flexcache</span>
+      </div>
+    </div>
+
+    <div class="mod-group">
+      <div class="mod-group-title mg-violet">Data Protection</div>
+      <div class="mod-row">
+        <span class="mod-chip">na_ontap_snapmirror</span>
+        <span class="mod-chip">na_ontap_snapshot</span>
+        <span class="mod-chip">na_ontap_snapshot_policy</span>
+        <span class="mod-chip">na_ontap_svm_dr</span>
+        <span class="mod-chip">na_ontap_consistency_group</span>
+        <span class="mod-chip">na_ontap_snapmirror_policy</span>
+      </div>
+    </div>
+
+    <div class="mod-group">
+      <div class="mod-group-title mg-sky">Networking</div>
+      <div class="mod-row">
+        <span class="mod-chip">na_ontap_interface</span>
+        <span class="mod-chip">na_ontap_net_port</span>
+        <span class="mod-chip">na_ontap_net_vlan</span>
+        <span class="mod-chip">na_ontap_broadcast_domain</span>
+        <span class="mod-chip">na_ontap_ipspace</span>
+        <span class="mod-chip">na_ontap_net_routes</span>
+      </div>
+    </div>
+
+    <div class="mod-group">
+      <div class="mod-group-title mg-green">NAS — NFS &amp; CIFS</div>
+      <div class="mod-row">
+        <span class="mod-chip">na_ontap_nfs</span>
+        <span class="mod-chip">na_ontap_export_policy</span>
+        <span class="mod-chip">na_ontap_export_policy_rule</span>
+        <span class="mod-chip">na_ontap_cifs</span>
+        <span class="mod-chip">na_ontap_cifs_share</span>
+        <span class="mod-chip">na_ontap_dns</span>
+        <span class="mod-chip">na_ontap_kerberos_realm</span>
+      </div>
+    </div>
+
+    <div class="mod-group">
+      <div class="mod-group-title mg-amber">SAN — FC &amp; iSCSI</div>
+      <div class="mod-row">
+        <span class="mod-chip">na_ontap_igroup</span>
+        <span class="mod-chip">na_ontap_lun_map</span>
+        <span class="mod-chip">na_ontap_iscsi</span>
+        <span class="mod-chip">na_ontap_fcp</span>
+        <span class="mod-chip">na_ontap_wwpn_alias</span>
+        <span class="mod-chip">na_ontap_nvme</span>
+        <span class="mod-chip">na_ontap_nvme_namespace</span>
+      </div>
+    </div>
+
+    <div class="mod-group">
+      <div class="mod-group-title mg-teal">Efficiency &amp; QoS</div>
+      <div class="mod-row">
+        <span class="mod-chip">na_ontap_volume_efficiency</span>
+        <span class="mod-chip">na_ontap_qos_policy_group</span>
+        <span class="mod-chip">na_ontap_qos_adaptive_policy_group</span>
+        <span class="mod-chip">na_ontap_storage_failover</span>
+      </div>
+    </div>
+
+    <div class="mod-group">
+      <div class="mod-group-title mg-red">Security &amp; Users</div>
+      <div class="mod-row">
+        <span class="mod-chip">na_ontap_user</span>
+        <span class="mod-chip">na_ontap_user_role</span>
+        <span class="mod-chip">na_ontap_security_cert</span>
+        <span class="mod-chip">na_ontap_login_messages</span>
+        <span class="mod-chip">na_ontap_audit</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="info violet">
+    <strong>Start with na_ontap_info</strong>
+    The <code>na_ontap_info</code> module reads data from ONTAP without changing anything. It's the perfect first playbook — you can query volumes, SVMs, aggregates, SnapMirror relationships and print them. Zero risk, immediate value.
+  </div>
+</div>
+
+<hr class="div">
+
+<!-- ════ SECTION 6: PLAYBOOKS ════ -->
+<div class="section" id="playbooks">
+  <div class="sec-label">Section 06</div>
+  <h2>Essential Playbook Examples</h2>
+  <p>Here are the five most common storage automation tasks. Each playbook is production-ready with variables, error handling, and idempotency built in.</p>
+
+  <h3 style="color:#fff;font-size:17px;margin:28px 0 12px;font-weight:600;">1 — Query cluster info (read-only, zero risk)</h3>
+
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-lang">YAML</span>
+      <span class="code-file">01_get_cluster_info.yml</span>
+    </div>
+    <div class="code-body"><span class="k">---</span>
+<span class="k">- name:</span> <span class="s">Get ONTAP cluster and volume information</span>
+  <span class="k">hosts:</span> <span class="s">cluster_primary</span>
+  <span class="k">gather_facts:</span> <span class="kw">false</span>
+  <span class="k">collections:</span>
+    - <span class="s">netapp.ontap</span>
+
+  <span class="k">tasks:</span>
+    - <span class="k">name:</span> <span class="s">Collect cluster info</span>
+      <span class="k">na_ontap_info:</span>
+        <span class="v">state:</span> <span class="s">info</span>
+        <span class="v">gather_subset:</span>
+          - <span class="s">volume_info</span>
+          - <span class="s">aggregate_info</span>
+          - <span class="s">svm_info</span>
+          - <span class="s">snapmirror_info</span>
+        <span class="v">hostname:</span> <span class="s">"{{ ansible_host }}"</span>
+        <span class="v">username:</span> <span class="s">"{{ ansible_user }}"</span>
+        <span class="v">password:</span> <span class="s">"{{ ansible_password }}"</span>
+        <span class="v">https:</span> <span class="kw">true</span>
+        <span class="v">validate_certs:</span> <span class="kw">false</span>
+      <span class="k">register:</span> <span class="s">ontap_info</span>
+
+    - <span class="k">name:</span> <span class="s">Print volume list</span>
+      <span class="k">debug:</span>
+        <span class="v">msg:</span> <span class="s">"Volume: {{ item.key }} — State: {{ item.value.volume_state_attributes.state }}"</span>
+      <span class="k">loop:</span> <span class="s">"{{ ontap_info.ontap_info.volume_info | dict2items }}"</span></div>
+  </div>
+
+  <h3 style="color:#fff;font-size:17px;margin:28px 0 12px;font-weight:600;">2 — Create NFS volume with export policy</h3>
+
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-lang">YAML</span>
+      <span class="code-file">02_create_nfs_volume.yml</span>
+    </div>
+    <div class="code-body"><span class="k">---</span>
+<span class="k">- name:</span> <span class="s">Provision NFS volume on ONTAP</span>
+  <span class="k">hosts:</span> <span class="s">cluster_primary</span>
+  <span class="k">gather_facts:</span> <span class="kw">false</span>
+  <span class="k">collections:</span>
+    - <span class="s">netapp.ontap</span>
+
+  <span class="k">vars:</span>
+    <span class="v">svm_name:</span>       <span class="s">svm_prod</span>
+    <span class="v">volume_name:</span>    <span class="s">vol_oracle_data</span>
+    <span class="v">size_gb:</span>        <span class="m">500</span>
+    <span class="v">junction_path:</span>  <span class="s">/oracle_data</span>
+    <span class="v">aggregate:</span>      <span class="s">aggr1_node1</span>
+    <span class="v">allowed_clients:</span> <span class="s">10.10.0.0/24</span>
+
+  <span class="k">tasks:</span>
+    - <span class="k">name:</span> <span class="s">Create export policy</span>
+      <span class="k">na_ontap_export_policy:</span>
+        <span class="v">state:</span> <span class="s">present</span>
+        <span class="v">name:</span> <span class="s">"{{ volume_name }}_policy"</span>
+        <span class="v">vserver:</span> <span class="s">"{{ svm_name }}"</span>
+        <span class="v">hostname:</span> <span class="s">"{{ ansible_host }}"</span>
+        <span class="v">username:</span> <span class="s">"{{ ansible_user }}"</span>
+        <span class="v">password:</span> <span class="s">"{{ ansible_password }}"</span>
+        <span class="v">https:</span> <span class="kw">true</span>
+        <span class="v">validate_certs:</span> <span class="kw">false</span>
+
+    - <span class="k">name:</span> <span class="s">Add export rule</span>
+      <span class="k">na_ontap_export_policy_rule:</span>
+        <span class="v">state:</span> <span class="s">present</span>
+        <span class="v">policy_name:</span> <span class="s">"{{ volume_name }}_policy"</span>
+        <span class="v">vserver:</span> <span class="s">"{{ svm_name }}"</span>
+        <span class="v">client_match:</span> <span class="s">"{{ allowed_clients }}"</span>
+        <span class="v">ro_rule:</span> <span class="s">sys</span>
+        <span class="v">rw_rule:</span> <span class="s">sys</span>
+        <span class="v">super_user_security:</span> <span class="s">sys</span>
+        <span class="v">hostname:</span> <span class="s">"{{ ansible_host }}"</span>
+        <span class="v">username:</span> <span class="s">"{{ ansible_user }}"</span>
+        <span class="v">password:</span> <span class="s">"{{ ansible_password }}"</span>
+        <span class="v">https:</span> <span class="kw">true</span>
+        <span class="v">validate_certs:</span> <span class="kw">false</span>
+
+    - <span class="k">name:</span> <span class="s">Create NFS volume</span>
+      <span class="k">na_ontap_volume:</span>
+        <span class="v">state:</span> <span class="s">present</span>
+        <span class="v">name:</span> <span class="s">"{{ volume_name }}"</span>
+        <span class="v">vserver:</span> <span class="s">"{{ svm_name }}"</span>
+        <span class="v">aggregate_name:</span> <span class="s">"{{ aggregate }}"</span>
+        <span class="v">size:</span> <span class="s">"{{ size_gb }}"</span>
+        <span class="v">size_unit:</span> <span class="s">gb</span>
+        <span class="v">space_guarantee:</span> <span class="s">none</span>
+        <span class="v">tiering_policy:</span> <span class="s">auto</span>
+        <span class="v">junction_path:</span> <span class="s">"{{ junction_path }}"</span>
+        <span class="v">export_policy:</span> <span class="s">"{{ volume_name }}_policy"</span>
+        <span class="v">snapshot_policy:</span> <span class="s">default</span>
+        <span class="v">percent_snapshot_space:</span> <span class="m">20</span>
+        <span class="v">hostname:</span> <span class="s">"{{ ansible_host }}"</span>
+        <span class="v">username:</span> <span class="s">"{{ ansible_user }}"</span>
+        <span class="v">password:</span> <span class="s">"{{ ansible_password }}"</span>
+        <span class="v">https:</span> <span class="kw">true</span>
+        <span class="v">validate_certs:</span> <span class="kw">false</span></div>
+  </div>
+
+  <h3 style="color:#fff;font-size:17px;margin:28px 0 12px;font-weight:600;">3 — Full SVM provisioning in one playbook</h3>
+  <p>This is where Ansible really shines — instead of 20+ CLI commands, one file creates the SVM, sets up networking, enables protocols, and configures DNS.</p>
+
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-lang">YAML</span>
+      <span class="code-file">03_provision_svm.yml</span>
+    </div>
+    <div class="code-body"><span class="k">---</span>
+<span class="k">- name:</span> <span class="s">Full SVM provisioning</span>
+  <span class="k">hosts:</span> <span class="s">cluster_primary</span>
+  <span class="k">gather_facts:</span> <span class="kw">false</span>
+  <span class="k">collections:</span>
+    - <span class="s">netapp.ontap</span>
+
+  <span class="k">vars:</span>
+    <span class="v">svm_name:</span>         <span class="s">svm_app01</span>
+    <span class="v">allowed_protocols:</span> <span class="s">[nfs, iscsi]</span>
+    <span class="v">lif_ip:</span>           <span class="s">10.10.1.50</span>
+    <span class="v">lif_netmask:</span>      <span class="s">255.255.255.0</span>
+    <span class="v">lif_home_node:</span>    <span class="s">node1</span>
+    <span class="v">lif_home_port:</span>    <span class="s">e0c</span>
+    <span class="v">dns_domain:</span>       <span class="s">corp.example.com</span>
+    <span class="v">dns_servers:</span>      <span class="s">["10.10.1.5", "10.10.1.6"]</span>
+
+  <span class="k">tasks:</span>
+    - <span class="k">name:</span> <span class="s">Create SVM</span>
+      <span class="k">na_ontap_svm:</span>
+        <span class="v">state:</span> <span class="s">present</span>
+        <span class="v">name:</span> <span class="s">"{{ svm_name }}"</span>
+        <span class="v">allowed_protocols:</span> <span class="s">"{{ allowed_protocols }}"</span>
+        <span class="v">hostname:</span> <span class="s">"{{ ansible_host }}"</span>
+        <span class="v">username:</span> <span class="s">"{{ ansible_user }}"</span>
+        <span class="v">password:</span> <span class="s">"{{ ansible_password }}"</span>
+        <span class="v">https:</span> <span class="kw">true</span>
+        <span class="v">validate_certs:</span> <span class="kw">false</span>
+
+    - <span class="k">name:</span> <span class="s">Create data LIF</span>
+      <span class="k">na_ontap_interface:</span>
+        <span class="v">state:</span> <span class="s">present</span>
+        <span class="v">interface_name:</span> <span class="s">"{{ svm_name }}_data_lif1"</span>
+        <span class="v">vserver:</span> <span class="s">"{{ svm_name }}"</span>
+        <span class="v">address:</span> <span class="s">"{{ lif_ip }}"</span>
+        <span class="v">netmask:</span> <span class="s">"{{ lif_netmask }}"</span>
+        <span class="v">home_node:</span> <span class="s">"{{ lif_home_node }}"</span>
+        <span class="v">home_port:</span> <span class="s">"{{ lif_home_port }}"</span>
+        <span class="v">role:</span> <span class="s">data</span>
+        <span class="v">protocols:</span> <span class="s">[nfs, iscsi]</span>
+        <span class="v">hostname:</span> <span class="s">"{{ ansible_host }}"</span>
+        <span class="v">username:</span> <span class="s">"{{ ansible_user }}"</span>
+        <span class="v">password:</span> <span class="s">"{{ ansible_password }}"</span>
+        <span class="v">https:</span> <span class="kw">true</span>
+        <span class="v">validate_certs:</span> <span class="kw">false</span>
+
+    - <span class="k">name:</span> <span class="s">Configure DNS</span>
+      <span class="k">na_ontap_dns:</span>
+        <span class="v">state:</span> <span class="s">present</span>
+        <span class="v">vserver:</span> <span class="s">"{{ svm_name }}"</span>
+        <span class="v">domains:</span> <span class="s">["{{ dns_domain }}"]</span>
+        <span class="v">nameservers:</span> <span class="s">"{{ dns_servers }}"</span>
+        <span class="v">hostname:</span> <span class="s">"{{ ansible_host }}"</span>
+        <span class="v">username:</span> <span class="s">"{{ ansible_user }}"</span>
+        <span class="v">password:</span> <span class="s">"{{ ansible_password }}"</span>
+        <span class="v">https:</span> <span class="kw">true</span>
+        <span class="v">validate_certs:</span> <span class="kw">false</span>
+
+    - <span class="k">name:</span> <span class="s">Enable NFS service</span>
+      <span class="k">na_ontap_nfs:</span>
+        <span class="v">state:</span> <span class="s">present</span>
+        <span class="v">vserver:</span> <span class="s">"{{ svm_name }}"</span>
+        <span class="v">service_state:</span> <span class="s">started</span>
+        <span class="v">nfsv3:</span> <span class="s">enabled</span>
+        <span class="v">nfsv4:</span> <span class="s">enabled</span>
+        <span class="v">hostname:</span> <span class="s">"{{ ansible_host }}"</span>
+        <span class="v">username:</span> <span class="s">"{{ ansible_user }}"</span>
+        <span class="v">password:</span> <span class="s">"{{ ansible_password }}"</span>
+        <span class="v">https:</span> <span class="kw">true</span>
+        <span class="v">validate_certs:</span> <span class="kw">false</span></div>
+  </div>
+</div>
+
+<hr class="div">
+
+<!-- ════ SECTION 7: DATA PROTECTION ════ -->
+<div class="section" id="dataprotection">
+  <div class="sec-label">Section 07</div>
+  <h2>Data Protection Automation</h2>
+  <p>This is where Ansible delivers the most value for NetApp admins. SnapMirror setup, SVM-DR configuration, and snapshot policy management become one-command operations.</p>
+
+  <h3 style="color:#fff;font-size:17px;margin:28px 0 12px;font-weight:600;">4 — SnapMirror relationship setup</h3>
+
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-lang">YAML</span>
+      <span class="code-file">04_snapmirror_setup.yml</span>
+    </div>
+    <div class="code-body"><span class="k">---</span>
+<span class="k">- name:</span> <span class="s">Configure SnapMirror replication</span>
+  <span class="k">hosts:</span> <span class="s">cluster_primary</span>
+  <span class="k">gather_facts:</span> <span class="kw">false</span>
+  <span class="k">collections:</span>
+    - <span class="s">netapp.ontap</span>
+
+  <span class="k">vars:</span>
+    <span class="v">source_vserver:</span>  <span class="s">svm_prod</span>
+    <span class="v">source_volume:</span>   <span class="s">vol_oracle_data</span>
+    <span class="v">dest_vserver:</span>    <span class="s">svm_dr</span>
+    <span class="v">dest_volume:</span>     <span class="s">vol_oracle_data_dr</span>
+    <span class="v">policy:</span>          <span class="s">MirrorAllSnapshots</span>
+    <span class="v">schedule:</span>        <span class="s">hourly</span>
+
+  <span class="k">tasks:</span>
+    - <span class="k">name:</span> <span class="s">Create SnapMirror relationship</span>
+      <span class="k">na_ontap_snapmirror:</span>
+        <span class="v">state:</span> <span class="s">present</span>
+        <span class="v">source_path:</span>      <span class="s">"{{ source_vserver }}:{{ source_volume }}"</span>
+        <span class="v">destination_path:</span> <span class="s">"{{ dest_vserver }}:{{ dest_volume }}"</span>
+        <span class="v">relationship_type:</span> <span class="s">extended_data_protection</span>
+        <span class="v">schedule:</span>         <span class="s">"{{ schedule }}"</span>
+        <span class="v">policy:</span>           <span class="s">"{{ policy }}"</span>
+        <span class="v">hostname:</span> <span class="s">"{{ ansible_host }}"</span>
+        <span class="v">username:</span> <span class="s">"{{ ansible_user }}"</span>
+        <span class="v">password:</span> <span class="s">"{{ ansible_password }}"</span>
+        <span class="v">https:</span> <span class="kw">true</span>
+        <span class="v">validate_certs:</span> <span class="kw">false</span>
+
+    - <span class="k">name:</span> <span class="s">Initialize SnapMirror (baseline transfer)</span>
+      <span class="k">na_ontap_snapmirror:</span>
+        <span class="v">state:</span> <span class="s">present</span>
+        <span class="v">initialize:</span> <span class="kw">true</span>
+        <span class="v">source_path:</span>      <span class="s">"{{ source_vserver }}:{{ source_volume }}"</span>
+        <span class="v">destination_path:</span> <span class="s">"{{ dest_vserver }}:{{ dest_volume }}"</span>
+        <span class="v">hostname:</span> <span class="s">"{{ ansible_host }}"</span>
+        <span class="v">username:</span> <span class="s">"{{ ansible_user }}"</span>
+        <span class="v">password:</span> <span class="s">"{{ ansible_password }}"</span>
+        <span class="v">https:</span> <span class="kw">true</span>
+        <span class="v">validate_certs:</span> <span class="kw">false</span></div>
+  </div>
+
+  <h3 style="color:#fff;font-size:17px;margin:28px 0 12px;font-weight:600;">5 — DR failover and resync workflow</h3>
+  <p>Use tags to selectively run the failover or resync steps. This becomes your DR runbook — version-controlled and auditable.</p>
+
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-lang">YAML</span>
+      <span class="code-file">05_dr_failover_resync.yml</span>
+    </div>
+    <div class="code-body"><span class="k">---</span>
+<span class="k">- name:</span> <span class="s">SnapMirror DR failover and resync</span>
+  <span class="k">hosts:</span> <span class="s">cluster_dr</span>
+  <span class="k">gather_facts:</span> <span class="kw">false</span>
+  <span class="k">collections:</span>
+    - <span class="s">netapp.ontap</span>
+
+  <span class="k">vars:</span>
+    <span class="v">source_path:</span>      <span class="s">"svm_prod:vol_oracle_data"</span>
+    <span class="v">destination_path:</span> <span class="s">"svm_dr:vol_oracle_data_dr"</span>
+
+  <span class="k">tasks:</span>
+    - <span class="k">name:</span> <span class="s">FAILOVER — Quiesce SnapMirror (pause scheduled transfers)</span>
+      <span class="k">na_ontap_snapmirror:</span>
+        <span class="v">state:</span> <span class="s">present</span>
+        <span class="v">relationship_state:</span> <span class="s">quiesced</span>
+        <span class="v">source_path:</span>      <span class="s">"{{ source_path }}"</span>
+        <span class="v">destination_path:</span> <span class="s">"{{ destination_path }}"</span>
+        <span class="v">hostname:</span> <span class="s">"{{ ansible_host }}"</span>
+        <span class="v">username:</span> <span class="s">"{{ ansible_user }}"</span>
+        <span class="v">password:</span> <span class="s">"{{ ansible_password }}"</span>
+        <span class="v">https:</span> <span class="kw">true</span>
+        <span class="v">validate_certs:</span> <span class="kw">false</span>
+      <span class="k">tags:</span> <span class="s">[failover]</span>
+
+    - <span class="k">name:</span> <span class="s">FAILOVER — Break SnapMirror (destination becomes read-write)</span>
+      <span class="k">na_ontap_snapmirror:</span>
+        <span class="v">state:</span> <span class="s">broken_off</span>
+        <span class="v">source_path:</span>      <span class="s">"{{ source_path }}"</span>
+        <span class="v">destination_path:</span> <span class="s">"{{ destination_path }}"</span>
+        <span class="v">hostname:</span> <span class="s">"{{ ansible_host }}"</span>
+        <span class="v">username:</span> <span class="s">"{{ ansible_user }}"</span>
+        <span class="v">password:</span> <span class="s">"{{ ansible_password }}"</span>
+        <span class="v">https:</span> <span class="kw">true</span>
+        <span class="v">validate_certs:</span> <span class="kw">false</span>
+      <span class="k">tags:</span> <span class="s">[failover]</span>
+
+    - <span class="k">name:</span> <span class="s">RESYNC — Reverse resync (DR becomes new source)</span>
+      <span class="k">na_ontap_snapmirror:</span>
+        <span class="v">state:</span> <span class="s">present</span>
+        <span class="v">source_path:</span>      <span class="s">"{{ destination_path }}"</span>
+        <span class="v">destination_path:</span> <span class="s">"{{ source_path }}"</span>
+        <span class="v">relationship_state:</span> <span class="s">active</span>
+        <span class="v">hostname:</span> <span class="s">"{{ ansible_host }}"</span>
+        <span class="v">username:</span> <span class="s">"{{ ansible_user }}"</span>
+        <span class="v">password:</span> <span class="s">"{{ ansible_password }}"</span>
+        <span class="v">https:</span> <span class="kw">true</span>
+        <span class="v">validate_certs:</span> <span class="kw">false</span>
+      <span class="k">tags:</span> <span class="s">[resync]</span>
+
+<span class="c"># Run only failover:  ansible-playbook dr_failover_resync.yml --tags failover</span>
+<span class="c"># Run only resync:    ansible-playbook dr_failover_resync.yml --tags resync</span></div>
+  </div>
+
+  <div class="info teal">
+    <strong>SnapMirror health check playbook</strong>
+    Add a daily cron job running a playbook that queries all SnapMirror relationships across your clusters with <code>na_ontap_info</code>, checks the lag time and status, and sends an alert if any relationship is broken or behind. This replaces manual checks across every cluster — a common daily task for storage admins.
+  </div>
+</div>
+
+<hr class="div">
+
+<!-- ════ SECTION 8: SAN ════ -->
+<div class="section" id="san">
+  <div class="sec-label">Section 08</div>
+  <h2>SAN Automation — LUN, igroup &amp; Mapping</h2>
+  <p>Provisioning SAN storage involves multiple steps: create the LUN, create an igroup, add host initiators, map the LUN. Ansible makes this a single atomic operation.</p>
+
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-lang">YAML</span>
+      <span class="code-file">06_san_provisioning.yml</span>
+    </div>
+    <div class="code-body"><span class="k">---</span>
+<span class="k">- name:</span> <span class="s">SAN LUN provisioning — iSCSI</span>
+  <span class="k">hosts:</span> <span class="s">cluster_primary</span>
+  <span class="k">gather_facts:</span> <span class="kw">false</span>
+  <span class="k">collections:</span>
+    - <span class="s">netapp.ontap</span>
+
+  <span class="k">vars:</span>
+    <span class="v">svm_name:</span>       <span class="s">svm_san</span>
+    <span class="v">volume_name:</span>    <span class="s">vol_lun_sql01</span>
+    <span class="v">lun_name:</span>       <span class="s">/vol/vol_lun_sql01/lun_sql01</span>
+    <span class="v">lun_size_gb:</span>    <span class="m">200</span>
+    <span class="v">os_type:</span>        <span class="s">windows_2008</span>
+    <span class="v">igroup_name:</span>    <span class="s">igrp_sql_cluster</span>
+    <span class="v">initiators:</span>
+      - <span class="s">iqn.1991-05.com.microsoft:sql-node1</span>
+      - <span class="s">iqn.1991-05.com.microsoft:sql-node2</span>
+
+  <span class="k">tasks:</span>
+    - <span class="k">name:</span> <span class="s">Create volume for LUN</span>
+      <span class="k">na_ontap_volume:</span>
+        <span class="v">state:</span> <span class="s">present</span>
+        <span class="v">name:</span> <span class="s">"{{ volume_name }}"</span>
+        <span class="v">vserver:</span> <span class="s">"{{ svm_name }}"</span>
+        <span class="v">aggregate_name:</span> <span class="s">aggr1_node1</span>
+        <span class="v">size:</span> <span class="m">300</span>
+        <span class="v">size_unit:</span> <span class="s">gb</span>
+        <span class="v">space_guarantee:</span> <span class="s">none</span>
+        <span class="v">hostname:</span> <span class="s">"{{ ansible_host }}"</span>
+        <span class="v">username:</span> <span class="s">"{{ ansible_user }}"</span>
+        <span class="v">password:</span> <span class="s">"{{ ansible_password }}"</span>
+        <span class="v">https:</span> <span class="kw">true</span>
+        <span class="v">validate_certs:</span> <span class="kw">false</span>
+
+    - <span class="k">name:</span> <span class="s">Create LUN</span>
+      <span class="k">na_ontap_lun:</span>
+        <span class="v">state:</span> <span class="s">present</span>
+        <span class="v">name:</span> <span class="s">"{{ lun_name }}"</span>
+        <span class="v">vserver:</span> <span class="s">"{{ svm_name }}"</span>
+        <span class="v">flexvol_name:</span> <span class="s">"{{ volume_name }}"</span>
+        <span class="v">size:</span> <span class="s">"{{ lun_size_gb }}"</span>
+        <span class="v">size_unit:</span> <span class="s">gb</span>
+        <span class="v">os_type:</span> <span class="s">"{{ os_type }}"</span>
+        <span class="v">space_reserve:</span> <span class="kw">false</span>
+        <span class="v">hostname:</span> <span class="s">"{{ ansible_host }}"</span>
+        <span class="v">username:</span> <span class="s">"{{ ansible_user }}"</span>
+        <span class="v">password:</span> <span class="s">"{{ ansible_password }}"</span>
+        <span class="v">https:</span> <span class="kw">true</span>
+        <span class="v">validate_certs:</span> <span class="kw">false</span>
+
+    - <span class="k">name:</span> <span class="s">Create igroup with host initiators</span>
+      <span class="k">na_ontap_igroup:</span>
+        <span class="v">state:</span> <span class="s">present</span>
+        <span class="v">name:</span> <span class="s">"{{ igroup_name }}"</span>
+        <span class="v">vserver:</span> <span class="s">"{{ svm_name }}"</span>
+        <span class="v">initiator_group_type:</span> <span class="s">iscsi</span>
+        <span class="v">os_type:</span> <span class="s">"{{ os_type }}"</span>
+        <span class="v">initiators:</span> <span class="s">"{{ initiators }}"</span>
+        <span class="v">hostname:</span> <span class="s">"{{ ansible_host }}"</span>
+        <span class="v">username:</span> <span class="s">"{{ ansible_user }}"</span>
+        <span class="v">password:</span> <span class="s">"{{ ansible_password }}"</span>
+        <span class="v">https:</span> <span class="kw">true</span>
+        <span class="v">validate_certs:</span> <span class="kw">false</span>
+
+    - <span class="k">name:</span> <span class="s">Map LUN to igroup</span>
+      <span class="k">na_ontap_lun_map:</span>
+        <span class="v">state:</span> <span class="s">present</span>
+        <span class="v">initiator_group_name:</span> <span class="s">"{{ igroup_name }}"</span>
+        <span class="v">path:</span> <span class="s">"{{ lun_name }}"</span>
+        <span class="v">vserver:</span> <span class="s">"{{ svm_name }}"</span>
+        <span class="v">hostname:</span> <span class="s">"{{ ansible_host }}"</span>
+        <span class="v">username:</span> <span class="s">"{{ ansible_user }}"</span>
+        <span class="v">password:</span> <span class="s">"{{ ansible_password }}"</span>
+        <span class="v">https:</span> <span class="kw">true</span>
+        <span class="v">validate_certs:</span> <span class="kw">false</span></div>
+  </div>
+</div>
+
+<hr class="div">
+
+<!-- ════ SECTION 9: ADVANCED ════ -->
+<div class="section" id="advanced">
+  <div class="sec-label">Section 09</div>
+  <h2>Advanced Patterns</h2>
+
+  <h3 style="color:#fff;font-size:17px;margin:0 0 12px;font-weight:600;">Loops — provision multiple volumes at once</h3>
+
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-lang">YAML</span>
+      <span class="code-file">loops_example.yml</span>
+    </div>
+    <div class="code-body"><span class="k">vars:</span>
+  <span class="v">volumes:</span>
+    - <span class="kw">{ name:</span> <span class="s">vol_oracle_data</span><span class="kw">,  size:</span> <span class="m">500</span><span class="kw">, junction:</span> <span class="s">/oracle_data</span>  <span class="kw">}</span>
+    - <span class="kw">{ name:</span> <span class="s">vol_oracle_redo</span><span class="kw">,  size:</span> <span class="m">100</span><span class="kw">, junction:</span> <span class="s">/oracle_redo</span>  <span class="kw">}</span>
+    - <span class="kw">{ name:</span> <span class="s">vol_oracle_arch</span><span class="kw">,  size:</span> <span class="m">200</span><span class="kw">, junction:</span> <span class="s">/oracle_arch</span>  <span class="kw">}</span>
+    - <span class="kw">{ name:</span> <span class="s">vol_oracle_backup</span><span class="kw">, size:</span> <span class="m">800</span><span class="kw">, junction:</span> <span class="s">/oracle_backup</span> <span class="kw">}</span>
+
+<span class="k">tasks:</span>
+  - <span class="k">name:</span> <span class="s">Create all Oracle volumes</span>
+    <span class="k">na_ontap_volume:</span>
+      <span class="v">state:</span> <span class="s">present</span>
+      <span class="v">name:</span>          <span class="s">"{{ item.name }}"</span>
+      <span class="v">vserver:</span>       <span class="s">svm_oracle</span>
+      <span class="v">aggregate_name:</span> <span class="s">aggr1</span>
+      <span class="v">size:</span>          <span class="s">"{{ item.size }}"</span>
+      <span class="v">size_unit:</span>     <span class="s">gb</span>
+      <span class="v">junction_path:</span> <span class="s">"{{ item.junction }}"</span>
+      <span class="v">hostname:</span> <span class="s">"{{ ansible_host }}"</span>
+      <span class="v">username:</span> <span class="s">"{{ ansible_user }}"</span>
+      <span class="v">password:</span> <span class="s">"{{ ansible_password }}"</span>
+      <span class="v">https:</span> <span class="kw">true</span>
+      <span class="v">validate_certs:</span> <span class="kw">false</span>
+    <span class="k">loop:</span> <span class="s">"{{ volumes }}"</span></div>
+  </div>
+
+  <h3 style="color:#fff;font-size:17px;margin:24px 0 12px;font-weight:600;">Role structure — production-grade layout</h3>
+
+  <div class="code-wrap">
+    <div class="code-header">
+      <span class="code-lang">TREE</span>
+      <span class="code-file">project directory structure</span>
+    </div>
+    <div class="code-body">netapp-automation/
+├── inventory/
+│   ├── production.yml       <span class="c"># prod cluster IPs</span>
+│   └── staging.yml          <span class="c"># staging cluster IPs</span>
+├── group_vars/
+│   └── all/
+│       ├── vars.yml         <span class="c"># common variables</span>
+│       └── vault.yml        <span class="c"># encrypted passwords</span>
+├── roles/
+│   ├── provision_svm/
+│   │   ├── tasks/main.yml
+│   │   ├── defaults/main.yml
+│   │   └── vars/main.yml
+│   ├── create_volume/
+│   │   └── tasks/main.yml
+│   └── snapmirror_setup/
+│       └── tasks/main.yml
+├── playbooks/
+│   ├── provision_oracle_env.yml
+│   ├── dr_failover.yml
+│   └── daily_health_check.yml
+└── README.md</div>
+  </div>
+
+  <h3 style="color:#fff;font-size:17px;margin:24px 0 12px;font-weight:600;">AWX / Ansible Tower — GUI + scheduling</h3>
+  <p>For production environments, run playbooks via <strong>AWX</strong> (open-source) or <strong>Red Hat Ansible Tower</strong> (enterprise). Benefits: web GUI, RBAC, audit trail, scheduling, webhook triggers from ServiceNow or Jira.</p>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:20px 0;">
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;">
+      <div style="font-family:var(--mono);font-size:11px;color:var(--sky);font-weight:600;margin-bottom:8px;">Scheduling</div>
+      <p style="font-size:13px;color:var(--text2);line-height:1.5;">Run daily health checks, weekly snapshot audits, or monthly DR tests automatically on a cron schedule.</p>
+    </div>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;">
+      <div style="font-family:var(--mono);font-size:11px;color:var(--green);font-weight:600;margin-bottom:8px;">RBAC</div>
+      <p style="font-size:13px;color:var(--text2);line-height:1.5;">Dev teams can trigger storage provisioning without access to ONTAP credentials. AWX handles auth.</p>
+    </div>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;">
+      <div style="font-family:var(--mono);font-size:11px;color:var(--violet);font-weight:600;margin-bottom:8px;">Webhooks</div>
+      <p style="font-size:13px;color:var(--text2);line-height:1.5;">ServiceNow approves a storage request → webhook triggers AWX → playbook runs → volume created. Full workflow automation.</p>
+    </div>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;">
+      <div style="font-family:var(--mono);font-size:11px;color:var(--amber);font-weight:600;margin-bottom:8px;">Audit trail</div>
+      <p style="font-size:13px;color:var(--text2);line-height:1.5;">Every playbook run is logged with who ran it, when, what changed — perfect for compliance and change management.</p>
+    </div>
+  </div>
+</div>
+
+<hr class="div">
+
+<!-- ════ SECTION 10: ROADMAP ════ -->
+<div class="section" id="roadmap">
+  <div class="sec-label">Section 10</div>
+  <h2>Your Learning Roadmap</h2>
+  <p>Follow this 10-week structured path from zero to running production-grade NetApp automation.</p>
+
+  <div class="roadmap">
+
+    <div class="rm-phase">
+      <div class="rm-num">01</div>
+      <div class="rm-body">
+        <div class="rm-title">Ansible core concepts</div>
+        <div class="rm-time">Week 1–2 · Start here even if you know storage well</div>
+        <div class="rm-tags">
+          <span class="rm-tag">YAML syntax</span>
+          <span class="rm-tag">inventory files</span>
+          <span class="rm-tag">playbooks &amp; tasks</span>
+          <span class="rm-tag">variables &amp; loops</span>
+          <span class="rm-tag">ansible-vault</span>
+          <span class="rm-tag">handlers</span>
+          <span class="rm-tag">conditionals (when:)</span>
+        </div>
+      </div>
+    </div>
+    <div class="rm-connector"></div>
+
+    <div class="rm-phase">
+      <div class="rm-num">02</div>
+      <div class="rm-body">
+        <div class="rm-title">netapp.ontap collection — read-only first</div>
+        <div class="rm-time">Week 3 · ONTAP Select simulator — zero risk</div>
+        <div class="rm-tags">
+          <span class="rm-tag">na_ontap_info</span>
+          <span class="rm-tag">na_ontap_rest_info</span>
+          <span class="rm-tag">ansible-playbook --check</span>
+          <span class="rm-tag">register &amp; debug</span>
+        </div>
+      </div>
+    </div>
+    <div class="rm-connector"></div>
+
+    <div class="rm-phase">
+      <div class="rm-num">03</div>
+      <div class="rm-body">
+        <div class="rm-title">Storage provisioning</div>
+        <div class="rm-time">Week 4–5 · Build playbooks you'd actually use at work</div>
+        <div class="rm-tags">
+          <span class="rm-tag">na_ontap_volume</span>
+          <span class="rm-tag">na_ontap_svm</span>
+          <span class="rm-tag">na_ontap_interface</span>
+          <span class="rm-tag">na_ontap_nfs</span>
+          <span class="rm-tag">export policies</span>
+          <span class="rm-tag">quota management</span>
+        </div>
+      </div>
+    </div>
+    <div class="rm-connector"></div>
+
+    <div class="rm-phase">
+      <div class="rm-num">04</div>
+      <div class="rm-body">
+        <div class="rm-title">SAN automation</div>
+        <div class="rm-time">Week 6 · FC and iSCSI LUN lifecycle</div>
+        <div class="rm-tags">
+          <span class="rm-tag">na_ontap_lun</span>
+          <span class="rm-tag">na_ontap_igroup</span>
+          <span class="rm-tag">na_ontap_lun_map</span>
+          <span class="rm-tag">na_ontap_iscsi</span>
+          <span class="rm-tag">na_ontap_fcp</span>
+        </div>
+      </div>
+    </div>
+    <div class="rm-connector"></div>
+
+    <div class="rm-phase">
+      <div class="rm-num">05</div>
+      <div class="rm-body">
+        <div class="rm-title">Data protection automation</div>
+        <div class="rm-time">Week 7–8 · The highest-value NetApp-specific skills</div>
+        <div class="rm-tags">
+          <span class="rm-tag">na_ontap_snapmirror</span>
+          <span class="rm-tag">na_ontap_snapshot_policy</span>
+          <span class="rm-tag">cluster peering</span>
+          <span class="rm-tag">SVM peering</span>
+          <span class="rm-tag">DR failover/resync</span>
+          <span class="rm-tag">SnapVault schedules</span>
+        </div>
+      </div>
+    </div>
+    <div class="rm-connector"></div>
+
+    <div class="rm-phase">
+      <div class="rm-num">06</div>
+      <div class="rm-body">
+        <div class="rm-title">Roles, templates &amp; CI/CD integration</div>
+        <div class="rm-time">Week 9–10 · Production-grade automation</div>
+        <div class="rm-tags">
+          <span class="rm-tag">Ansible Roles</span>
+          <span class="rm-tag">Jinja2 templates</span>
+          <span class="rm-tag">AWX / Ansible Tower</span>
+          <span class="rm-tag">Git + pipelines</span>
+          <span class="rm-tag">ServiceNow integration</span>
+          <span class="rm-tag">scheduled jobs</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="info green">
+    <strong>The single most valuable starting task</strong>
+    Pick one task you do manually today — creating a volume, checking SnapMirror status, or adding an igroup — and automate it with Ansible this week. The process of translating a familiar task into a playbook is the fastest way to learn. Once one task is automated, the rest follows naturally.
+  </div>
+
+  <h3 style="color:#fff;font-size:17px;margin:28px 0 14px;font-weight:600;">Quick comparison — Manual vs Ansible</h3>
+
+  <table class="comp">
+    <thead>
+      <tr>
+        <th>Task</th>
+        <th>Manual CLI</th>
+        <th>Ansible</th>
+        <th>Benefit</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Provision NFS volume</td>
+        <td class="warn">~12 commands, 5 min</td>
+        <td class="win">1 playbook run, 20s</td>
+        <td>Repeatable, consistent every time</td>
+      </tr>
+      <tr>
+        <td>Set up SVM from scratch</td>
+        <td class="warn">~25 commands, 20 min</td>
+        <td class="win">1 playbook, 90s</td>
+        <td>No step missed, fully documented</td>
+      </tr>
+      <tr>
+        <td>Configure SnapMirror</td>
+        <td class="warn">Multiple CLI steps, manual init</td>
+        <td class="win">2 tasks in one play</td>
+        <td>DR runbook as code in Git</td>
+      </tr>
+      <tr>
+        <td>Provision LUN + igroup + map</td>
+        <td class="warn">4–6 commands, easy to miss a step</td>
+        <td class="win">4 tasks, atomic</td>
+        <td>All or nothing — no partial states</td>
+      </tr>
+      <tr>
+        <td>Scale to 20 clusters</td>
+        <td class="bad">20× the work, 20× the risk</td>
+        <td class="win">Same playbook, same time</td>
+        <td>Linear scale with zero extra effort</td>
+      </tr>
+      <tr>
+        <td>Audit what changed</td>
+        <td class="bad">CLI history, hard to trace</td>
+        <td class="win">Git log + AWX run history</td>
+        <td>Full change record for compliance</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="info sky" style="margin-top:32px;">
+    <strong>Free resources to get started</strong>
+    <ul style="margin-top:8px;padding-left:18px;line-height:2.2;font-size:14px;">
+      <li><strong>docs.ansible.com</strong> — complete official documentation and getting started guide</li>
+      <li><strong>galaxy.ansible.com/netapp/ontap</strong> — NetApp collection with module docs and examples</li>
+      <li><strong>github.com/ansible-collections/netapp.ontap</strong> — source code and real playbook examples</li>
+      <li><strong>ONTAP Select</strong> — free NetApp developer cluster to test playbooks locally (requires NetApp support account)</li>
+      <li><strong>Red Hat Developer</strong> (developer.redhat.com) — free "Ansible Basics" self-paced course</li>
+    </ul>
+  </div>
+
+</div>
+
+</div><!-- /wrap -->
+
+<div class="footer">
+  <div>Ansible for <span>NetApp ONTAP</span> — Storage Automation Tutorial</div>
+  <div>ONTAP 9.x · netapp.ontap collection · Ansible 2.14+</div>
+</div>
+
+</body>
+</html>
