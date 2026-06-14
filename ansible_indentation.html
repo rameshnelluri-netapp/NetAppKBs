@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ansible YAML Indentation Guide</title>
+
+<style>
+    body{
+        font-family: Arial, Helvetica, sans-serif;
+        background:#0f172a;
+        color:#e2e8f0;
+        margin:0;
+        padding:0;
+        line-height:1.7;
+    }
+
+    .container{
+        width:90%;
+        max-width:1200px;
+        margin:auto;
+        padding:30px;
+    }
+
+    h1{
+        text-align:center;
+        color:#38bdf8;
+        border-bottom:2px solid #38bdf8;
+        padding-bottom:15px;
+    }
+
+    h2{
+        color:#fbbf24;
+        margin-top:40px;
+    }
+
+    h3{
+        color:#22c55e;
+    }
+
+    .card{
+        background:#1e293b;
+        padding:20px;
+        margin:20px 0;
+        border-radius:10px;
+        border-left:5px solid #38bdf8;
+    }
+
+    pre{
+        background:#020617;
+        color:#93c5fd;
+        padding:15px;
+        overflow:auto;
+        border-radius:8px;
+        border:1px solid #334155;
+    }
+
+    code{
+        color:#fca5a5;
+    }
+
+    table{
+        width:100%;
+        border-collapse:collapse;
+        margin-top:15px;
+    }
+
+    th,td{
+        border:1px solid #475569;
+        padding:12px;
+        text-align:left;
+    }
+
+    th{
+        background:#334155;
+        color:#f8fafc;
+    }
+
+    .good{
+        color:#22c55e;
+        font-weight:bold;
+    }
+
+    .bad{
+        color:#ef4444;
+        font-weight:bold;
+    }
+
+    ul li{
+        margin-bottom:8px;
+    }
+
+    .footer{
+        text-align:center;
+        margin-top:50px;
+        color:#94a3b8;
+    }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Ansible YAML Indentation Guide</h1>
+
+<div class="card">
+<p>
+This guide explains YAML indentation, alignment, list structures, document markers,
+and how Ansible interprets indentation.
+</p>
+</div>
+
+<h2>1. What is YAML?</h2>
+
+<div class="card">
+<p>
+YAML stands for:
+</p>
+
+<pre>
+YAML Ain't Markup Language
+</pre>
+
+<p>
+Ansible playbooks are written in YAML. YAML uses spaces and indentation
+to represent hierarchy instead of braces ({}) or XML tags.
+</p>
+</div>
+
+<h2>2. YAML Document Start Marker (---)</h2>
+
+<div class="card">
+
+<p>
+The symbol:
+</p>
+
+<pre>
+---
+</pre>
+
+<p>
+indicates the start of a YAML document.
+</p>
+
+<h3>Example</h3>
+
+<pre>
+---
+- name: Play 1
+</pre>
+
+<p>
+This tells YAML:
+</p>
+
+<pre>
+Start a new document here
+</pre>
+
+<h3>Is it mandatory?</h3>
+
+<p>No. But it is considered a best practice.</p>
+
+<pre>
+---
+- name: Play 1
+</pre>
+
+<p>and</p>
+
+<pre>
+- name: Play 1
+</pre>
+
+<p>are both valid.</p>
+
+</div>
+
+<h2>3. Meaning of Dash (-)</h2>
+
+<div class="card">
+
+<p>
+A dash represents an item in a list.
+</p>
+
+<pre>
+tasks:
+  - name: Task 1
+  - name: Task 2
+</pre>
+
+<p>
+Hierarchy:
+</p>
+
+<pre>
+tasks
+├── Task 1
+└── Task 2
+</pre>
+
+</div>
+
+<h2>4. Understanding Indentation</h2>
+
+<div class="card">
+
+<p>
+YAML uses spaces to represent parent-child relationships.
+</p>
+
+<pre>
+tasks:
+  - name: Install Apache
+    yum:
+      name: httpd
+      state: present
+</pre>
+
+<p>
+Hierarchy:
+</p>
+
+<pre>
+tasks
+└── Task
+    └── yum
+        ├── name=httpd
+        └── state=present
+</pre>
+
+</div>
+
+<h2>5. Complete Playbook Breakdown</h2>
+
+<div class="card">
+
+<pre>
+---
+- name: Play 1
+  hosts: target_hosts
+
+  tasks:
+
+    - name: Task 1
+      module_name:
+        key: value
+
+    - name: Task 2
+      second_module_name:
+        key: value
+</pre>
+
+<h3>Hierarchy View</h3>
+
+<pre>
+YAML Document
+│
+└── Play 1
+    │
+    ├── hosts
+    │
+    └── tasks
+         │
+         ├── Task 1
+         │    └── module_name
+         │         └── key=value
+         │
+         └── Task 2
+              └── second_module_name
+                   └── key=value
+</pre>
+
+</div>
+
+<h2>6. Standard Indentation Rules</h2>
+
+<div class="card">
+
+<table>
+<tr>
+<th>Rule</th>
+<th>Description</th>
+</tr>
+
+<tr>
+<td>Use spaces</td>
+<td>Always use spaces, never tabs</td>
+</tr>
+
+<tr>
+<td>2 spaces</td>
+<td>Most common indentation standard</td>
+</tr>
+
+<tr>
+<td>Consistent spacing</td>
+<td>Maintain the same indentation level</td>
+</tr>
+
+<tr>
+<td>Lists use -</td>
+<td>Dash indicates list items</td>
+</tr>
+
+<tr>
+<td>Children indent further</td>
+<td>Nested objects must be indented</td>
+</tr>
+
+</table>
+
+</div>
+
+<h2>7. Correct vs Incorrect Indentation</h2>
+
+<div class="card">
+
+<h3 class="good">Correct</h3>
+
+<pre>
+tasks:
+  - name: Install Apache
+    yum:
+      name: httpd
+      state: present
+</pre>
+
+<h3 class="bad">Incorrect</h3>
+
+<pre>
+tasks:
+- name: Install Apache
+yum:
+  name: httpd
+</pre>
+
+<p>
+This causes YAML parsing errors because hierarchy is lost.
+</p>
+
+</div>
+
+<h2>8. Common YAML Errors</h2>
+
+<div class="card">
+
+<table>
+
+<tr>
+<th>Error</th>
+<th>Reason</th>
+</tr>
+
+<tr>
+<td>mapping values are not allowed here</td>
+<td>Wrong indentation</td>
+</tr>
+
+<tr>
+<td>did not find expected key</td>
+<td>Missing spaces</td>
+</tr>
+
+<tr>
+<td>found character that cannot start any token</td>
+<td>Tab character used</td>
+</tr>
+
+<tr>
+<td>Syntax Error while loading YAML</td>
+<td>General formatting issue</td>
+</tr>
+
+</table>
+
+</div>
+
+<h2>9. Real Ansible Examples</h2>
+
+<div class="card">
+
+<h3>Install Package</h3>
+
+<pre>
+---
+- name: Install Apache
+  hosts: webservers
+
+  tasks:
+
+    - name: Install HTTPD
+      yum:
+        name: httpd
+        state: present
+</pre>
+
+<h3>Create File</h3>
+
+<pre>
+---
+- name: Create File
+  hosts: all
+
+  tasks:
+
+    - name: Create file
+      file:
+        path: /tmp/test.txt
+        state: touch
+</pre>
+
+<h3>Copy File</h3>
+
+<pre>
+---
+- name: Copy Config
+  hosts: all
+
+  tasks:
+
+    - name: Copy file
+      copy:
+        src: app.conf
+        dest: /etc/app.conf
+</pre>
+
+</div>
+
+<h2>10. YAML Data Structures</h2>
+
+<div class="card">
+
+<h3>Dictionary (Key-Value)</h3>
+
+<pre>
+user:
+  name: admin
+  uid: 1001
+</pre>
+
+<h3>List</h3>
+
+<pre>
+packages:
+  - httpd
+  - nginx
+  - git
+</pre>
+
+<h3>List of Dictionaries</h3>
+
+<pre>
+users:
+  - name: john
+    uid: 1001
+
+  - name: mike
+    uid: 1002
+</pre>
+
+</div>
+
+<h2>11. Best Practices</h2>
+
+<div class="card">
+
+<ul>
+<li>Always use spaces, never tabs.</li>
+<li>Use 2-space indentation consistently.</li>
+<li>Keep playbooks clean and readable.</li>
+<li>Align child objects correctly.</li>
+<li>Validate playbooks using syntax checks.</li>
+<li>Use VS Code YAML extensions for validation.</li>
+<li>Follow Ansible YAML style standards.</li>
+</ul>
+
+</div>
+
+<h2>12. Interview Questions</h2>
+
+<div class="card">
+
+<h3>Why is indentation important in YAML?</h3>
+
+<p>
+Indentation defines hierarchy and parent-child relationships.
+Incorrect indentation changes structure and causes parser errors.
+</p>
+
+<h3>What does --- mean in YAML?</h3>
+
+<p>
+It marks the beginning of a YAML document.
+</p>
+
+<h3>What does - mean in YAML?</h3>
+
+<p>
+It indicates a list item.
+</p>
+
+<h3>Can YAML use tabs?</h3>
+
+<p>
+No. YAML requires spaces only.
+</p>
+
+<h3>What is the standard indentation in Ansible?</h3>
+
+<p>
+2 spaces per level.
+</p>
+
+</div>
+
+<h2>Quick Interview Answer</h2>
+
+<div class="card">
+
+<p>
+YAML uses indentation to represent hierarchy. The <code>---</code> symbol marks
+the beginning of a YAML document, while <code>-</code> represents list items.
+In Ansible playbooks, plays, tasks, modules, and parameters are organized
+through indentation. Correct alignment is critical because YAML does not use
+braces or tags; it relies entirely on spacing to define structure.
+</p>
+
+</div>
+
+<div class="footer">
+Ansible YAML Indentation Guide | Training Reference
+</div>
+
+</div>
+
+</body>
+</html>
