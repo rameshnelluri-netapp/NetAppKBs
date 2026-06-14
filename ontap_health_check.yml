@@ -1,0 +1,954 @@
+---
+# ONTAP Health Check Playbook
+# Equivalent to the ONTAP CLI health check script
+# Requirements: netapp.ontap collection (netapp-lib, requests)
+# Install: ansible-galaxy collection install netapp.ontap
+
+- name: ONTAP Health Check
+  hosts: localhost
+  gather_facts: false
+  collections:
+    - netapp.ontap
+
+  vars:
+    ontap_hostname: "{{ vault_ontap_hostname }}"   # e.g. cluster-mgmt IP
+    ontap_username: "{{ vault_ontap_username }}"
+    ontap_password: "{{ vault_ontap_password }}"
+    ontap_https: true
+    ontap_validate_certs: true
+    # Threshold for volume % used alert
+    vol_used_threshold: 95
+
+  vars_files:
+    - vault.yml   # Store credentials here (ansible-vault encrypted)
+
+  tasks:
+
+    # -----------------------------------------------------------------------
+    # PRE-CHECK: Trigger cluster connectivity check (ONTAP 9.9.1+)
+    # -----------------------------------------------------------------------
+    - name: Start cluster connectivity check
+      netapp.ontap.na_ontap_rest_cli:
+        command: "network/interface/check/cluster-connectivity"
+        verb: POST
+        body:
+          action: "start"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      ignore_errors: true
+      register: cluster_conn_start
+
+    # -----------------------------------------------------------------------
+    # AUTOSUPPORT: Send "before activity" message
+    # -----------------------------------------------------------------------
+    - name: Send AutoSupport before activity
+      netapp.ontap.na_ontap_autosupport_invoke:
+        autosupport_type: all
+        message: "before activity"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+
+    # -----------------------------------------------------------------------
+    # GENERAL: Cluster kernel service checks
+    # -----------------------------------------------------------------------
+    - name: Check cluster kernel services out of quorum
+      netapp.ontap.na_ontap_rest_cli:
+        command: "cluster/kernel-service"
+        verb: GET
+        params:
+          status-quorum: "out-of-quorum"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: kernel_quorum
+      failed_when: kernel_quorum.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check cluster kernel services not available
+      netapp.ontap.na_ontap_rest_cli:
+        command: "cluster/kernel-service"
+        verb: GET
+        params:
+          status-avail: "!true"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: kernel_avail
+      failed_when: kernel_avail.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check cluster kernel services not operational
+      netapp.ontap.na_ontap_rest_cli:
+        command: "cluster/kernel-service"
+        verb: GET
+        params:
+          status-oper: "!operational"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: kernel_oper
+      failed_when: kernel_oper.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    # -----------------------------------------------------------------------
+    # GENERAL: Cluster peer health
+    # -----------------------------------------------------------------------
+    - name: Check cluster peer health
+      netapp.ontap.na_ontap_rest_cli:
+        command: "cluster/peer/health"
+        verb: GET
+        params:
+          bypass-cache: "false"
+          availability: "false"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: cluster_peer_health
+      failed_when: cluster_peer_health.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    # -----------------------------------------------------------------------
+    # GENERAL: Cluster ring / show / jobs
+    # -----------------------------------------------------------------------
+    - name: Check cluster ring for offline nodes
+      netapp.ontap.na_ontap_rest_cli:
+        command: "cluster/ring"
+        verb: GET
+        params:
+          online: "offline"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: cluster_ring
+      failed_when: cluster_ring.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check cluster nodes for eligibility
+      netapp.ontap.na_ontap_rest_cli:
+        command: "cluster"
+        verb: GET
+        params:
+          eligibility: "false"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: cluster_eligibility
+      failed_when: cluster_eligibility.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check cluster nodes for health
+      netapp.ontap.na_ontap_rest_cli:
+        command: "cluster"
+        verb: GET
+        params:
+          health: "false"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: cluster_health
+      failed_when: cluster_health.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check for failed/dead/unknown jobs
+      netapp.ontap.na_ontap_rest_cli:
+        command: "job"
+        verb: GET
+        params:
+          state: "Failure|Error|Quit|Dead|Unknown"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: job_failures
+      failed_when: job_failures.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    # -----------------------------------------------------------------------
+    # GENERAL: Security key manager (ONTAP 9.6+)
+    # -----------------------------------------------------------------------
+    - name: Check security key manager keys not restored
+      netapp.ontap.na_ontap_rest_cli:
+        command: "security/key-manager/key"
+        verb: GET
+        params:
+          restored: "false"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: key_mgr
+      failed_when: key_mgr.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    # -----------------------------------------------------------------------
+    # GENERAL: Hardware / chassis / controller / memory / environment
+    # -----------------------------------------------------------------------
+    - name: Check chassis status
+      netapp.ontap.na_ontap_rest_cli:
+        command: "system/chassis"
+        verb: GET
+        params:
+          status: "!ok"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: chassis_status
+      failed_when: chassis_status.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check controller environment status
+      netapp.ontap.na_ontap_rest_cli:
+        command: "system/controller/environment"
+        verb: GET
+        params:
+          status: "!ok"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: ctrl_env
+      failed_when: ctrl_env.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check memory DIMM status
+      netapp.ontap.na_ontap_rest_cli:
+        command: "system/controller/memory/dimm"
+        verb: GET
+        params:
+          status: "!ok"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: dimm_status
+      failed_when: dimm_status.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check controller service events
+      netapp.ontap.na_ontap_rest_cli:
+        command: "system/controller/service-event"
+        verb: GET
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: svc_events
+
+    - name: Check FRU status
+      netapp.ontap.na_ontap_rest_cli:
+        command: "system/fru-check"
+        verb: GET
+        params:
+          fru-status: "!pass"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: fru_status
+      failed_when: fru_status.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check HA interconnect link0
+      netapp.ontap.na_ontap_rest_cli:
+        command: "system/ha/interconnect/status"
+        verb: GET
+        params:
+          is-link0-active: "!-"
+          link0-status: "!up"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: ha_link0
+      failed_when: ha_link0.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check HA interconnect link1
+      netapp.ontap.na_ontap_rest_cli:
+        command: "system/ha/interconnect/status"
+        verb: GET
+        params:
+          is-link1-active: "!-"
+          link1-status: "!up"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: ha_link1
+      failed_when: ha_link1.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check HA interconnect RDMA status
+      netapp.ontap.na_ontap_rest_cli:
+        command: "system/ha/interconnect/status"
+        verb: GET
+        params:
+          ic-rdma: "!up"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: ha_rdma
+      failed_when: ha_rdma.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check system health alerts
+      netapp.ontap.na_ontap_rest_cli:
+        command: "system/health/alert"
+        verb: GET
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: health_alerts
+      failed_when: health_alerts.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check system health subsystems
+      netapp.ontap.na_ontap_rest_cli:
+        command: "system/health/subsystem"
+        verb: GET
+        params:
+          health: "!ok"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: health_subsys
+      failed_when: health_subsys.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check node environment sensors
+      netapp.ontap.na_ontap_rest_cli:
+        command: "system/node/environment/sensors"
+        verb: GET
+        params:
+          state: "!normal"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: env_sensors
+      failed_when: env_sensors.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check service processor status
+      netapp.ontap.na_ontap_rest_cli:
+        command: "system/service-processor"
+        verb: GET
+        params:
+          status: "!online"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: sp_status
+      failed_when: sp_status.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check web node services status
+      netapp.ontap.na_ontap_rest_cli:
+        command: "system/services/web/node"
+        verb: GET
+        params:
+          status: "!online"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: web_node
+      failed_when: web_node.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    # -----------------------------------------------------------------------
+    # GENERAL: ONTAP version
+    # -----------------------------------------------------------------------
+    - name: Get ONTAP version
+      netapp.ontap.na_ontap_rest_cli:
+        command: "version"
+        verb: GET
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: ontap_version
+
+    - name: Display ONTAP version
+      debug:
+        msg: "{{ ontap_version.msg | default('') }}"
+
+    # -----------------------------------------------------------------------
+    # GENERAL: SnapMirror transferring check
+    # -----------------------------------------------------------------------
+    - name: Check SnapMirror relationships in transferring state
+      netapp.ontap.na_ontap_rest_cli:
+        command: "snapmirror"
+        verb: GET
+        params:
+          status: "transferring"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: sm_transferring
+
+    # -----------------------------------------------------------------------
+    # STORAGE: Aggregates
+    # -----------------------------------------------------------------------
+    - name: Check aggregates not online
+      netapp.ontap.na_ontap_rest_cli:
+        command: "storage/aggregate"
+        verb: GET
+        params:
+          state: "!online"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: aggr_state
+      failed_when: aggr_state.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check aggregate RAID status
+      netapp.ontap.na_ontap_rest_cli:
+        command: "storage/aggregate"
+        verb: GET
+        params:
+          raidstatus: "!*normal*"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: aggr_raid
+      failed_when: aggr_raid.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check object store availability (ONTAP 9.2+)
+      netapp.ontap.na_ontap_rest_cli:
+        command: "storage/aggregate/object-store"
+        verb: GET
+        params:
+          object-store-availability: "unavailable"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: obj_store
+      failed_when: obj_store.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    # -----------------------------------------------------------------------
+    # STORAGE: Bridges, disks, errors, failover, ports, shelves
+    # -----------------------------------------------------------------------
+    - name: Check storage bridge status
+      netapp.ontap.na_ontap_rest_cli:
+        command: "storage/bridge"
+        verb: GET
+        params:
+          status: "!ok"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: bridge_status
+      failed_when: bridge_status.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check disk state (exclude spare/present/remote/mediator)
+      netapp.ontap.na_ontap_rest_cli:
+        command: "storage/disk"
+        verb: GET
+        params:
+          state: "!spare,!present"
+          container-type: "!remote,!mediator"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: disk_state
+      failed_when: disk_state.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check storage errors
+      netapp.ontap.na_ontap_rest_cli:
+        command: "storage/errors"
+        verb: GET
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: storage_errors
+      failed_when: storage_errors.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check storage failover enabled
+      netapp.ontap.na_ontap_rest_cli:
+        command: "storage/failover"
+        verb: GET
+        params:
+          enabled: "false"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: sfo_enabled
+      failed_when: sfo_enabled.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check storage failover partner aggregate takeover possible
+      netapp.ontap.na_ontap_rest_cli:
+        command: "storage/failover"
+        verb: GET
+        params:
+          possible: "false"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: sfo_possible
+      failed_when: sfo_possible.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check storage port errors
+      netapp.ontap.na_ontap_rest_cli:
+        command: "storage/port"
+        verb: GET
+        params:
+          errors: "true"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: storage_port_errors
+      failed_when: storage_port_errors.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check shelf operational status
+      netapp.ontap.na_ontap_rest_cli:
+        command: "storage/shelf"
+        verb: GET
+        params:
+          op-status: "!Normal"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: shelf_status
+      failed_when: shelf_status.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    # -----------------------------------------------------------------------
+    # NETWORK: FCP, interfaces, ports, ifgrp, reachability
+    # -----------------------------------------------------------------------
+    - name: Check FCP adapters not connected
+      netapp.ontap.na_ontap_rest_cli:
+        command: "network/fcp/adapter"
+        verb: GET
+        params:
+          is-conn-established: "false"
+          status-admin: "up"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: fcp_adapters
+      failed_when: fcp_adapters.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check LIFs not on home port
+      netapp.ontap.na_ontap_rest_cli:
+        command: "network/interface"
+        verb: GET
+        params:
+          is-home: "false"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: lif_not_home
+      failed_when: lif_not_home.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check LIFs operationally down (excluding stopped vservers)
+      netapp.ontap.na_ontap_rest_cli:
+        command: "network/interface"
+        verb: GET
+        params:
+          status-oper: "down"
+          status-extended: "!This LIF is down because its Vserver is stopped*"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: lif_down
+      failed_when: lif_down.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check ifgrp active ports (non-singlemode)
+      netapp.ontap.na_ontap_rest_cli:
+        command: "network/port/ifgrp"
+        verb: GET
+        params:
+          mode: "!singlemode"
+          activeports: "!full"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: ifgrp_multi
+      failed_when: ifgrp_multi.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check ifgrp active ports (singlemode)
+      netapp.ontap.na_ontap_rest_cli:
+        command: "network/port/ifgrp"
+        verb: GET
+        params:
+          mode: "singlemode"
+          activeports: "!partial"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: ifgrp_single
+      failed_when: ifgrp_single.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check port reachability status (ONTAP 9.8+)
+      netapp.ontap.na_ontap_rest_cli:
+        command: "network/port/reachability"
+        verb: GET
+        params:
+          reachability-status: "!ok"
+          expected-broadcast-domain: "!-"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: port_reachability
+      failed_when: port_reachability.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check degraded network ports
+      netapp.ontap.na_ontap_rest_cli:
+        command: "network/port"
+        verb: GET
+        params:
+          health-status: "degraded"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: port_degraded
+      failed_when: port_degraded.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check network ports link down (admin up)
+      netapp.ontap.na_ontap_rest_cli:
+        command: "network/port"
+        verb: GET
+        params:
+          link: "!up"
+          up-admin: "true"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: port_link_down
+      failed_when: port_link_down.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    # -----------------------------------------------------------------------
+    # NETWORK: Discovery, VLAN, broadcast domain, service-policy, routes
+    # -----------------------------------------------------------------------
+    - name: Device discovery show
+      netapp.ontap.na_ontap_rest_cli:
+        command: "device-discovery"
+        verb: GET
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: device_discovery
+
+    - name: VLAN show
+      netapp.ontap.na_ontap_rest_cli:
+        command: "vlan"
+        verb: GET
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: vlan_show
+
+    - name: Broadcast domain show
+      netapp.ontap.na_ontap_rest_cli:
+        command: "broadcast-domain"
+        verb: GET
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: bcast_domain
+
+    - name: Service policy show
+      netapp.ontap.na_ontap_rest_cli:
+        command: "service-policy"
+        verb: GET
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: svc_policy
+
+    - name: Vserver route show
+      netapp.ontap.na_ontap_rest_cli:
+        command: "vserver/route"
+        verb: GET
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: vserver_routes
+
+    # -----------------------------------------------------------------------
+    # DATA: LUNs, SnapMirror, volumes
+    # -----------------------------------------------------------------------
+    - name: Check LUNs not online
+      netapp.ontap.na_ontap_rest_cli:
+        command: "lun"
+        verb: GET
+        params:
+          state: "!online"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: lun_state
+      failed_when: lun_state.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check unhealthy SnapMirror relationships
+      netapp.ontap.na_ontap_rest_cli:
+        command: "snapmirror"
+        verb: GET
+        params:
+          healthy: "false"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: sm_unhealthy
+      failed_when: sm_unhealthy.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check volumes in NVFailed state
+      netapp.ontap.na_ontap_rest_cli:
+        command: "volume"
+        verb: GET
+        params:
+          in-nvfailed-state: "true"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: vol_nvfailed
+      failed_when: vol_nvfailed.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check inconsistent volumes
+      netapp.ontap.na_ontap_rest_cli:
+        command: "volume"
+        verb: GET
+        params:
+          is-inconsistent: "true"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: vol_inconsistent
+      failed_when: vol_inconsistent.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check volumes not online or restricted
+      netapp.ontap.na_ontap_rest_cli:
+        command: "volume"
+        verb: GET
+        params:
+          state: "!online,!restricted"
+          size: "!-"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: vol_state
+      failed_when: vol_state.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    # -----------------------------------------------------------------------
+    # DATA: Vserver protocols
+    # -----------------------------------------------------------------------
+    - name: Check CIFS status (ONTAP 9.5+)
+      netapp.ontap.na_ontap_rest_cli:
+        command: "vserver/cifs/check"
+        verb: GET
+        params:
+          status: "down"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: cifs_check
+      failed_when: cifs_check.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check CIFS servers admin down
+      netapp.ontap.na_ontap_rest_cli:
+        command: "vserver/cifs"
+        verb: GET
+        params:
+          status-admin: "down"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: cifs_admin_down
+      failed_when: cifs_admin_down.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check FCP vservers admin down
+      netapp.ontap.na_ontap_rest_cli:
+        command: "vserver/fcp"
+        verb: GET
+        params:
+          status-admin: "down"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: fcp_admin_down
+      failed_when: fcp_admin_down.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check iSCSI vservers admin down
+      netapp.ontap.na_ontap_rest_cli:
+        command: "vserver/iscsi"
+        verb: GET
+        params:
+          status-admin: "down"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: iscsi_admin_down
+      failed_when: iscsi_admin_down.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check NFS vservers access
+      netapp.ontap.na_ontap_rest_cli:
+        command: "vserver/nfs"
+        verb: GET
+        params:
+          access: "!true"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: nfs_access
+      failed_when: nfs_access.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check data vservers not running (excluding DP/sync destinations)
+      netapp.ontap.na_ontap_rest_cli:
+        command: "vserver"
+        verb: GET
+        params:
+          type: "data"
+          operational-state: "!running"
+          subtype: "!dp-destination,!sync-destination"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: vserver_not_running
+      failed_when: vserver_not_running.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    # -----------------------------------------------------------------------
+    # POST-CHECK: Cluster connectivity results (ONTAP 9.9.1+)
+    # -----------------------------------------------------------------------
+    - name: Check cluster connectivity loss (ONTAP 9.9.1+)
+      netapp.ontap.na_ontap_rest_cli:
+        command: "network/interface/check/cluster-connectivity"
+        verb: GET
+        params:
+          loss: "!None"
+          date-time: ">10m"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: cluster_conn_loss
+      failed_when: cluster_conn_loss.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    # -----------------------------------------------------------------------
+    # DATA: Volume usage and moves
+    # -----------------------------------------------------------------------
+    - name: Check volumes above 95% used
+      netapp.ontap.na_ontap_rest_cli:
+        command: "vol"
+        verb: GET
+        params:
+          percent-used: ">{{ vol_used_threshold }}"
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: vol_high_usage
+      failed_when: vol_high_usage.msg | default('') | from_json | json_query('num_records') | int > 0
+
+    - name: Check in-progress volume moves
+      netapp.ontap.na_ontap_rest_cli:
+        command: "vol/move"
+        verb: GET
+        hostname: "{{ ontap_hostname }}"
+        username: "{{ ontap_username }}"
+        password: "{{ ontap_password }}"
+        https: "{{ ontap_https }}"
+        validate_certs: "{{ ontap_validate_certs }}"
+      register: vol_move
+
+    - name: Display in-progress volume moves
+      debug:
+        msg: "{{ vol_move.msg | default('No volume moves in progress') }}"
+
+    # -----------------------------------------------------------------------
+    # SUMMARY: Report all failures
+    # -----------------------------------------------------------------------
+    - name: Health check summary
+      debug:
+        msg: "ONTAP health check complete. Review any failed tasks above for issues."
