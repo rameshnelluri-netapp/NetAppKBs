@@ -1,0 +1,80 @@
+### START OF SCRIPT ###
+set -rows 0 -prompt-timestamp inline
+network interface check cluster-connectivity start -node * #Requires ONTAP 9.9.1+
+
+### GENERAL ###
+cluster kernel-service show -status-quorum out-of-quorum
+cluster kernel-service show -status-avail !true
+cluster kernel-service show -status-oper !operational
+cluster peer health show -bypass-cache false -availability false
+cluster ring show -online offline
+cluster show -eligibility false
+cluster show -health false
+job show -state Failure|Error|Quit|Dead|Unknown
+security key-manager key query -restored false #Requires ONTAP 9.6+
+system chassis show -status !ok
+system controller config show-errors -description !"sysconfig: There are no configuration errors."*
+system controller environment show -status !ok
+system controller memory dimm show -status !ok
+system controller service-event show #Requires current supported ONTAP platforms
+system fru-check show -fru-status !pass
+system ha interconnect status show -is-link0-active !"-" -link0-status !up
+system ha interconnect status show -is-link1-active !"-" -link1-status !up
+system ha interconnect status show -link-status !"-" -link-status !up
+system ha interconnect status show -ic-rdma !up
+system health alert show
+system health subsystem show -health !ok
+system node environment sensors show -state !normal
+system service-processor show -status !online
+system services web node show -status !online
+autosupport invoke -node * -type all -message "before activity"
+version -b
+snapmirror show -status transferring
+
+### STORAGE ###
+storage aggregate show -state !online
+storage aggregate show -raidstatus !*normal*
+storage aggregate object-store show -object-store-availability unavailable #Requires ONTAP 9.2+
+storage bridge show -status !ok
+storage disk show -state !spare,!present -container-type !remote,!mediator
+storage errors show
+storage failover show -enabled false
+storage failover show -partner-aggregates !false -state-description !"Non-HA mode"
+storage failover show -possible false
+storage port show -errors
+storage shelf show -op-status !Normal
+
+### NETWORK ###
+network fcp adapter show -is-conn-established false -status-admin up
+network interface show -is-home false
+network interface show -status-oper down -status-extended !"This LIF is down because its Vserver is stopped"*
+network port ifgrp show -mode !singlemode -activeports !full
+network port ifgrp show -mode singlemode -activeports !partial
+network port reachability show -reachability-status !ok -expected-broadcast-domain !"-" #Requires ONTAP 9.8+
+network port show -health-status degraded
+network port show -link !up -up-admin true
+device-discovery show
+vlan show
+broadcast-domain show
+service-policy show
+vserver route show
+
+### DATA ###
+lun show -state !online
+snapmirror show -healthy false
+volume show -in-nvfailed-state true
+volume show -is-inconsistent true
+volume show -state !online,!restricted -size !"-"
+vserver cifs check -status down #Requires ONTAP 9.5+
+vserver cifs show -status-admin down
+vserver fcp show -status-admin down
+vserver iscsi show -status-admin down
+vserver nfs show -access !true
+vserver show -type data -operational-state !running -subtype !dp-destination,!sync-destination
+network interface check cluster-connectivity show -node * -loss !None -date-time >10m #Requires ONTAP 9.9.1+
+set -privilege admin -prompt-timestamp none
+vol show -percent-used  >90%
+vol move show
+
+
+### END OF SCRIPT ###
