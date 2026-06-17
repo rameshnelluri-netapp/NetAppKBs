@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FSx for ONTAP Networking Tutorial</title>
+
+<style>
+body{
+    font-family:Segoe UI,Arial,sans-serif;
+    background:#0d1117;
+    color:#c9d1d9;
+    margin:0;
+    line-height:1.7;
+}
+
+header{
+    background:#161b22;
+    padding:30px;
+    text-align:center;
+    border-bottom:2px solid #30363d;
+}
+
+.container{
+    max-width:1200px;
+    margin:auto;
+    padding:20px;
+}
+
+.card{
+    background:#161b22;
+    margin-bottom:20px;
+    padding:20px;
+    border-radius:10px;
+    border-left:5px solid #58a6ff;
+}
+
+h1,h2,h3{
+    color:#58a6ff;
+}
+
+code{
+    background:#21262d;
+    color:#79c0ff;
+    padding:3px 6px;
+    border-radius:4px;
+}
+
+pre{
+    background:#0b1220;
+    padding:15px;
+    overflow:auto;
+    border-radius:8px;
+    color:#7ee787;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:15px;
+}
+
+table,th,td{
+    border:1px solid #30363d;
+}
+
+th{
+    background:#21262d;
+}
+
+th,td{
+    padding:10px;
+    text-align:left;
+}
+
+.highlight{
+    color:#7ee787;
+    font-weight:bold;
+}
+
+.footer{
+    text-align:center;
+    padding:20px;
+    color:#8b949e;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>Amazon FSx for NetApp ONTAP Networking Tutorial</h1>
+<p>Complete Guide for Storage Administrators, Cloud Engineers & Interview Preparation</p>
+</header>
+
+<div class="container">
+
+<div class="card">
+<h2>1. FSx for ONTAP Networking Architecture</h2>
+
+<pre>
+                 AWS VPC
+
++-----------------------------------+
+
+      EC2 Instance
+            |
+            |
+      NFS / SMB / iSCSI
+            |
+            |
+            V
+
++-----------------------------+
+| FSx for ONTAP File System   |
++-----------------------------+
+            |
+            |
+           SVM
+            |
+         Volumes
+
++-----------------------------------+
+</pre>
+
+<p>
+FSx for ONTAP runs inside an AWS VPC and is accessed through IP networking.
+Clients connect through NFS, SMB, or iSCSI protocols.
+</p>
+
+</div>
+
+<div class="card">
+
+<h2>2. What is a VPC?</h2>
+
+<p>
+VPC (Virtual Private Cloud) is your private network in AWS.
+</p>
+
+<pre>
+VPC CIDR:
+10.0.0.0/16
+</pre>
+
+<p>
+Available range:
+</p>
+
+<pre>
+10.0.0.0 - 10.0.255.255
+</pre>
+
+<p>
+All EC2 instances and FSx resources communicate inside the VPC.
+</p>
+
+</div>
+
+<div class="card">
+
+<h2>3. What is a Subnet?</h2>
+
+<p>
+A subnet is a smaller network created from the VPC address space.
+</p>
+
+<pre>
+VPC:
+10.0.0.0/16
+
+Subnets:
+
+10.0.1.0/24
+10.0.2.0/24
+10.0.3.0/24
+</pre>
+
+<p>
+Resources such as EC2 and FSx are deployed into subnets.
+</p>
+
+</div>
+
+<div class="card">
+
+<h2>4. EC2, ENI, Subnet and VPC Relationship</h2>
+
+<pre>
+VPC
+ |
+ +-- Subnet
+      |
+      +-- ENI
+            |
+            +-- EC2
+</pre>
+
+<p>
+Many interview candidates incorrectly think EC2 belongs directly to a VPC.
+</p>
+
+<p class="highlight">
+Correct Hierarchy:
+VPC → Subnet → ENI → EC2
+</p>
+
+</div>
+
+<div class="card">
+
+<h2>5. What is an ENI?</h2>
+
+<p>
+ENI = Elastic Network Interface.
+</p>
+
+<p>
+Think of it as a virtual network card.
+</p>
+
+<pre>
+Physical Server
+      |
+      +-- NIC
+
+AWS
+
+EC2
+ |
+ +-- ENI
+</pre>
+
+<p>
+An ENI provides:
+</p>
+
+<ul>
+<li>Private IP Address</li>
+<li>MAC Address</li>
+<li>Security Groups</li>
+<li>Subnet Membership</li>
+</ul>
+
+<p class="highlight">
+Without an ENI, an EC2 instance cannot communicate.
+</p>
+
+</div>
+
+<div class="card">
+
+<h2>6. EC2 to FSx Communication Flow</h2>
+
+<pre>
+EC2
+ |
+ENI
+ |
+Security Group
+ |
+Subnet
+ |
+VPC Router
+ |
+FSx ENI
+ |
+FSx Security Group
+ |
+FSx for ONTAP
+</pre>
+
+<p>
+Example:
+</p>
+
+<pre>
+EC2:
+10.0.1.10
+
+FSx:
+10.0.2.20
+</pre>
+
+<p>
+Traffic leaves the EC2 ENI, traverses the VPC routing layer,
+and reaches the FSx ENI.
+</p>
+
+</div>
+
+<div class="card">
+
+<h2>7. Security Groups</h2>
+
+<p>
+Security Groups are stateful virtual firewalls.
+</p>
+
+<p>
+Security Groups are attached to ENIs.
+</p>
+
+<pre>
+EC2
+ |
+ENI
+ |
+Security Group
+</pre>
+
+<h3>Common Rules</h3>
+
+<table>
+<tr>
+<th>Protocol</th>
+<th>Port</th>
+</tr>
+
+<tr>
+<td>SSH</td>
+<td>22</td>
+</tr>
+
+<tr>
+<td>HTTPS</td>
+<td>443</td>
+</tr>
+
+<tr>
+<td>NFS</td>
+<td>2049</td>
+</tr>
+
+<tr>
+<td>SMB</td>
+<td>445</td>
+</tr>
+
+<tr>
+<td>iSCSI</td>
+<td>3260</td>
+</tr>
+</table>
+
+</div>
+
+<div class="card">
+
+<h2>8. Network ACL (NACL)</h2>
+
+<p>
+NACLs operate at the subnet level.
+</p>
+
+<pre>
+Client
+ |
+Security Group
+ |
+NACL
+ |
+FSx
+</pre>
+
+<p>
+Both Security Groups and NACLs must allow traffic.
+</p>
+
+</div>
+
+<div class="card">
+
+<h2>9. Route Tables</h2>
+
+<p>
+Route tables determine where packets go.
+</p>
+
+<pre>
+Destination      Target
+
+10.0.0.0/16      Local
+0.0.0.0/0        Internet Gateway
+</pre>
+
+<p>
+When an EC2 instance accesses FSx inside the same VPC,
+the route is usually:
+</p>
+
+<pre>
+10.0.0.0/16 -> Local
+</pre>
+
+</div>
+
+<div class="card">
+
+<h2>10. Storage Virtual Machine (SVM)</h2>
+
+<pre>
+FSx File System
+       |
+       +---- SVM1
+       |
+       +---- SVM2
+</pre>
+
+<p>
+An SVM is a logical storage server inside ONTAP.
+</p>
+
+<p>
+Clients connect to SVMs, not directly to disks.
+</p>
+
+</div>
+
+<div class="card">
+
+<h2>11. Logical Interfaces (LIFs)</h2>
+
+<p>
+A LIF is a logical IP address presented by ONTAP.
+</p>
+
+<pre>
+NFS LIF      10.0.2.100
+SMB LIF      10.0.2.101
+iSCSI LIF    10.0.2.102
+Mgmt LIF     10.0.2.103
+</pre>
+
+<p>
+Clients connect to these IP addresses.
+</p>
+
+<p class="highlight">
+LIFs can move between nodes during failover.
+</p>
+
+</div>
+
+<div class="card">
+
+<h2>12. Data LIF vs Management LIF</h2>
+
+<table>
+<tr>
+<th>Type</th>
+<th>Purpose</th>
+</tr>
+
+<tr>
+<td>Data LIF</td>
+<td>NFS, SMB, iSCSI traffic</td>
+</tr>
+
+<tr>
+<td>Management LIF</td>
+<td>SSH, CLI, REST API, System Manager</td>
+</tr>
+</table>
+
+</div>
+
+<div class="card">
+
+<h2>13. NFS Connectivity</h2>
+
+<p>
+Linux systems commonly use NFS.
+</p>
+
+<pre>
+mount -t nfs 10.0.2.100:/vol1 /mnt/data
+</pre>
+
+<pre>
+Linux Host
+     |
+TCP 2049
+     |
+NFS LIF
+</pre>
+
+</div>
+
+<div class="card">
+
+<h2>14. SMB Connectivity</h2>
+
+<p>
+Windows clients typically use SMB.
+</p>
+
+<pre>
+\\files.company.com\share
+</pre>
+
+<p>
+SMB depends heavily on DNS and Active Directory.
+</p>
+
+</div>
+
+<div class="card">
+
+<h2>15. Active Directory Integration</h2>
+
+<pre>
+Windows Client
+        |
+        |
+Active Directory
+        |
+        |
+FSx SMB Server
+</pre>
+
+<p>
+FSx joins the AD domain to provide:
+</p>
+
+<ul>
+<li>Authentication</li>
+<li>Authorization</li>
+<li>Kerberos</li>
+<li>User and Group Management</li>
+</ul>
+
+</div>
+
+<div class="card">
+
+<h2>16. iSCSI Connectivity</h2>
+
+<pre>
+Initiator
+    |
+TCP 3260
+    |
+iSCSI LIF
+    |
+ONTAP LUN
+</pre>
+
+<p>
+Used for block storage access.
+</p>
+
+</div>
+
+<div class="card">
+
+<h2>17. Multi-AZ Architecture</h2>
+
+<pre>
+AZ1                    AZ2
+
+Node A (Active) <----> Node B (Standby)
+</pre>
+
+<p>
+If Node A fails:
+</p>
+
+<pre>
+Node B becomes Active
+</pre>
+
+<p>
+LIFs migrate automatically.
+</p>
+
+<p>
+Client configuration remains unchanged.
+</p>
+
+</div>
+
+<div class="card">
+
+<h2>18. FSx ENIs</h2>
+
+<p>
+FSx also uses Elastic Network Interfaces.
+</p>
+
+<pre>
+FSx
+ |
+ +-- ENI
+      |
+      +-- Private IP
+</pre>
+
+<p>
+For Multi-AZ deployments AWS manages multiple ENIs
+for data access, management, and failover operations.
+</p>
+
+</div>
+
+<div class="card">
+
+<h2>19. SnapMirror Networking</h2>
+
+<pre>
+Source FSx
+      |
+ SnapMirror
+      |
+Destination FSx
+</pre>
+
+<p>
+Used for:
+</p>
+
+<ul>
+<li>Disaster Recovery</li>
+<li>Migration</li>
+<li>Replication</li>
+<li>Backup Strategies</li>
+</ul>
+
+</div>
+
+<div class="card">
+
+<h2>20. Important Ports</h2>
+
+<table>
+<tr>
+<th>Service</th>
+<th>Port</th>
+</tr>
+
+<tr>
+<td>SSH</td>
+<td>22</td>
+</tr>
+
+<tr>
+<td>DNS</td>
+<td>53</td>
+</tr>
+
+<tr>
+<td>Kerberos</td>
+<td>88</td>
+</tr>
+
+<tr>
+<td>LDAP</td>
+<td>389</td>
+</tr>
+
+<tr>
+<td>HTTPS</td>
+<td>443</td>
+</tr>
+
+<tr>
+<td>SMB</td>
+<td>445</td>
+</tr>
+
+<tr>
+<td>NFS</td>
+<td>2049</td>
+</tr>
+
+<tr>
+<td>iSCSI</td>
+<td>3260</td>
+</tr>
+
+</table>
+
+</div>
+
+<div class="card">
+
+<h2>21. Most Common Interview Questions</h2>
+
+<ol>
+
+<li>What is a VPC?</li>
+
+<li>What is a subnet?</li>
+
+<li>What is an ENI?</li>
+
+<li>Can an EC2 communicate without an ENI?</li>
+
+<li>Where are Security Groups attached?</li>
+
+<li>What is an SVM?</li>
+
+<li>What is a LIF?</li>
+
+<li>Difference between Data LIF and Management LIF?</li>
+
+<li>How does EC2 communicate with FSx?</li>
+
+<li>What is Multi-AZ failover?</li>
+
+<li>What ports are used by NFS, SMB and iSCSI?</li>
+
+<li>What is SnapMirror?</li>
+
+<li>Why is Active Directory required for SMB?</li>
+
+<li>How do Route Tables affect FSx connectivity?</li>
+
+<li>What is the role of Security Groups in FSx access?</li>
+
+</ol>
+
+</div>
+
+<div class="card">
+
+<h2>22. Final Architecture Summary</h2>
+
+<pre>
+AWS Region
+   |
+   +-- VPC
+         |
+         +-- Subnet-A
+         |      |
+         |      +-- ENI
+         |             |
+         |             +-- EC2
+         |
+         +-- Subnet-B
+                |
+                +-- FSx ENI
+                        |
+                        +-- SVM
+                                |
+                                +-- Data LIF
+                                +-- Mgmt LIF
+                                +-- Volumes
+</pre>
+
+<p class="highlight">
+Remember:
+VPC → Subnet → ENI → Resource (EC2 / FSx)
+</p>
+
+</div>
+
+</div>
+
+<div class="footer">
+Amazon FSx for NetApp ONTAP Networking Tutorial | AWS Storage & Networking Study Guide
+</div>
+
+</body>
+</html>
