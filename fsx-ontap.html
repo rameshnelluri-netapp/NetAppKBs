@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Amazon FSx for NetApp ONTAP — Field Notes</title>
+<style>
+  :root{
+    --bg: #14171D;
+    --panel: #1C2129;
+    --panel-raised: #232936;
+    --line: #2E3645;
+    --ink: #EDEAE3;
+    --ink-dim: #9BA3B0;
+    --ink-faint: #5D6675;
+    --teal: #3DDC97;
+    --teal-dim: #1F6B4D;
+    --amber: #E8A23D;
+    --amber-dim: #7A5826;
+    --blue: #5B8DEF;
+  }
+
+  *{ box-sizing: border-box; }
+  html{ scroll-behavior: smooth; }
+
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+
+  h1,h2,h3{
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+
+  .mono{ font-family: 'IBM Plex Mono', 'Courier New', monospace; }
+
+  a{ color: var(--teal); text-decoration: none; }
+  a:hover{ text-decoration: underline; }
+  a:focus-visible, button:focus-visible{ outline: 2px solid var(--teal); outline-offset: 3px; }
+
+  /* ---------- Layout shell ---------- */
+  .wrap{ max-width: 980px; margin: 0 auto; padding: 0 28px; }
+
+  header.hero{
+    position: relative;
+    padding: 96px 0 64px;
+    border-bottom: 1px solid var(--line);
+    overflow: hidden;
+  }
+  header.hero::before{
+    content:"";
+    position:absolute; inset: -40% -10% auto -10%;
+    height: 600px;
+    background: radial-gradient(circle at 30% 30%, rgba(61,220,151,0.10), transparent 60%);
+    pointer-events: none;
+  }
+  .eyebrow{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--teal);
+    display:flex;
+    align-items:center;
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+  .eyebrow .dot{
+    width:7px; height:7px; border-radius:50%;
+    background: var(--teal);
+    box-shadow: 0 0 0 4px rgba(61,220,151,0.15);
+  }
+  h1.title{
+    font-size: clamp(2.4rem, 5vw, 3.6rem);
+    font-weight: 600;
+    line-height: 1.05;
+    max-width: 760px;
+  }
+  h1.title em{
+    font-style: normal;
+    color: var(--ink-dim);
+    font-weight: 400;
+  }
+  .subhead{
+    margin-top: 22px;
+    max-width: 600px;
+    color: var(--ink-dim);
+    font-size: 1.08rem;
+  }
+  .hero-meta{
+    margin-top: 40px;
+    display:flex;
+    gap: 28px;
+    flex-wrap: wrap;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    color: var(--ink-faint);
+  }
+  .hero-meta span b{ color: var(--ink-dim); font-weight: 500; }
+
+  /* ---------- Section scaffolding ---------- */
+  section{ padding: 64px 0; border-bottom: 1px solid var(--line); }
+  section:last-of-type{ border-bottom:none; }
+
+  .sec-head{
+    display:flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 36px;
+  }
+  .sec-num{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--ink-faint);
+    white-space:nowrap;
+  }
+  h2.sec-title{
+    font-size: 1.6rem;
+    font-weight: 600;
+  }
+  .sec-dek{
+    color: var(--ink-dim);
+    max-width: 680px;
+    margin: -18px 0 32px;
+    font-size: 1rem;
+  }
+
+  /* ---------- Cards / grids ---------- */
+  .grid{
+    display:grid;
+    gap: 16px;
+  }
+  .grid.cols-2{ grid-template-columns: repeat(2, 1fr); }
+  .grid.cols-3{ grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 720px){
+    .grid.cols-2, .grid.cols-3{ grid-template-columns: 1fr; }
+  }
+
+  .card{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px 22px;
+  }
+  .card h3{
+    font-size: 1rem;
+    margin-bottom: 8px;
+    color: var(--ink);
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .card p{ color: var(--ink-dim); font-size: 0.93rem; margin:0; }
+  .card .tag{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--teal);
+    background: rgba(61,220,151,0.08);
+    border: 1px solid var(--teal-dim);
+    padding: 2px 7px;
+    border-radius: 5px;
+  }
+
+  .pill-row{ display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+  .pill{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    color: var(--ink-dim);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 5px 12px;
+    background: var(--panel-raised);
+  }
+
+  /* ---------- Diagram frames ---------- */
+  .diagram-frame{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 28px;
+    margin: 28px 0;
+  }
+  .diagram-frame .cap{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    color: var(--ink-faint);
+    margin-top: 18px;
+    text-align:center;
+    letter-spacing: 0.03em;
+  }
+  svg text{ font-family: 'IBM Plex Mono', monospace; }
+
+  /* ---------- Table ---------- */
+  table{
+    width:100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+  }
+  table th{
+    text-align:left;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-faint);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  table td{
+    padding: 13px 14px;
+    border-bottom: 1px solid var(--line);
+    color: var(--ink-dim);
+    vertical-align: top;
+  }
+  table td.k{ color: var(--ink); font-weight: 500; white-space: nowrap; }
+  table tr:last-child td{ border-bottom:none; }
+
+  /* ---------- Workload list ---------- */
+  .workload{
+    display:flex;
+    gap: 18px;
+    padding: 18px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .workload:last-child{ border-bottom:none; }
+  .workload .idx{
+    font-family:'IBM Plex Mono', monospace;
+    color: var(--ink-faint);
+    font-size: 13px;
+    padding-top: 2px;
+    width: 28px;
+    flex-shrink:0;
+  }
+  .workload h3{ font-size: 1rem; margin-bottom:5px; }
+  .workload p{ color: var(--ink-dim); font-size: 0.93rem; margin:0; }
+
+  /* ---------- Footer ---------- */
+  footer{
+    padding: 48px 0 80px;
+    color: var(--ink-faint);
+    font-size: 0.85rem;
+  }
+  footer a{ color: var(--ink-dim); }
+
+  .note{
+    font-size: 0.85rem;
+    color: var(--ink-faint);
+    border-left: 2px solid var(--amber-dim);
+    padding-left: 14px;
+    margin-top: 14px;
+  }
+
+  ::selection{ background: rgba(61,220,151,0.25); }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow"><span class="dot"></span>AWS STORAGE · REFERENCE NOTES</div>
+    <h1 class="title">Amazon FSx for<br><em>NetApp ONTAP</em></h1>
+    <p class="subhead">A fully managed file storage service that brings NetApp's ONTAP operating system — and the data management muscle memory storage teams already have — directly onto AWS infrastructure.</p>
+    <div class="hero-meta">
+      <span>SERVICE&nbsp;<b>Amazon FSx</b></span>
+      <span>ENGINE&nbsp;<b>NetApp ONTAP</b></span>
+      <span>PROTOCOLS&nbsp;<b>NFS · SMB · iSCSI · NVMe-oTCP</b></span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- 01 WHAT IT IS -->
+  <section id="overview">
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2 class="sec-title">What it is</h2>
+    </div>
+    <p class="sec-dek">The pitch in one line: the file system your storage team already knows, running as a managed AWS service instead of a rack you maintain.</p>
+
+    <p style="color:var(--ink-dim); max-width:680px;">FSx for ONTAP packages NetApp's ONTAP file system — the same software behind countless on-premises NetApp filers — as an AWS-managed offering. That means snapshots, clones, replication, and multi-protocol access aren't reimplemented from scratch; they're the real ONTAP capabilities, just without the racking, patching, or capacity planning. AWS handles provisioning, patching, and failover; you keep the operational vocabulary — volumes, SVMs, SnapMirror — that NetApp admins are already fluent in.</p>
+
+    <div class="grid cols-3" style="margin-top:32px;">
+      <div class="card">
+        <h3><span class="tag">multi-protocol</span></h3>
+        <p>NFS, SMB, iSCSI, and NVMe-over-TCP all access the <em>same underlying data</em> — no separate copies for Linux vs. Windows vs. block workloads.</p>
+      </div>
+      <div class="card">
+        <h3><span class="tag">elastic capacity</span></h3>
+        <p>Storage grows and shrinks automatically. Throughput is a dial you turn, not a hardware order you place.</p>
+      </div>
+      <div class="card">
+        <h3><span class="tag">fully managed</span></h3>
+        <p>AWS owns provisioning, patching, and hardware failover. You manage data, not infrastructure.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 ARCHITECTURE -->
+  <section id="architecture">
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2 class="sec-title">How a file system is organized</h2>
+    </div>
+    <p class="sec-dek">Four nested concepts, each one a container for the next.</p>
+
+    <div class="diagram-frame">
+      <svg viewBox="0 0 900 360" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram showing the FSx for ONTAP resource hierarchy: file system containing HA pairs, containing SVMs, containing volumes">
+        <!-- File system outer -->
+        <rect x="20" y="20" width="860" height="320" rx="14" fill="#1C2129" stroke="#2E3645" stroke-width="1.5"/>
+        <text x="40" y="48" fill="#9BA3B0" font-size="12" letter-spacing="1.5">FILE SYSTEM</text>
+
+        <!-- HA Pair 1 -->
+        <rect x="44" y="64" width="380" height="252" rx="10" fill="#232936" stroke="#2E3645" stroke-width="1.2"/>
+        <text x="60" y="88" fill="#5B8DEF" font-size="11.5" letter-spacing="1">HA PAIR</text>
+
+        <!-- two file servers -->
+        <rect x="60" y="100" width="160" height="48" rx="6" fill="#1C2129" stroke="#3DDC97" stroke-width="1.3"/>
+        <text x="140" y="120" fill="#EDEAE3" font-size="11" text-anchor="middle">file server A</text>
+        <text x="140" y="135" fill="#3DDC97" font-size="9.5" text-anchor="middle">active</text>
+
+        <rect x="244" y="100" width="160" height="48" rx="6" fill="#1C2129" stroke="#5D6675" stroke-width="1.3" stroke-dasharray="4 3"/>
+        <text x="324" y="120" fill="#9BA3B0" font-size="11" text-anchor="middle">file server B</text>
+        <text x="324" y="135" fill="#9BA3B0" font-size="9.5" text-anchor="middle">standby</text>
+
+        <!-- SVM inside HA pair -->
+        <rect x="60" y="166" width="344" height="130" rx="8" fill="#1C2129" stroke="#E8A23D" stroke-width="1.2"/>
+        <text x="76" y="188" fill="#E8A23D" font-size="11" letter-spacing="1">STORAGE VIRTUAL MACHINE (SVM)</text>
+
+        <rect x="76" y="200" width="98" height="78" rx="6" fill="#232936" stroke="#2E3645"/>
+        <text x="125" y="234" fill="#EDEAE3" font-size="10.5" text-anchor="middle">volume</text>
+        <text x="125" y="250" fill="#9BA3B0" font-size="9" text-anchor="middle">NFS export</text>
+
+        <rect x="184" y="200" width="98" height="78" rx="6" fill="#232936" stroke="#2E3645"/>
+        <text x="233" y="234" fill="#EDEAE3" font-size="10.5" text-anchor="middle">volume</text>
+        <text x="233" y="250" fill="#9BA3B0" font-size="9" text-anchor="middle">SMB share</text>
+
+        <rect x="292" y="200" width="98" height="78" rx="6" fill="#232936" stroke="#2E3645"/>
+        <text x="341" y="234" fill="#EDEAE3" font-size="10.5" text-anchor="middle">volume</text>
+        <text x="341" y="250" fill="#9BA3B0" font-size="9" text-anchor="middle">LUN (iSCSI)</text>
+
+        <!-- HA Pair 2 (collapsed, signaling scale-out) -->
+        <rect x="448" y="64" width="380" height="252" rx="10" fill="#1C2129" stroke="#2E3645" stroke-width="1.2" stroke-dasharray="5 4"/>
+        <text x="464" y="88" fill="#5D6675" font-size="11.5" letter-spacing="1">HA PAIR (2…12)</text>
+        <text x="638" y="195" fill="#5D6675" font-size="13" text-anchor="middle">scale out by</text>
+        <text x="638" y="213" fill="#5D6675" font-size="13" text-anchor="middle">adding pairs</text>
+      </svg>
+      <div class="cap">FILE SYSTEM → HA PAIR(S) → STORAGE VIRTUAL MACHINE → VOLUMES</div>
+    </div>
+
+    <table>
+      <tr><th>Layer</th><th>Role</th></tr>
+      <tr><td class="k">File system</td><td>The top-level resource — analogous to an on-premises ONTAP cluster. You set SSD capacity, throughput, and the VPC it lives in.</td></tr>
+      <tr><td class="k">HA pair</td><td>Two file servers in active/standby. Single-AZ file systems can scale out to up to 12 HA pairs for parallel performance; Multi-AZ systems run one HA pair spread across Availability Zones for resilience.</td></tr>
+      <tr><td class="k">SVM</td><td>A storage virtual machine — an isolated administrative and network boundary, useful for multi-tenancy or separating environments inside one file system.</td></tr>
+      <tr><td class="k">Volume</td><td>The logical container your data actually lives in. Thin-provisioned, so capacity is consumed only as data is written, not reserved up front.</td></tr>
+    </table>
+  </section>
+
+  <!-- 03 STORAGE TIERING — signature diagram -->
+  <section id="tiering">
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2 class="sec-title">Storage tiers and automatic tiering</h2>
+    </div>
+    <p class="sec-dek">The mechanism that makes "pay SSD prices for a small fraction of your data" actually work.</p>
+
+    <p style="color:var(--ink-dim); max-width:680px;">Every volume sits across two tiers. <b style="color:var(--ink)">Primary storage</b> is provisioned SSD — fast, sub-millisecond, and where active data lives. <b style="color:var(--ink)">Capacity pool storage</b> is the elastic, low-cost tier built for data that isn't being touched right now. ONTAP's tiering engine watches access patterns block-by-block and moves cold data down to capacity pool — and warms it back up to SSD the moment it's accessed again — without the application or user noticing the difference.</p>
+
+    <div class="diagram-frame">
+      <svg viewBox="0 0 900 320" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram showing data tiering between SSD primary storage and capacity pool storage, with hot data moving up and cold data moving down">
+        <!-- SSD tier -->
+        <rect x="40" y="36" width="820" height="100" rx="10" fill="#1C2129" stroke="#3DDC97" stroke-width="1.5"/>
+        <text x="60" y="62" fill="#3DDC97" font-size="12" letter-spacing="1">SSD STORAGE — PRIMARY TIER</text>
+        <text x="60" y="82" fill="#9BA3B0" font-size="10.5">sub-millisecond latency · active working set</text>
+
+        <g>
+          <rect x="60" y="96" width="46" height="26" rx="4" fill="#3DDC97"/>
+          <rect x="116" y="96" width="46" height="26" rx="4" fill="#3DDC97"/>
+          <rect x="172" y="96" width="46" height="26" rx="4" fill="#3DDC97" opacity="0.55"/>
+          <rect x="228" y="96" width="46" height="26" rx="4" fill="#3DDC97"/>
+          <rect x="284" y="96" width="46" height="26" rx="4" fill="#3DDC97" opacity="0.4"/>
+        </g>
+
+        <!-- Arrows -->
+        <g stroke="#5D6675" stroke-width="1.4" fill="none">
+          <path d="M 220 138 L 220 184" marker-end="url(#arrowDown)"/>
+          <path d="M 320 184 L 320 138" marker-end="url(#arrowUp)"/>
+        </g>
+        <text x="232" y="165" fill="#E8A23D" font-size="10" >cold data</text>
+        <text x="332" y="165" fill="#3DDC97" font-size="10" >re-accessed</text>
+
+        <defs>
+          <marker id="arrowDown" markerWidth="8" markerHeight="8" refX="4" refY="7" orient="auto">
+            <path d="M0,0 L4,8 L8,0 Z" fill="#E8A23D"/>
+          </marker>
+          <marker id="arrowUp" markerWidth="8" markerHeight="8" refX="4" refY="0" orient="auto">
+            <path d="M0,8 L4,0 L8,8 Z" fill="#3DDC97"/>
+          </marker>
+        </defs>
+
+        <!-- Capacity pool tier -->
+        <rect x="40" y="194" width="820" height="100" rx="10" fill="#1C2129" stroke="#E8A23D" stroke-width="1.5"/>
+        <text x="60" y="220" fill="#E8A23D" font-size="12" letter-spacing="1">CAPACITY POOL STORAGE — ELASTIC TIER</text>
+        <text x="60" y="240" fill="#9BA3B0" font-size="10.5">tens-of-ms latency · scales to petabytes · cost-optimized for cold data</text>
+
+        <g>
+          <rect x="60" y="254" width="46" height="26" rx="4" fill="#E8A23D" opacity="0.85"/>
+          <rect x="116" y="254" width="46" height="26" rx="4" fill="#E8A23D" opacity="0.85"/>
+          <rect x="172" y="254" width="46" height="26" rx="4" fill="#E8A23D"/>
+          <rect x="228" y="254" width="46" height="26" rx="4" fill="#E8A23D" opacity="0.6"/>
+          <rect x="284" y="254" width="46" height="26" rx="4" fill="#E8A23D" opacity="0.85"/>
+          <rect x="340" y="254" width="46" height="26" rx="4" fill="#E8A23D" opacity="0.85"/>
+          <rect x="396" y="254" width="46" height="26" rx="4" fill="#E8A23D" opacity="0.5"/>
+        </g>
+      </svg>
+      <div class="cap">DATA BLOCKS MOVE BETWEEN TIERS AUTOMATICALLY, BASED ON ACCESS FREQUENCY</div>
+    </div>
+
+    <div class="grid cols-2" style="margin-top:8px;">
+      <div class="card">
+        <h3>Storage efficiency</h3>
+        <p>Compaction, compression, and deduplication run underneath both tiers. For general-purpose file sharing, typical savings run around <b style="color:var(--ink)">65%</b> off the raw footprint — on SSD, capacity pool, and backups alike.</p>
+      </div>
+      <div class="card">
+        <h3>Thin provisioning</h3>
+        <p>Volumes reserve nothing up front. Capacity is claimed as data is written and released back to the file system the moment it's deleted.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 DATA MANAGEMENT FEATURES -->
+  <section id="data-management">
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <h2 class="sec-title">Data management, carried over from ONTAP</h2>
+    </div>
+    <p class="sec-dek">These aren't AWS reinterpretations — they're the same ONTAP capabilities storage teams already operate on-premises.</p>
+
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>SnapMirror replication</h3>
+        <p>Replicates files, metadata, and file-system configuration between ONTAP systems — including from on-premises straight into AWS — in minutes, making it a well-worn path for migration and disaster recovery.</p>
+      </div>
+      <div class="card">
+        <h3>FlexClone</h3>
+        <p>Creates an instant, writable copy of a volume that shares data blocks with its parent. A clone consumes essentially no extra storage until it diverges — ideal for spinning up dev/test or staging copies of production data.</p>
+      </div>
+      <div class="card">
+        <h3>Snapshots</h3>
+        <p>Point-in-time, space-efficient copies for fast recovery, taken on a schedule or on demand, layered on top of FSx's own automatic daily backups.</p>
+      </div>
+      <div class="card">
+        <h3>Autonomous Ransomware Protection</h3>
+        <p>ONTAP's built-in anomaly detection watches for ransomware-like behavior and can automatically trigger protective snapshots when it sees signs of an attack.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 ACCESS PATHS -->
+  <section id="access">
+    <div class="sec-head">
+      <span class="sec-num">05</span>
+      <h2 class="sec-title">How data gets accessed</h2>
+    </div>
+    <p class="sec-dek">One copy of data, reachable through whichever door each client needs.</p>
+
+    <div class="diagram-frame">
+      <svg viewBox="0 0 900 300" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram showing Linux, Windows, macOS, SAN, and S3-based clients all connecting to a single FSx for ONTAP volume through different protocols">
+        <!-- central volume -->
+        <rect x="370" y="118" width="160" height="64" rx="10" fill="#232936" stroke="#3DDC97" stroke-width="1.6"/>
+        <text x="450" y="145" fill="#EDEAE3" font-size="12" text-anchor="middle">FSx for ONTAP</text>
+        <text x="450" y="161" fill="#3DDC97" font-size="10" text-anchor="middle">single volume</text>
+
+        <!-- clients -->
+        <g font-size="11" fill="#9BA3B0">
+          <!-- Linux -->
+          <rect x="60" y="30" width="130" height="46" rx="8" fill="#1C2129" stroke="#2E3645"/>
+          <text x="125" y="50" text-anchor="middle" fill="#EDEAE3">Linux clients</text>
+          <text x="125" y="65" text-anchor="middle" fill="#5B8DEF">NFS v3/v4.x</text>
+
+          <!-- Windows -->
+          <rect x="60" y="92" width="130" height="46" rx="8" fill="#1C2129" stroke="#2E3645"/>
+          <text x="125" y="112" text-anchor="middle" fill="#EDEAE3">Windows clients</text>
+          <text x="125" y="127" text-anchor="middle" fill="#5B8DEF">SMB</text>
+
+          <!-- macOS -->
+          <rect x="60" y="154" width="130" height="46" rx="8" fill="#1C2129" stroke="#2E3645"/>
+          <text x="125" y="174" text-anchor="middle" fill="#EDEAE3">macOS clients</text>
+          <text x="125" y="189" text-anchor="middle" fill="#5B8DEF">NFS / SMB</text>
+
+          <!-- SAN -->
+          <rect x="60" y="216" width="130" height="46" rx="8" fill="#1C2129" stroke="#2E3645"/>
+          <text x="125" y="236" text-anchor="middle" fill="#EDEAE3">Block / SAN hosts</text>
+          <text x="125" y="251" text-anchor="middle" fill="#5B8DEF">iSCSI / NVMe-oTCP</text>
+
+          <!-- S3 side -->
+          <rect x="710" y="92" width="140" height="46" rx="8" fill="#1C2129" stroke="#2E3645"/>
+          <text x="780" y="112" text-anchor="middle" fill="#EDEAE3">Bedrock · SageMaker</text>
+          <text x="780" y="127" text-anchor="middle" fill="#E8A23D">via S3 Access Point</text>
+
+          <rect x="710" y="154" width="140" height="46" rx="8" fill="#1C2129" stroke="#2E3645"/>
+          <text x="780" y="174" text-anchor="middle" fill="#EDEAE3">Transfer Family</text>
+          <text x="780" y="189" text-anchor="middle" fill="#E8A23D">SFTP / FTPS / FTP</text>
+        </g>
+
+        <!-- connecting lines -->
+        <g stroke="#3E4756" stroke-width="1.3" fill="none">
+          <path d="M190 53 C 280 53, 300 130, 370 140"/>
+          <path d="M190 115 C 280 115, 320 135, 370 145"/>
+          <path d="M190 177 C 280 177, 320 165, 370 158"/>
+          <path d="M190 239 C 280 239, 320 190, 370 175"/>
+          <path d="M710 115 C 620 115, 580 135, 530 145"/>
+          <path d="M710 177 C 620 177, 580 165, 530 158"/>
+        </g>
+      </svg>
+      <div class="cap">SAME UNDERLYING DATA, REACHED VIA NATIVE PROTOCOLS OR AS S3 OBJECTS</div>
+    </div>
+
+    <p style="color:var(--ink-dim); max-width:680px;">The S3 Access Point capability is the newer piece here: it lets AI, ML, and analytics services that expect an S3 endpoint — Bedrock, SageMaker, Athena, Glue — read the same file data without a copy step, while the data itself never leaves the FSx file system.</p>
+  </section>
+
+  <!-- 06 WORKLOADS -->
+  <section id="workloads">
+    <div class="sec-head">
+      <span class="sec-num">06</span>
+      <h2 class="sec-title">Where it tends to get used</h2>
+    </div>
+
+    <div class="workload">
+      <div class="idx">A</div>
+      <div>
+        <h3>NetApp migration &amp; disaster recovery</h3>
+        <p>For shops already running ONTAP on-premises, SnapMirror makes AWS a replication target rather than a re-platforming project — no application changes required.</p>
+      </div>
+    </div>
+    <div class="workload">
+      <div class="idx">B</div>
+      <div>
+        <h3>VMware workload migration</h3>
+        <p>Built-in storage efficiency and data tiering are commonly cited as delivering significant cost savings when moving VMware-based NFS datastores into AWS.</p>
+      </div>
+    </div>
+    <div class="workload">
+      <div class="idx">C</div>
+      <div>
+        <h3>Mission-critical databases</h3>
+        <p>SQL Server and Oracle workloads get sub-millisecond latency plus space-efficient cloning — handy for instantly refreshing dev, test, or staging copies of production databases.</p>
+      </div>
+    </div>
+    <div class="workload">
+      <div class="idx">D</div>
+      <div>
+        <h3>SAP HANA</h3>
+        <p>FSx for ONTAP carries SAP HANA certification, pairing in-memory database performance requirements with ONTAP's data protection.</p>
+      </div>
+    </div>
+    <div class="workload">
+      <div class="idx">E</div>
+      <div>
+        <h3>AI / ML and analytics on private data</h3>
+        <p>Via S3 Access Points, file data already sitting in FSx for ONTAP can directly feed model training or GenAI applications without duplicating it into object storage first.</p>
+      </div>
+    </div>
+    <div class="workload">
+      <div class="idx">F</div>
+      <div>
+        <h3>General-purpose file consolidation</h3>
+        <p>One file service serving Linux, Windows, and macOS clients simultaneously — useful when teams have historically needed separate NAS systems per platform.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 SCALE & MANAGEMENT -->
+  <section id="scale">
+    <div class="sec-head">
+      <span class="sec-num">07</span>
+      <h2 class="sec-title">Scale and management surface</h2>
+    </div>
+
+    <table>
+      <tr><th>Dimension</th><th>What's available</th></tr>
+      <tr><td class="k">Throughput</td><td>Up to tens of GB/s per file system; adjustable up or down without downtime.</td></tr>
+      <tr><td class="k">IOPS</td><td>Scales into the millions per file system.</td></tr>
+      <tr><td class="k">Capacity</td><td>A single namespace scales to petabytes; second-generation file systems support up to 12 HA pairs and roughly 1 PiB of provisioned SSD.</td></tr>
+      <tr><td class="k">Availability layout</td><td>Single-AZ (scale-out, multiple HA pairs) or Multi-AZ (one HA pair spread across zones for resilience).</td></tr>
+      <tr><td class="k">Management tools</td><td>AWS Console, CLI, and SDK, alongside NetApp BlueXP and the ONTAP REST API — the same toolset a NetApp admin already uses.</td></tr>
+      <tr><td class="k">Monitoring</td><td>CloudWatch, CloudTrail, ONTAP EMS events, and NetApp's own Data Infrastructure Insights / Harvest tooling.</td></tr>
+      <tr><td class="k">Security</td><td>Encryption at rest via AWS KMS, IAM integration, and antivirus/data-security application support under AWS's shared responsibility model.</td></tr>
+    </table>
+
+    <div class="pill-row">
+      <span class="pill">NFS v3 / v4 / v4.1 / v4.2</span>
+      <span class="pill">SMB</span>
+      <span class="pill">iSCSI</span>
+      <span class="pill">NVMe-over-TCP</span>
+      <span class="pill">S3 Access Points</span>
+      <span class="pill">SnapMirror</span>
+      <span class="pill">FlexClone</span>
+      <span class="pill">AWS KMS encryption</span>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Compiled from AWS and NetApp public documentation as a general reference on Amazon FSx for NetApp ONTAP — not a transcript of a specific video or talk. Figures such as throughput ceilings, HA pair limits, and regional availability shift over time; check the <a href="https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/what-is-fsx-ontap.html" target="_blank" rel="noopener">official FSx for ONTAP documentation</a> for current limits.</p>
+  </div>
+</footer>
+
+</body>
+</html>

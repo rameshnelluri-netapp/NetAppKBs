@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWS EC2, ENI and VPC Explained for Storage Administrators</title>
+
+<style>
+body{
+    font-family: Arial, Helvetica, sans-serif;
+    background:#0f172a;
+    color:#e2e8f0;
+    margin:0;
+    line-height:1.7;
+}
+
+header{
+    background:linear-gradient(135deg,#1e3a8a,#0ea5e9);
+    padding:40px;
+    text-align:center;
+}
+
+header h1{
+    margin:0;
+    font-size:40px;
+}
+
+.container{
+    max-width:1200px;
+    margin:auto;
+    padding:30px;
+}
+
+.card{
+    background:#1e293b;
+    padding:25px;
+    border-radius:12px;
+    margin-bottom:25px;
+    box-shadow:0 0 10px rgba(0,0,0,.3);
+}
+
+h2{
+    color:#38bdf8;
+}
+
+h3{
+    color:#7dd3fc;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:15px;
+}
+
+th{
+    background:#2563eb;
+    padding:12px;
+}
+
+td{
+    border:1px solid #334155;
+    padding:10px;
+}
+
+.diagram{
+    background:#0f172a;
+    border:1px solid #334155;
+    padding:20px;
+    border-radius:10px;
+    margin-top:15px;
+    overflow:auto;
+}
+
+.code{
+    background:#020617;
+    border-left:5px solid #0ea5e9;
+    padding:15px;
+    font-family:Consolas;
+    white-space:pre;
+}
+
+.note{
+    background:#14532d;
+    border-left:5px solid #22c55e;
+    padding:15px;
+    border-radius:5px;
+}
+
+.footer{
+    text-align:center;
+    padding:30px;
+    color:#94a3b8;
+}
+</style>
+
+</head>
+
+<body>
+
+<header>
+<h1>AWS EC2, ENI & VPC</h1>
+<p>Storage Administrator's Guide to AWS Networking Fundamentals</p>
+</header>
+
+<div class="container">
+
+<div class="card">
+<h2>Introduction</h2>
+
+<p>
+As storage administrators moving from traditional data centers to cloud environments,
+understanding AWS networking concepts is essential.
+The three most common building blocks you will encounter are:
+</p>
+
+<ul>
+<li><b>EC2 (Elastic Compute Cloud)</b></li>
+<li><b>ENI (Elastic Network Interface)</b></li>
+<li><b>VPC (Virtual Private Cloud)</b></li>
+</ul>
+
+<p>
+These components form the foundation of services such as:
+</p>
+
+<ul>
+<li>Amazon FSx for ONTAP</li>
+<li>Cloud Volumes ONTAP (CVO)</li>
+<li>AWS Native Applications</li>
+<li>Hybrid Cloud Storage Solutions</li>
+</ul>
+
+</div>
+
+<div class="card">
+
+<h2>1. What is EC2?</h2>
+
+<p>
+EC2 (Elastic Compute Cloud) is AWS's virtual machine service.
+It provides compute resources similar to physical servers or VMware virtual machines.
+</p>
+
+<table>
+<tr>
+<th>Traditional Data Center</th>
+<th>AWS Equivalent</th>
+</tr>
+
+<tr>
+<td>Physical Server</td>
+<td>EC2 Instance</td>
+</tr>
+
+<tr>
+<td>VMware VM</td>
+<td>EC2 Instance</td>
+</tr>
+
+<tr>
+<td>CPU & RAM</td>
+<td>vCPU & Memory</td>
+</tr>
+
+<tr>
+<td>Operating System</td>
+<td>AMI (Amazon Machine Image)</td>
+</tr>
+
+</table>
+
+<h3>Examples</h3>
+
+<ul>
+<li>Linux Server</li>
+<li>Windows Server</li>
+<li>Database Server</li>
+<li>Cloud Volumes ONTAP Node</li>
+<li>Application Server</li>
+</ul>
+
+<div class="diagram">
+<pre>
++--------------------------------+
+|          EC2 Instance          |
++--------------------------------+
+| Operating System              |
+| Applications                  |
+| Databases                     |
+| Cloud Volumes ONTAP           |
++--------------------------------+
+</pre>
+</div>
+
+</div>
+
+<div class="card">
+
+<h2>2. What is an ENI?</h2>
+
+<p>
+ENI stands for Elastic Network Interface.
+Think of it as a virtual network card (NIC).
+</p>
+
+<p>
+Just as physical servers can have multiple NICs,
+AWS instances can have multiple ENIs.
+</p>
+
+<h3>ENI Contains</h3>
+
+<ul>
+<li>Private IP Address</li>
+<li>Secondary IP Addresses</li>
+<li>MAC Address</li>
+<li>Security Groups</li>
+<li>Network Connectivity</li>
+</ul>
+
+<div class="diagram">
+<pre>
+          EC2 Instance
+                 |
+    +------------+------------+
+    |                         |
++--------+               +--------+
+| ENI-1  |               | ENI-2  |
++--------+               +--------+
+|10.0.1.5|               |10.0.2.5|
++--------+               +--------+
+</pre>
+</div>
+
+<h3>Storage Use Cases</h3>
+
+<ul>
+<li>Management Traffic</li>
+<li>NFS Traffic</li>
+<li>SMB Traffic</li>
+<li>iSCSI Traffic</li>
+<li>Cluster Communication</li>
+</ul>
+
+</div>
+
+<div class="card">
+
+<h2>3. What is a VPC?</h2>
+
+<p>
+VPC (Virtual Private Cloud) is your private network inside AWS.
+Think of it as your own virtual data center network.
+</p>
+
+<table>
+<tr>
+<th>On-Premises</th>
+<th>AWS</th>
+</tr>
+
+<tr>
+<td>Data Center Network</td>
+<td>VPC</td>
+</tr>
+
+<tr>
+<td>VLAN</td>
+<td>Subnet</td>
+</tr>
+
+<tr>
+<td>Router</td>
+<td>Route Table</td>
+</tr>
+
+<tr>
+<td>Firewall</td>
+<td>Security Group</td>
+</tr>
+
+</table>
+
+<div class="diagram">
+<pre>
+VPC : 10.0.0.0/16
+
++--------------------------------------------------+
+|                                                  |
+|  Subnet-A                                        |
+|  10.0.1.0/24                                     |
+|      EC2 Application Server                      |
+|                                                  |
+|--------------------------------------------------|
+|                                                  |
+|  Subnet-B                                        |
+|  10.0.2.0/24                                     |
+|      FSx for ONTAP                               |
+|                                                  |
+|--------------------------------------------------|
+|                                                  |
+|  Subnet-C                                        |
+|  10.0.3.0/24                                     |
+|      Database Server                             |
+|                                                  |
++--------------------------------------------------+
+</pre>
+</div>
+
+</div>
+
+<div class="card">
+
+<h2>How EC2, ENI and VPC Work Together</h2>
+
+<div class="diagram">
+<pre>
+
+AWS Account
+     |
+     |
+     V
+
++------------------------------------------------------+
+|                      VPC                             |
+|                  10.0.0.0/16                         |
+|                                                      |
+|   +----------------+     +----------------+          |
+|   |   Subnet-A     |     |   Subnet-B     |          |
+|   | 10.0.1.0/24    |     | 10.0.2.0/24    |          |
+|   |                |     |                |          |
+|   | EC2 Server     |     | FSx ONTAP      |          |
+|   |                |     |                |          |
+|   +-------+--------+     +--------+-------+          |
+|           |                       |                  |
+|          ENI                    ENI                 |
+|                                                      |
++------------------------------------------------------+
+
+</pre>
+</div>
+
+</div>
+
+<div class="card">
+
+<h2>FSx for ONTAP Example</h2>
+
+<p>
+When you deploy FSx for ONTAP:
+</p>
+
+<ol>
+<li>A VPC provides networking.</li>
+<li>Subnets provide placement.</li>
+<li>ENIs are created automatically.</li>
+<li>Clients connect through ENIs.</li>
+<li>Storage traffic flows through the VPC.</li>
+</ol>
+
+<div class="diagram">
+<pre>
+
+Client Server
+     |
+     |
+     V
+
++-------------------+
+|       ENI         |
++-------------------+
+          |
+          |
+          V
+
++-------------------+
+|  FSx for ONTAP    |
++-------------------+
+
+          |
+          |
+          V
+
+ AWS Storage Backend
+
+</pre>
+</div>
+
+</div>
+
+<div class="card">
+
+<h2>Storage Administrator Perspective</h2>
+
+<table>
+<tr>
+<th>AWS Component</th>
+<th>Storage Admin View</th>
+</tr>
+
+<tr>
+<td>VPC</td>
+<td>Data Center Network</td>
+</tr>
+
+<tr>
+<td>Subnet</td>
+<td>VLAN</td>
+</tr>
+
+<tr>
+<td>EC2</td>
+<td>Virtual Server</td>
+</tr>
+
+<tr>
+<td>ENI</td>
+<td>Network Interface Card (NIC)</td>
+</tr>
+
+<tr>
+<td>Security Group</td>
+<td>Firewall Rule Set</td>
+</tr>
+
+<tr>
+<td>FSx for ONTAP</td>
+<td>NetApp Storage Array</td>
+</tr>
+
+</table>
+
+</div>
+
+<div class="card">
+
+<h2>Interview Questions</h2>
+
+<h3>1. What is EC2?</h3>
+<p>AWS virtual machine service used to run applications and workloads.</p>
+
+<h3>2. What is ENI?</h3>
+<p>A virtual network adapter attached to AWS resources.</p>
+
+<h3>3. What is VPC?</h3>
+<p>A private virtual network inside AWS.</p>
+
+<h3>4. Can an EC2 instance have multiple ENIs?</h3>
+<p>Yes, depending on instance type.</p>
+
+<h3>5. Why are ENIs important for FSx for ONTAP?</h3>
+<p>They provide management, NFS, SMB and iSCSI connectivity.</p>
+
+<h3>6. Is VPC similar to a VLAN?</h3>
+<p>No. VPC is an entire network; Subnets inside the VPC are more comparable to VLANs.</p>
+
+</div>
+
+<div class="card">
+
+<h2>Quick Memory Trick</h2>
+
+<div class="note">
+
+<b>VPC</b> = Virtual Data Center Network<br><br>
+
+<b>EC2</b> = Virtual Server<br><br>
+
+<b>ENI</b> = Virtual Network Card (NIC)
+
+</div>
+
+</div>
+
+</div>
+
+<div class="footer">
+AWS Networking Fundamentals for Storage Administrators | NetApp Hybrid Cloud Learning Series
+</div>
+
+</body>
+</html>
