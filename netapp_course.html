@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetApp ONTAP Storage Administration Course Outline</title>
+
+<style>
+body{
+    font-family:Segoe UI,Arial,sans-serif;
+    background:#0d1117;
+    color:#c9d1d9;
+    margin:0;
+    padding:0;
+}
+header{
+    background:#161b22;
+    padding:25px;
+    text-align:center;
+    border-bottom:2px solid #30363d;
+}
+h1{
+    color:#58a6ff;
+}
+.container{
+    max-width:1200px;
+    margin:auto;
+    padding:20px;
+}
+.section{
+    background:#161b22;
+    margin-bottom:20px;
+    padding:20px;
+    border-radius:8px;
+    border-left:5px solid #58a6ff;
+}
+h2{
+    color:#58a6ff;
+}
+ul{
+    line-height:1.8;
+}
+.footer{
+    text-align:center;
+    padding:20px;
+    color:#8b949e;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>NetApp ONTAP Storage Administration Master Course</h1>
+<p>Enterprise Storage • ONTAP • NAS • SAN • Data Protection • Cloud • Performance • Troubleshooting</p>
+</header>
+
+<div class="container">
+
+<div class="section">
+<h2>Module 1 - Storage Fundamentals</h2>
+<ul>
+<li>Introduction to Centralized Storage</li>
+<li>Why Enterprise Storage is Required</li>
+<li>DAS vs NAS vs SAN vs Object Storage</li>
+<li>SAN vs NAS Comparison</li>
+<li>Leading Storage Vendors and Products</li>
+<li>Storage Hardware Fundamentals</li>
+<li>Disk Technologies (HDD, SSD, NVMe)</li>
+<li>Disk Shelves and Enclosures</li>
+<li>Storage Controllers / Nodes / Heads</li>
+<li>RAID Concepts and RAID Levels</li>
+<li>Storage Pools and Aggregates</li>
+<li>Storage Data Flow Fundamentals</li>
+<li>Operating System Overview</li>
+<li>Networking Basics for Storage Administrators</li>
+<li>Subnetting, Netmasks, CIDR and VLAN Fundamentals</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>Module 2 - NetApp Platform Portfolio</h2>
+<ul>
+<li>NetApp ONTAP Platforms (FAS & AFF)</li>
+<li>NetApp E-Series (SANtricity)</li>
+<li>Element OS Platforms (SolidFire)</li>
+<li>StorageGRID Object Storage</li>
+<li>StorageGRID Appliances (SG100, SG1100)</li>
+<li>FlexPod and NFlex Converged Infrastructure</li>
+<li>Cloud Volumes ONTAP</li>
+<li>Amazon FSx for ONTAP</li>
+<li>Azure NetApp Files</li>
+<li>MetroCluster Solutions</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>Module 3 - ONTAP Physical Architecture</h2>
+<ul>
+<li>Legacy 7-Mode Architecture</li>
+<li>Clustered ONTAP Architecture</li>
+<li>HA Pair Fundamentals</li>
+<li>Controller Hardware Components</li>
+<li>Cluster Network Architecture</li>
+<li>Management Network Architecture</li>
+<li>Data Network Architecture</li>
+<li>Shelf Connectivity and Cabling</li>
+<li>Disk Ownership Concepts</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>Module 4 - ONTAP Logical Architecture</h2>
+<ul>
+<li>Cluster</li>
+<li>Storage Virtual Machine (SVM)</li>
+<li>Aggregates</li>
+<li>Volumes</li>
+<li>Logical Interfaces (LIFs)</li>
+<li>Namespaces</li>
+<li>Junction Paths</li>
+<li>Storage Provisioning Concepts</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>Module 5 - NetApp Hardware & Platform Overview</h2>
+<ul>
+<li>FAS Platforms</li>
+<li>AFF Platforms</li>
+<li>Disk Shelves (DS Series)</li>
+<li>StorageGRID Appliances</li>
+<li>Cloud Volumes ONTAP</li>
+<li>Amazon FSx for ONTAP</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>Module 6 - Management Tools & Applications</h2>
+<ul>
+<li>ONTAP CLI</li>
+<li>ONTAP System Manager</li>
+<li>Active IQ Unified Manager (OCUM)</li>
+<li>Active IQ Digital Advisor</li>
+<li>Hardware Universe (HWU)</li>
+<li>Interoperability Matrix Tool (IMT)</li>
+<li>Service Processor (SP)</li>
+<li>System Processor Interface (SPI)</li>
+<li>SnapCenter</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>Module 7 - Cluster Administration Fundamentals</h2>
+<ul>
+<li>Cluster Management</li>
+<li>Node Management</li>
+<li>Networking Administration</li>
+<li>SVM Administration</li>
+<li>Storage Administration</li>
+<li>Health Monitoring</li>
+<li>Maintenance Operations</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>Module 8 - Storage Virtual Machines & Volumes</h2>
+<ul>
+<li>SVM Fundamentals</li>
+<li>SVM Configuration (CLI)</li>
+<li>SVM Configuration (GUI)</li>
+<li>FlexVol Fundamentals</li>
+<li>Volume Provisioning</li>
+<li>Volume Configuration (CLI)</li>
+<li>Volume Configuration (GUI)</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>Module 9 - ONTAP Networking</h2>
+<ul>
+<li>Physical Network Ports</li>
+<li>Interface Groups (ifgrp)</li>
+<li>VLAN Configuration</li>
+<li>Logical Interfaces (LIFs)</li>
+<li>IPspaces</li>
+<li>Broadcast Domains</li>
+<li>Failover Groups</li>
+<li>Subnets</li>
+<li>Network Design Best Practices</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>Module 10 - NAS Administration</h2>
+<ul>
+<li>NFS Protocol Fundamentals</li>
+<li>NFS Versions</li>
+<li>NFS Name Services</li>
+<li>Export Policies</li>
+<li>Export Policy Rules</li>
+<li>NFS Client Configuration</li>
+<li>CIFS/SMB Fundamentals</li>
+<li>CIFS Server Configuration</li>
+<li>CIFS Shares</li>
+<li>NAS Troubleshooting</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>Module 11 - Advanced NAS Concepts</h2>
+<ul>
+<li>Name Mapping</li>
+<li>CIFS Properties</li>
+<li>CIFS Symlinks</li>
+<li>NFS Authentication Methods</li>
+<li>auth_sys</li>
+<li>extended_groups</li>
+<li>Name Services</li>
+<li>NIS Overview</li>
+<li>LDAP Overview</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>Module 12 - SAN Administration</h2>
+<ul>
+<li>SAN Architecture</li>
+<li>LUN Provisioning</li>
+<li>ONTAP SAN Implementation</li>
+<li>Multipathing</li>
+<li>Windows iSCSI Configuration</li>
+<li>Linux iSCSI Configuration</li>
+<li>Fibre Channel Concepts</li>
+<li>FC Zoning Examples</li>
+<li>SAN Troubleshooting</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>Module 13 - Snapshot Technology</h2>
+<ul>
+<li>Snapshot Architecture</li>
+<li>Snapshot Operations</li>
+<li>Snapshot Schedules</li>
+<li>Snapshot Policies</li>
+<li>Snapshot Restore Operations</li>
+<li>FlexClone Technology</li>
+<li>Windows Snapshot Recovery</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>Module 14 - Data Protection & Disaster Recovery</h2>
+<ul>
+<li>SnapMirror Engine</li>
+<li>Asynchronous SnapMirror</li>
+<li>Synchronous SnapMirror</li>
+<li>SnapVault</li>
+<li>Cluster Peering</li>
+<li>SVM DR</li>
+<li>Disaster Recovery Planning</li>
+<li>DR Testing Procedures</li>
+<li>Data Protection Troubleshooting</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>Module 15 - Advanced ONTAP Concepts</h2>
+<ul>
+<li>WAFL Architecture</li>
+<li>Consistency Points (CP)</li>
+<li>NVLOG Forwarding</li>
+<li>CPLOG Forwarding</li>
+<li>NVFAIL</li>
+<li>FlexGroup</li>
+<li>FlexCache</li>
+<li>FlexClone</li>
+<li>SnapLock</li>
+<li>Storage Efficiency Technologies</li>
+<li>Volume Move Operations</li>
+<li>XCP Data Migration</li>
+<li>RSYNC Fundamentals</li>
+<li>Inode Architecture</li>
+<li>MaxDir</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>Module 16 - NetApp Cloud Solutions</h2>
+<ul>
+<li>Cloud Volumes ONTAP on AWS</li>
+<li>Cloud Volumes ONTAP on Azure</li>
+<li>Cloud Volumes ONTAP on GCP</li>
+<li>Azure NetApp Files</li>
+<li>BlueXP Overview</li>
+<li>On-Prem Discovery using BlueXP</li>
+<li>Cloud Disaster Recovery</li>
+<li>SnapMirror Operations in Hybrid Cloud</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>Module 17 - Storage Performance & Optimization</h2>
+<ul>
+<li>IOPS</li>
+<li>Throughput</li>
+<li>Latency</li>
+<li>QoS Concepts</li>
+<li>Performance Analysis Tools</li>
+<li>Statistics Commands</li>
+<li>Performance Optimization Techniques</li>
+<li>Resource Saturation Analysis</li>
+<li>Bully Workloads</li>
+<li>Atime Updates</li>
+<li>Change Notifications</li>
+<li>Volume Affinity</li>
+<li>CRC Errors</li>
+<li>Hardware Bottlenecks</li>
+<li>Grow-Inode Analysis</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>Module 18 - ONTAP Upgrades & Firmware Management</h2>
+<ul>
+<li>Upgrade Types</li>
+<li>Upgrade Advisor</li>
+<li>Pre-Upgrade Validation</li>
+<li>ONTAP Image Management</li>
+<li>Cluster Upgrade Procedures</li>
+<li>Post Upgrade Validation</li>
+<li>SP Firmware Upgrades</li>
+<li>Shelf Firmware Upgrades</li>
+<li>IOM Firmware Upgrades</li>
+<li>ACP Firmware Upgrades</li>
+<li>Disk Firmware Upgrades</li>
+<li>Disk Qualification Package (DQP)</li>
+<li>Upgrade Best Practices</li>
+<li>Upgrade Troubleshooting</li>
+</ul>
+</div>
+
+<div class="section">
+<h2>Module 19 - Real-Time Operations & Troubleshooting</h2>
+<ul>
+<li>Daily Health Checks</li>
+<li>Capacity Monitoring</li>
+<li>Performance Monitoring</li>
+<li>Storage Outage Troubleshooting</li>
+<li>Network Troubleshooting</li>
+<li>NAS Issue Resolution</li>
+<li>SAN Issue Resolution</li>
+<li>SnapMirror Troubleshooting</li>
+<li>Cluster Health Analysis</li>
+<li>Root Cause Analysis Techniques</li>
+<li>Production Support Best Practices</li>
+</ul>
+</div>
+
+<div class="footer">
+NetApp ONTAP Storage Administration Master Course Outline
+</div>
+
+</body>
+</html>
