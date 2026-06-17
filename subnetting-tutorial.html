@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Subnets &amp; Netmasks — A Field Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+
+/* ============ TOKENS ============ */
+:root{
+  --ink: #0F1419;
+  --ink-raised: #161D24;
+  --ink-line: #232C35;
+  --paper: #E8E6E1;
+  --paper-dim: #9CA6AC;
+  --amber: #FF9F40;
+  --amber-dim: #6B4D2A;
+  --teal: #4FD1C5;
+  --teal-dim: #1F4A47;
+  --red: #E85D5D;
+  --red-dim: #5A2A2A;
+
+  --font-display: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --radius: 6px;
+  --maxw: 760px;
+}
+
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;
+  background:var(--ink);
+  color:var(--paper);
+  font-family:var(--font-display);
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{ background:var(--amber-dim); color:var(--paper); }
+
+a{ color:var(--amber); text-decoration:none; border-bottom:1px solid var(--amber-dim); }
+a:hover{ border-bottom-color:var(--amber); }
+
+.wrap{ max-width:var(--maxw); margin:0 auto; padding:0 24px; }
+
+code, .mono{ font-family:var(--font-mono); }
+
+h1,h2,h3{ font-family:var(--font-display); font-weight:800; letter-spacing:-0.01em; color:#fff; margin:0; }
+p{ margin:0 0 16px 0; color:var(--paper); }
+p:last-child{ margin-bottom:0; }
+
+/* focus visibility */
+button:focus-visible, .bit:focus-visible, input:focus-visible{
+  outline:2px solid var(--teal);
+  outline-offset:2px;
+}
+
+@media (prefers-reduced-motion: reduce){
+  *{ animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important; scroll-behavior:auto !important; }
+}
+
+/* ============ HERO ============ */
+.hero{
+  min-height:92vh;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  position:relative;
+  overflow:hidden;
+  padding:80px 0 40px;
+  border-bottom:1px solid var(--ink-line);
+}
+.hero-bits{
+  position:absolute;
+  inset:0;
+  display:grid;
+  grid-template-columns:repeat(32, 1fr);
+  opacity:0.55;
+  z-index:0;
+}
+.hero-bit{
+  font-family:var(--font-mono);
+  font-size:11px;
+  color:var(--ink-line);
+  text-align:center;
+  padding:3px 0;
+  user-select:none;
+}
+.hero-bit.lit{ color:var(--amber-dim); }
+.hero-content{ position:relative; z-index:1; }
+.eyebrow{
+  font-family:var(--font-mono);
+  font-size:13px;
+  color:var(--teal);
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  margin-bottom:18px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.eyebrow::before{ content:''; width:18px; height:1px; background:var(--teal); display:inline-block; }
+
+h1.title{
+  font-size:clamp(2.4rem, 6vw, 4.2rem);
+  line-height:1.04;
+  margin-bottom:24px;
+}
+h1.title .accent{ color:var(--amber); }
+
+.hero-sub{
+  font-size:1.15rem;
+  color:var(--paper-dim);
+  max-width:540px;
+  margin-bottom:36px;
+}
+
+.hero-address{
+  display:inline-flex;
+  align-items:center;
+  gap:14px;
+  font-family:var(--font-mono);
+  font-size:1.4rem;
+  font-weight:600;
+  background:var(--ink-raised);
+  border:1px solid var(--ink-line);
+  border-radius:var(--radius);
+  padding:14px 22px;
+  width:fit-content;
+}
+.hero-address .ip{ color:#fff; }
+.hero-address .slash{ color:var(--paper-dim); }
+.hero-address .cidr{ color:var(--amber); }
+
+/* ============ SECTION SCAFFOLDING ============ */
+section{ padding:96px 0; border-bottom:1px solid var(--ink-line); }
+section:last-of-type{ border-bottom:none; }
+
+.section-label{
+  font-family:var(--font-mono);
+  font-size:13px;
+  color:var(--paper-dim);
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+  margin-bottom:14px;
+}
+.section-label .num{ color:var(--amber); }
+
+h2.heading{
+  font-size:clamp(1.7rem, 4vw, 2.4rem);
+  margin-bottom:18px;
+  max-width:600px;
+}
+
+.lede{
+  font-size:1.05rem;
+  color:var(--paper-dim);
+  max-width:600px;
+  margin-bottom:40px;
+}
+
+.card{
+  background:var(--ink-raised);
+  border:1px solid var(--ink-line);
+  border-radius:var(--radius);
+  padding:28px;
+  margin-bottom:24px;
+}
+.card:last-child{ margin-bottom:0; }
+
+.card-title{
+  font-family:var(--font-mono);
+  font-size:14px;
+  color:var(--teal);
+  text-transform:uppercase;
+  letter-spacing:0.05em;
+  margin-bottom:16px;
+  font-weight:600;
+}
+
+/* ============ BINARY PLACE VALUE ROW ============ */
+.place-row{
+  display:flex;
+  gap:6px;
+  margin:20px 0;
+  overflow-x:auto;
+  padding-bottom:8px;
+}
+.place-cell{
+  flex:1;
+  min-width:42px;
+  text-align:center;
+  font-family:var(--font-mono);
+}
+.place-val{
+  font-size:13px;
+  color:var(--paper-dim);
+  margin-bottom:6px;
+}
+.place-bit{
+  background:var(--ink);
+  border:1px solid var(--ink-line);
+  border-radius:4px;
+  padding:10px 0;
+  font-size:16px;
+  font-weight:600;
+  color:var(--paper-dim);
+}
+.place-bit.on{
+  background:var(--amber-dim);
+  border-color:var(--amber);
+  color:var(--amber);
+}
+
+/* ============ OCTET BREAKDOWN ============ */
+.octet-grid{
+  display:grid;
+  grid-template-columns:repeat(4, 1fr);
+  gap:14px;
+  margin:24px 0;
+}
+.octet-box{
+  background:var(--ink);
+  border:1px solid var(--ink-line);
+  border-radius:var(--radius);
+  padding:16px 10px;
+  text-align:center;
+}
+.octet-bits{
+  font-family:var(--font-mono);
+  font-size:13px;
+  color:var(--teal);
+  margin-bottom:8px;
+  letter-spacing:0.05em;
+}
+.octet-dec{
+  font-family:var(--font-mono);
+  font-size:22px;
+  font-weight:700;
+  color:#fff;
+}
+.octet-label{
+  font-family:var(--font-mono);
+  font-size:11px;
+  color:var(--paper-dim);
+  margin-top:6px;
+  text-transform:uppercase;
+}
+
+/* ============ INTERACTIVE BIT VISUALIZER (signature element) ============ */
+.visualizer{
+  background:var(--ink-raised);
+  border:1px solid var(--ink-line);
+  border-radius:8px;
+  padding:32px;
+  margin:32px 0;
+}
+.viz-row{ margin-bottom:22px; }
+.viz-row:last-child{ margin-bottom:0; }
+.viz-row-label{
+  font-family:var(--font-mono);
+  font-size:12px;
+  color:var(--paper-dim);
+  text-transform:uppercase;
+  letter-spacing:0.05em;
+  margin-bottom:10px;
+  display:flex;
+  justify-content:space-between;
+}
+.viz-row-label .val{ color:var(--paper); text-transform:none; letter-spacing:0; }
+
+.bits-line{
+  display:grid;
+  grid-template-columns:repeat(32, 1fr);
+  gap:3px;
+}
+.bit{
+  aspect-ratio:1;
+  border-radius:3px;
+  border:none;
+  cursor:pointer;
+  font-family:var(--font-mono);
+  font-size:0;
+  background:var(--ink-line);
+  transition:background 0.12s ease, transform 0.08s ease;
+  padding:0;
+}
+.bit:hover{ transform:scale(1.15); }
+.bit.network{ background:var(--teal); }
+.bit.host{ background:var(--ink-line); }
+.bit.mask-on{ background:var(--amber); cursor:pointer; }
+.bit.mask-off{ background:var(--ink-line); cursor:pointer; }
+.bit.static{ cursor:default; }
+.bit.static:hover{ transform:none; }
+
+.octet-gap{ /* visually separates groups of 8 within the 32-grid via margin trick */ }
+
+.viz-results{
+  display:grid;
+  grid-template-columns:repeat(2, 1fr);
+  gap:14px;
+  margin-top:28px;
+  padding-top:24px;
+  border-top:1px solid var(--ink-line);
+}
+.viz-result{
+  background:var(--ink);
+  border-radius:4px;
+  padding:14px 16px;
+}
+.viz-result-label{
+  font-family:var(--font-mono);
+  font-size:11px;
+  color:var(--paper-dim);
+  text-transform:uppercase;
+  letter-spacing:0.05em;
+  margin-bottom:6px;
+}
+.viz-result-val{
+  font-family:var(--font-mono);
+  font-size:17px;
+  font-weight:700;
+  color:#fff;
+}
+.viz-result-val.amber{ color:var(--amber); }
+.viz-result-val.teal{ color:var(--teal); }
+.viz-result-val.red{ color:var(--red); }
+
+.viz-hint{
+  font-family:var(--font-mono);
+  font-size:12px;
+  color:var(--paper-dim);
+  margin-top:12px;
+  text-align:center;
+}
+.legend{
+  display:flex;
+  gap:18px;
+  flex-wrap:wrap;
+  margin-top:18px;
+  font-family:var(--font-mono);
+  font-size:12px;
+  color:var(--paper-dim);
+}
+.legend-item{ display:flex; align-items:center; gap:7px; }
+.legend-swatch{ width:11px; height:11px; border-radius:2px; display:inline-block; }
+
+/* ============ TABLES ============ */
+table{
+  width:100%;
+  border-collapse:collapse;
+  font-family:var(--font-mono);
+  font-size:14px;
+  margin:20px 0;
+}
+th{
+  text-align:left;
+  padding:10px 14px;
+  background:var(--ink);
+  color:var(--teal);
+  font-weight:600;
+  text-transform:uppercase;
+  font-size:11px;
+  letter-spacing:0.04em;
+  border-bottom:1px solid var(--ink-line);
+}
+td{
+  padding:10px 14px;
+  border-bottom:1px solid var(--ink-line);
+  color:var(--paper);
+}
+tr:last-child td{ border-bottom:none; }
+tr:hover td{ background:rgba(255,159,64,0.04); }
+td.num, th.num{ text-align:right; }
+td.highlight{ color:var(--amber); font-weight:600; }
+
+.table-scroll{ overflow-x:auto; }
+
+/* ============ CIDR SLIDER ============ */
+.cidr-tool{ margin:24px 0; }
+.cidr-display{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  margin-bottom:18px;
+  flex-wrap:wrap;
+  gap:12px;
+}
+.cidr-big{
+  font-family:var(--font-mono);
+  font-size:2.4rem;
+  font-weight:700;
+  color:var(--amber);
+}
+.cidr-stats{
+  display:flex;
+  gap:24px;
+  font-family:var(--font-mono);
+  font-size:13px;
+  color:var(--paper-dim);
+  flex-wrap:wrap;
+}
+.cidr-stats b{ color:#fff; display:block; font-size:16px; margin-top:2px; }
+
+input[type=range]{
+  width:100%;
+  -webkit-appearance:none;
+  appearance:none;
+  height:6px;
+  background:var(--ink-line);
+  border-radius:3px;
+  outline:none;
+  margin:14px 0;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  width:20px; height:20px;
+  border-radius:50%;
+  background:var(--amber);
+  cursor:pointer;
+  border:3px solid var(--ink);
+  box-shadow:0 0 0 1px var(--amber);
+}
+input[type=range]::-moz-range-thumb{
+  width:20px; height:20px;
+  border-radius:50%;
+  background:var(--amber);
+  cursor:pointer;
+  border:3px solid var(--ink);
+}
+
+/* ============ WORKED EXAMPLE STEPS ============ */
+.steps{ counter-reset:step; margin:24px 0; }
+.step{
+  display:grid;
+  grid-template-columns:40px 1fr;
+  gap:18px;
+  padding:18px 0;
+  border-bottom:1px solid var(--ink-line);
+}
+.step:last-child{ border-bottom:none; padding-bottom:0; }
+.step-num{
+  counter-increment:step;
+  font-family:var(--font-mono);
+  font-weight:700;
+  color:var(--amber);
+  font-size:14px;
+}
+.step-num::before{ content: counter(step); }
+.step-body p{ margin-bottom:8px; }
+.step-result{
+  display:inline-block;
+  font-family:var(--font-mono);
+  background:var(--ink);
+  border:1px solid var(--ink-line);
+  border-radius:4px;
+  padding:6px 12px;
+  color:var(--amber);
+  font-weight:600;
+  font-size:14px;
+  margin-top:4px;
+}
+
+/* ============ QUIZ ============ */
+.quiz-card{
+  background:var(--ink-raised);
+  border:1px solid var(--ink-line);
+  border-radius:var(--radius);
+  padding:24px;
+  margin-bottom:18px;
+}
+.quiz-q{ font-weight:600; color:#fff; margin-bottom:14px; }
+.quiz-options{ display:flex; flex-direction:column; gap:8px; }
+.quiz-opt{
+  font-family:var(--font-mono);
+  text-align:left;
+  background:var(--ink);
+  border:1px solid var(--ink-line);
+  color:var(--paper);
+  border-radius:4px;
+  padding:11px 16px;
+  cursor:pointer;
+  font-size:14px;
+  transition:border-color 0.12s;
+}
+.quiz-opt:hover{ border-color:var(--paper-dim); }
+.quiz-opt.correct{ border-color:var(--teal); background:var(--teal-dim); color:var(--teal); }
+.quiz-opt.wrong{ border-color:var(--red); background:var(--red-dim); color:var(--red); }
+.quiz-feedback{
+  margin-top:12px;
+  font-size:13px;
+  color:var(--paper-dim);
+  display:none;
+}
+.quiz-feedback.show{ display:block; }
+
+/* ============ MISC ============ */
+.callout{
+  border-left:3px solid var(--teal);
+  padding:4px 0 4px 20px;
+  margin:24px 0;
+  color:var(--paper-dim);
+  font-size:14px;
+}
+.callout b{ color:var(--teal); }
+.callout.warn{ border-left-color:var(--red); }
+.callout.warn b{ color:var(--red); }
+
+.two-col{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:20px;
+}
+
+.tag{
+  display:inline-block;
+  font-family:var(--font-mono);
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:0.04em;
+  padding:3px 9px;
+  border-radius:3px;
+  background:var(--ink-line);
+  color:var(--paper-dim);
+  margin-right:6px;
+}
+.tag.network{ background:var(--teal-dim); color:var(--teal); }
+.tag.host{ background:var(--ink-line); color:var(--paper-dim); }
+
+footer{
+  padding:48px 0 64px;
+  text-align:center;
+  font-family:var(--font-mono);
+  font-size:12px;
+  color:var(--paper-dim);
+}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width:640px){
+  .hero{ padding:60px 0 30px; min-height:auto; }
+  .hero-bits{ display:none; }
+  section{ padding:64px 0; }
+  .octet-grid{ grid-template-columns:repeat(2,1fr); }
+  .viz-results{ grid-template-columns:1fr; }
+  .two-col{ grid-template-columns:1fr; }
+  .bits-line{ gap:2px; }
+  .place-row{ gap:3px; }
+  .place-cell{ min-width:28px; }
+  .place-val{ font-size:10px; }
+  .place-bit{ font-size:12px; padding:7px 0; }
+  .cidr-display{ flex-direction:column; align-items:flex-start; }
+  table{ font-size:12px; }
+  th, td{ padding:8px 8px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="hero-bits" id="heroBits" aria-hidden="true"></div>
+  <div class="wrap hero-content">
+    <div class="eyebrow">A field guide to IP addressing</div>
+    <h1 class="title">Every IP address is hiding<br><span class="accent">two questions</span> inside one number.</h1>
+    <p class="hero-sub">Which network is this, and which host on it? The netmask is just the answer key — and once you can read it in binary, subnetting stops being memorization and starts being arithmetic.</p>
+    <div class="hero-address mono">
+      <span class="ip">192.168.1.10</span>
+      <span class="slash">/</span>
+      <span class="cidr">24</span>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ============ SECTION 1: BINARY ============ -->
+  <section id="binary">
+    <div class="wrap">
+      <div class="section-label"><span class="num">01</span> · Foundations</div>
+      <h2 class="heading">Computers count in two digits. We count in ten. Everything starts with translating between them.</h2>
+      <p class="lede">An IPv4 address is a 32-bit number. We write it in "dotted decimal" — four groups of decimal digits — purely for human convenience. The machine never sees the dots; it sees bits.</p>
+
+      <div class="card">
+        <div class="card-title">Place values, right to left</div>
+        <p>Just like the decimal system has a 1s, 10s, 100s place, binary has a 1s, 2s, 4s, 8s place — each one double the last. Click the bits below to see how a binary number adds up to a decimal value.</p>
+        <div class="place-row" id="placeRow"></div>
+        <div class="viz-result" style="margin-top:16px;">
+          <div class="viz-result-label">Decimal value</div>
+          <div class="viz-result-val amber mono" id="placeDecimal">0</div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <b>Why 8 bits per group?</b> An IPv4 address is split into four 8-bit groups called <b>octets</b>. 8 bits gives 2⁸ = 256 possible values — 0 through 255 — which is why every number you've ever seen in an IP address falls in that range.
+      </div>
+
+      <div class="card">
+        <div class="card-title">A full address, octet by octet</div>
+        <p>String four of those 8-bit groups together and you get a full 32-bit IPv4 address. Here's <span class="mono">192.168.1.10</span> broken into its binary octets:</p>
+        <div class="octet-grid">
+          <div class="octet-box">
+            <div class="octet-bits">11000000</div>
+            <div class="octet-dec">192</div>
+            <div class="octet-label">Octet 1</div>
+          </div>
+          <div class="octet-box">
+            <div class="octet-bits">10101000</div>
+            <div class="octet-dec">168</div>
+            <div class="octet-label">Octet 2</div>
+          </div>
+          <div class="octet-box">
+            <div class="octet-bits">00000001</div>
+            <div class="octet-dec">1</div>
+            <div class="octet-label">Octet 3</div>
+          </div>
+          <div class="octet-box">
+            <div class="octet-bits">00001010</div>
+            <div class="octet-dec">10</div>
+            <div class="octet-label">Octet 4</div>
+          </div>
+        </div>
+        <p style="color:var(--paper-dim); font-size:14px;">32 bits total, written as four decimal numbers separated by dots. That's the entire trick behind "dotted decimal notation."</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SECTION 2: NETMASK ============ -->
+  <section id="netmask">
+    <div class="wrap">
+      <div class="section-label"><span class="num">02</span> · The netmask</div>
+      <h2 class="heading">The netmask draws a line through the address: everything before it is the network, everything after is the host.</h2>
+      <p class="lede">A netmask is also a 32-bit number — but it's not an address at all. It's a pattern of 1s followed by 0s. The 1s mark "this bit identifies the network." The 0s mark "this bit identifies the specific device on that network."</p>
+
+      <div class="card">
+        <div class="card-title">Try it — toggle the netmask bits</div>
+        <p>Below is a real address split into 4 octets of 8 bits each (32 total). The top row is the <span class="tag network">address</span> and is fixed. The bottom row is the <span class="tag host">netmask</span> — click any bit to move the network/host boundary there and watch the network/broadcast/host-count recalculate live.</p>
+
+        <div class="visualizer">
+          <div class="viz-row">
+            <div class="viz-row-label">IP Address <span class="val mono" id="vizIpLabel">192.168.1.10</span></div>
+            <div class="bits-line" id="vizAddrBits"></div>
+          </div>
+          <div class="viz-row">
+            <div class="viz-row-label">Netmask (click bits to flip) <span class="val mono" id="vizMaskLabel">255.255.255.0</span></div>
+            <div class="bits-line" id="vizMaskBits"></div>
+          </div>
+
+          <div class="legend">
+            <span class="legend-item"><span class="legend-swatch" style="background:var(--teal)"></span> Network bit</span>
+            <span class="legend-item"><span class="legend-swatch" style="background:var(--ink-line)"></span> Host bit</span>
+            <span class="legend-item"><span class="legend-swatch" style="background:var(--amber)"></span> Mask = 1</span>
+          </div>
+
+          <div class="viz-results">
+            <div class="viz-result">
+              <div class="viz-result-label">CIDR notation</div>
+              <div class="viz-result-val amber mono" id="vizCidr">/24</div>
+            </div>
+            <div class="viz-result">
+              <div class="viz-result-label">Network address</div>
+              <div class="viz-result-val teal mono" id="vizNetwork">192.168.1.0</div>
+            </div>
+            <div class="viz-result">
+              <div class="viz-result-label">Broadcast address</div>
+              <div class="viz-result-val red mono" id="vizBroadcast">192.168.1.255</div>
+            </div>
+            <div class="viz-result">
+              <div class="viz-result-label">Usable host range</div>
+              <div class="viz-result-val mono" id="vizRange">192.168.1.1 – .254</div>
+            </div>
+            <div class="viz-result">
+              <div class="viz-result-label">Total addresses</div>
+              <div class="viz-result-val mono" id="vizTotal">256</div>
+            </div>
+            <div class="viz-result">
+              <div class="viz-result-label">Usable hosts</div>
+              <div class="viz-result-val mono" id="vizUsable">254</div>
+            </div>
+          </div>
+          <div class="viz-hint">Click any bit in the netmask row to move the network/host boundary there</div>
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <b>Why subtract 2 from the host count?</b> In every subnet, the first address (all host bits = 0) is the <b>network address</b> — it names the subnet itself and can't be assigned to a device. The last address (all host bits = 1) is the <b>broadcast address</b> — it sends to every host on the subnet at once. Both are reserved, so usable hosts = 2<sup>(host bits)</sup> − 2. (The /31 and /32 cases below are the exceptions.)
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SECTION 3: CIDR ============ -->
+  <section id="cidr">
+    <div class="wrap">
+      <div class="section-label"><span class="num">03</span> · CIDR notation</div>
+      <h2 class="heading">"/24" is shorthand for "count the 1s." That's the entire notation.</h2>
+      <p class="lede"><b style="color:#fff">CIDR</b> stands for <b style="color:#fff">Classless Inter-Domain Routing</b>. Before it existed (pre-1993), networks came in only three fixed sizes — Class A, B, and C — which wasted huge blocks of address space. CIDR replaced that with a simple idea: write the netmask as a slash followed by the number of leading 1-bits. <span class="mono">/24</span> means "the first 24 bits are network bits," full stop — any boundary, any size.</p>
+
+      <div class="card">
+        <div class="card-title">Drag to see how the slash changes everything</div>
+        <div class="cidr-tool">
+          <div class="cidr-display">
+            <div>
+              <div style="font-family:var(--font-mono); font-size:13px; color:var(--paper-dim); margin-bottom:4px;">CIDR PREFIX</div>
+              <div class="cidr-big mono" id="cidrSliderLabel">/24</div>
+            </div>
+            <div class="cidr-stats">
+              <div>NETMASK<b class="mono" id="cidrSliderMask">255.255.255.0</b></div>
+              <div>HOST BITS<b class="mono" id="cidrSliderHostBits">8</b></div>
+              <div>TOTAL ADDRESSES<b class="mono" id="cidrSliderTotal">256</b></div>
+              <div>USABLE HOSTS<b class="mono" id="cidrSliderUsable">254</b></div>
+            </div>
+          </div>
+          <input type="range" min="0" max="32" value="24" id="cidrSlider" aria-label="CIDR prefix length">
+        </div>
+      </div>
+
+      <div class="callout">
+        <b>Reading it out loud:</b> "<span class="mono">10.0.0.0/16</span>" reads as "the network 10.0.0.0, with a 16-bit prefix" — meaning the first 16 bits (10.0) are fixed/network, and the remaining 16 bits are free for hosts. Slide above to /16 to see it: 65,534 usable hosts in one subnet.
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SECTION 4: REFERENCE TABLE ============ -->
+  <section id="reference">
+    <div class="wrap">
+      <div class="section-label"><span class="num">04</span> · Reference</div>
+      <h2 class="heading">The netmasks you'll actually see in the wild.</h2>
+      <p class="lede">Most real networks cluster around a handful of common sizes. Once these are memorized, you can size a subnet in your head.</p>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>CIDR</th>
+              <th>Netmask</th>
+              <th class="num">Host bits</th>
+              <th class="num">Total addrs</th>
+              <th class="num">Usable hosts</th>
+              <th>Typical use</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>/8</td><td>255.0.0.0</td><td class="num">24</td><td class="num">16,777,216</td><td class="num">16,777,214</td><td>Legacy "Class A" — entire org or ISP</td></tr>
+            <tr><td>/16</td><td>255.255.0.0</td><td class="num">16</td><td class="num">65,536</td><td class="num">65,534</td><td>Legacy "Class B" — large campus</td></tr>
+            <tr><td>/20</td><td>255.255.240.0</td><td class="num">12</td><td class="num">4,096</td><td class="num">4,094</td><td>Mid-size office, several floors</td></tr>
+            <tr class="highlight"><td class="highlight">/24</td><td class="highlight">255.255.255.0</td><td class="num">8</td><td class="num">256</td><td class="num">254</td><td>The default for home & small-office LANs</td></tr>
+            <tr><td>/25</td><td>255.255.255.128</td><td class="num">7</td><td class="num">128</td><td class="num">126</td><td>Half a /24 — splitting a LAN in two</td></tr>
+            <tr><td>/26</td><td>255.255.255.192</td><td class="num">6</td><td class="num">64</td><td class="num">62</td><td>Small department / VLAN</td></tr>
+            <tr><td>/27</td><td>255.255.255.224</td><td class="num">5</td><td class="num">32</td><td class="num">30</td><td>Small office, branch site</td></tr>
+            <tr><td>/28</td><td>255.255.255.240</td><td class="num">4</td><td class="num">16</td><td class="num">14</td><td>Server rack, point-to-multipoint</td></tr>
+            <tr><td>/29</td><td>255.255.255.248</td><td class="num">3</td><td class="num">8</td><td class="num">6</td><td>Tiny ISP hand-off link</td></tr>
+            <tr><td>/30</td><td>255.255.255.252</td><td class="num">2</td><td class="num">4</td><td class="num">2</td><td>Router-to-router link (2 usable hosts)</td></tr>
+            <tr><td>/31</td><td>255.255.255.254</td><td class="num">1</td><td class="num">2</td><td class="num">2*</td><td>Point-to-point link (RFC 3021 special case)</td></tr>
+            <tr><td>/32</td><td>255.255.255.255</td><td class="num">0</td><td class="num">1</td><td class="num">1*</td><td>A single host route — no subnetting at all</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="font-size:13px; color:var(--paper-dim);">* /31 and /32 are special-cased by RFC 3021 / RFC 3531 — there aren't enough bits left to reserve a network or broadcast address, so the "−2" rule is waived.</p>
+    </div>
+  </section>
+
+  <!-- ============ SECTION 5: WORKED EXAMPLE ============ -->
+  <section id="worked">
+    <div class="wrap">
+      <div class="section-label"><span class="num">05</span> · Worked example</div>
+      <h2 class="heading">Given an address and a CIDR, find everything else by hand.</h2>
+      <p class="lede">Let's fully solve one: <span class="mono" style="color:#fff">172.16.50.130/26</span>. No calculator — just the bits.</p>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <p><b style="color:#fff">Convert the relevant octet to binary.</b> /26 falls inside the third octet (it's past the first 24 bits; 26 − 24 = 2 bits into octet 3). So we need octet 3 — the value 50 — in binary.</p>
+            <p>50 = 32 + 16 + 2 → <span class="mono">00110010</span></p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <p><b style="color:#fff">Mark the network/host split.</b> 24 of the 26 network bits are already spent on octets 1–3's positions, so only 2 more bits (within octet 3) are network bits — the rest of octet 3 (6 bits) plus all of octet 4 are host bits.</p>
+            <p><span class="mono"><span style="color:var(--teal)">00</span><span style="color:var(--paper-dim)">110010</span></span> → network portion = <span style="color:var(--teal)">00</span>, host portion = <span style="color:var(--paper-dim)">110010</span></p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <p><b style="color:#fff">Zero out the host bits to find the network address.</b> Keep the network bits, set every host bit to 0 (this includes octet 4).</p>
+            <p><span class="mono"><span style="color:var(--teal)">00</span>000000</span> = 0 → octet 3 becomes <b>0</b>, octet 4 becomes <b>0</b></p>
+            <div class="step-result">172.16.50.130 → 172.16.0.0/26</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <p><b style="color:#fff">Set every host bit to 1 to find the broadcast address.</b></p>
+            <p><span class="mono"><span style="color:var(--teal)">00</span>111111</span> = 63 → octet 3 becomes <b>63</b>, octet 4 becomes all 1s = <b>255</b></p>
+            <div class="step-result">172.16.63.255</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <p><b style="color:#fff">Count host bits to get the host count.</b> /26 leaves 32 − 26 = 6 host bits. 2⁶ = 64 total addresses, minus 2 reserved = 62 usable.</p>
+            <div class="step-result">62 usable hosts, 172.16.0.1 – 172.16.0.62</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <b>The faster shortcut, once you trust the binary:</b> find which octet the slash lands in, then compute its "magic number" — 256 divided by 2<sup>(network bits in that octet)</sup>. Here, /26 puts 2 network bits into octet 3, so the magic number is 256 ÷ 2² = 64. Round the address's value in that octet (50) down to the nearest multiple of 64 — that's 0 — and every octet after the boundary becomes 0 too. Same answer as the binary method, in two mental steps instead of five.
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SECTION 6: SUBNETTING / SPLITTING ============ -->
+  <section id="subnetting">
+    <div class="wrap">
+      <div class="section-label"><span class="num">06</span> · Subnetting</div>
+      <h2 class="heading">Subnetting is just borrowing bits from the host side to make more, smaller networks.</h2>
+      <p class="lede">Say you're given <span class="mono" style="color:#fff">192.168.1.0/24</span> and need to split it into 4 separate networks (e.g., 4 office floors, each on its own VLAN). Every time you move the slash one bit to the right, you double the number of subnets and halve the size of each one.</p>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Borrow</th><th>New CIDR</th><th>Subnets created</th><th class="num">Hosts each</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>0 bits</td><td>/24</td><td class="num">1</td><td class="num">254</td></tr>
+            <tr><td>1 bit</td><td>/25</td><td class="num">2</td><td class="num">126</td></tr>
+            <tr class="highlight"><td class="highlight">2 bits</td><td class="highlight">/26</td><td class="num">4</td><td class="num">62</td></tr>
+            <tr><td>3 bits</td><td>/27</td><td class="num">8</td><td class="num">30</td></tr>
+            <tr><td>4 bits</td><td>/28</td><td class="num">16</td><td class="num">14</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Borrowing 2 bits (going from /24 to /26) gives us 2² = 4 subnets, each sized /26 (62 usable hosts). They lay out back-to-back, starting at every multiple of 64:</p>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Subnet</th><th>Network address</th><th>Usable range</th><th>Broadcast</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Floor 1</td><td>192.168.1.0/26</td><td>.1 – .62</td><td>192.168.1.63</td></tr>
+            <tr><td>Floor 2</td><td>192.168.1.64/26</td><td>.65 – .126</td><td>192.168.1.127</td></tr>
+            <tr><td>Floor 3</td><td>192.168.1.128/26</td><td>.129 – .190</td><td>192.168.1.191</td></tr>
+            <tr><td>Floor 4</td><td>192.168.1.192/26</td><td>.193 – .254</td><td>192.168.1.255</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <b>The pattern to notice:</b> every subnet's range ends exactly 1 below the next subnet's start, and each network address is a multiple of the block size (64, in this case). This is why subnet boundaries always feel like "clean" numbers once you know the block size — they're not arbitrary, they're multiples.
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SECTION 7: PRIVATE RANGES + SPECIAL ============ -->
+  <section id="special">
+    <div class="wrap">
+      <div class="section-label"><span class="num">07</span> · Good to know</div>
+      <h2 class="heading">A few address ranges and rules you'll bump into constantly.</h2>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-title">Private (RFC 1918) ranges</div>
+          <table>
+            <tbody>
+              <tr><td>10.0.0.0/8</td><td>16.7M hosts</td></tr>
+              <tr><td>172.16.0.0/12</td><td>1M hosts</td></tr>
+              <tr><td>192.168.0.0/16</td><td>65K hosts</td></tr>
+            </tbody>
+          </table>
+          <p style="font-size:13px;">These never route on the public internet — your router uses NAT to translate them.</p>
+        </div>
+        <div class="card">
+          <div class="card-title">Reserved / special-use</div>
+          <table>
+            <tbody>
+              <tr><td>127.0.0.0/8</td><td>Loopback (localhost)</td></tr>
+              <tr><td>169.254.0.0/16</td><td>Link-local (no DHCP)</td></tr>
+              <tr><td>0.0.0.0/0</td><td>"Any address" / default route</td></tr>
+            </tbody>
+          </table>
+          <p style="font-size:13px;">169.254.x.x means a device's DHCP request failed — it self-assigned.</p>
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <b>Common trap:</b> a netmask must be a contiguous run of 1s followed by 0s — <span class="mono">255.255.255.0</span> is valid, but something like <span class="mono">255.0.255.0</span> (1s, then 0s, then 1s again) is not. That pattern is sometimes called a "wildcard mask" instead, and means something different (used in access-control lists, not subnetting).
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SECTION 8: QUIZ ============ -->
+  <section id="quiz">
+    <div class="wrap">
+      <div class="section-label"><span class="num">08</span> · Check yourself</div>
+      <h2 class="heading">Three quick ones.</h2>
+
+      <div class="quiz-card">
+        <div class="quiz-q">1. How many usable hosts does a /29 network provide?</div>
+        <div class="quiz-options">
+          <button class="quiz-opt" data-correct="false">8</button>
+          <button class="quiz-opt" data-correct="true">6</button>
+          <button class="quiz-opt" data-correct="false">14</button>
+          <button class="quiz-opt" data-correct="false">4</button>
+        </div>
+        <div class="quiz-feedback">/29 leaves 3 host bits (32−29). 2³ = 8 total addresses, minus 2 reserved (network + broadcast) = 6 usable.</div>
+      </div>
+
+      <div class="quiz-card">
+        <div class="quiz-q">2. What's the network address for 10.4.20.99/22?</div>
+        <div class="quiz-options">
+          <button class="quiz-opt" data-correct="false">10.4.22.0</button>
+          <button class="quiz-opt" data-correct="true">10.4.20.0</button>
+          <button class="quiz-opt" data-correct="false">10.4.0.0</button>
+          <button class="quiz-opt" data-correct="false">10.4.16.0</button>
+        </div>
+        <div class="quiz-feedback">/22's boundary falls in octet 3, with a magic number of 256−252=4. Multiples of 4 near 20 are 16 and 20 — since 20 is itself a multiple of 4, the network address is 10.4.20.0.</div>
+      </div>
+
+      <div class="quiz-card">
+        <div class="quiz-q">3. Which of these is NOT a valid netmask?</div>
+        <div class="quiz-options">
+          <button class="quiz-opt" data-correct="false">255.255.255.128</button>
+          <button class="quiz-opt" data-correct="false">255.255.0.0</button>
+          <button class="quiz-opt" data-correct="true">255.0.255.0</button>
+          <button class="quiz-opt" data-correct="false">255.255.252.0</button>
+        </div>
+        <div class="quiz-feedback">A valid netmask must be a contiguous run of 1s followed by 0s. 255.0.255.0 has 1s, then 0s, then 1s again — a discontiguous pattern, making it invalid as a netmask (though it could be valid as a wildcard mask in a different context).</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  Built to be clicked on, not just read — every bit above is live.
+</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- helpers ---------- */
+  function toBin8(n){ return n.toString(2).padStart(8,'0'); }
+  function ipToOctets(ip){ return ip.split('.').map(Number); }
+  function octetsToIp(o){ return o.join('.'); }
+  function cidrToMaskOctets(cidr){
+    const bits = '1'.repeat(cidr) + '0'.repeat(32-cidr);
+    const o = [];
+    for(let i=0;i<4;i++){ o.push(parseInt(bits.substr(i*8,8),2)); }
+    return o;
+  }
+  function maskOctetsToCidr(o){
+    let bits = o.map(toBin8).join('');
+    return bits.split('0').join('').length; // counts leading 1s assuming contiguous
+  }
+
+  /* ---------- HERO background bits ---------- */
+  (function(){
+    const el = document.getElementById('heroBits');
+    if(!el) return;
+    const rows = 14;
+    let html = '';
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<32;c++){
+        const lit = Math.random() < 0.18;
+        html += '<span class="hero-bit'+(lit?' lit':'')+'">'+(Math.random()<0.5?'0':'1')+'</span>';
+      }
+    }
+    el.innerHTML = html;
+  })();
+
+  /* ---------- SECTION 1: place value clicker ---------- */
+  (function(){
+    const row = document.getElementById('placeRow');
+    const out = document.getElementById('placeDecimal');
+    if(!row) return;
+    const values = [128,64,32,16,8,4,2,1];
+    let state = [1,0,1,0,1,0,1,0]; // default shows 170-ish pattern, will recompute
+
+    function render(){
+      row.innerHTML = '';
+      values.forEach((v,i)=>{
+        const cell = document.createElement('div');
+        cell.className = 'place-cell';
+        cell.innerHTML = '<div class="place-val mono">'+v+'</div>';
+        const bit = document.createElement('button');
+        bit.className = 'place-bit mono'+(state[i]?' on':'');
+        bit.type = 'button';
+        bit.textContent = state[i];
+        bit.setAttribute('aria-label', 'Bit worth '+v+', currently '+state[i]);
+        bit.addEventListener('click', ()=>{
+          state[i] = state[i]?0:1;
+          render();
+        });
+        cell.appendChild(bit);
+        row.appendChild(cell);
+      });
+      const dec = values.reduce((sum,v,i)=> sum + v*state[i], 0);
+      out.textContent = dec;
+    }
+    render();
+  })();
+
+  /* ---------- SECTION 2: main IP/netmask bit visualizer ---------- */
+  (function(){
+    const addrWrap = document.getElementById('vizAddrBits');
+    const maskWrap = document.getElementById('vizMaskBits');
+    if(!addrWrap) return;
+
+    const ipOctets = [192,168,1,10];
+    let maskBits = cidrToMaskOctets(24).map(toBin8).join('').split('').map(Number); // array of 32 0/1
+
+    function ipBitsArray(){
+      return ipOctets.map(toBin8).join('').split('').map(Number);
+    }
+
+    function render(){
+      const ipBits = ipBitsArray();
+      const cidr = maskBits.reduce((a,b)=>a+b,0);
+
+      // render address row (static, colored by current mask)
+      addrWrap.innerHTML = '';
+      ipBits.forEach((b,i)=>{
+        const btn = document.createElement('button');
+        btn.className = 'bit static ' + (maskBits[i] ? 'network' : 'host');
+        btn.type = 'button';
+        btn.disabled = true;
+        btn.title = 'bit '+i+': '+b;
+        btn.style.marginRight = ((i+1)%8===0 && i!==31) ? '6px' : '0';
+        addrWrap.appendChild(btn);
+      });
+
+      // render mask row (clickable)
+      maskWrap.innerHTML = '';
+      maskBits.forEach((b,i)=>{
+        const btn = document.createElement('button');
+        btn.className = 'bit ' + (b ? 'mask-on' : 'mask-off');
+        btn.type = 'button';
+        btn.title = 'mask bit '+i+': '+b+' (click to flip)';
+        btn.setAttribute('aria-label', 'Netmask bit '+(i+1)+' is '+b+'. Click to flip.');
+        btn.style.marginRight = ((i+1)%8===0 && i!==31) ? '6px' : '0';
+        btn.addEventListener('click', ()=>{
+          // Clicking a bit sets the CIDR boundary to this position, keeping the
+          // mask a valid contiguous run of 1s followed by 0s (never a discontiguous mask).
+          // If this bit is currently 0, turn it (and everything before it) on.
+          // If this bit is currently 1 and it's the last 1, turn it (and everything from here) off.
+          const currentCidr = maskBits.reduce((a,b)=>a+b,0);
+          let newCidr;
+          if (maskBits[i] === 0) {
+            newCidr = i + 1; // extend network portion to include this bit
+          } else {
+            newCidr = i; // shrink network portion to just before this bit
+          }
+          maskBits = cidrToMaskOctets(newCidr).map(toBin8).join('').split('').map(Number);
+          render();
+        });
+        maskWrap.appendChild(btn);
+      });
+
+      // compute results
+      const maskOctets = [];
+      for(let i=0;i<4;i++){ maskOctets.push(parseInt(maskBits.slice(i*8,i*8+8).join(''),2)); }
+
+      const netOctets = ipOctets.map((o,i)=> o & maskOctets[i]);
+      const hostBitsCount = 32 - cidr;
+      const bcastOctets = ipOctets.map((o,i)=>{
+        const wildcard = 255 - maskOctets[i];
+        return netOctets[i] | wildcard;
+      });
+
+      const total = Math.pow(2, hostBitsCount);
+      let usable;
+      if(hostBitsCount === 0) usable = 1;
+      else if(hostBitsCount === 1) usable = 2;
+      else usable = total - 2;
+
+      document.getElementById('vizIpLabel').textContent = octetsToIp(ipOctets);
+      document.getElementById('vizMaskLabel').textContent = octetsToIp(maskOctets);
+      document.getElementById('vizCidr').textContent = '/' + cidr;
+      document.getElementById('vizNetwork').textContent = octetsToIp(netOctets);
+      document.getElementById('vizBroadcast').textContent = octetsToIp(bcastOctets);
+      document.getElementById('vizTotal').textContent = total.toLocaleString();
+      document.getElementById('vizUsable').textContent = usable.toLocaleString();
+
+      let rangeText;
+      if(hostBitsCount === 0){
+        rangeText = octetsToIp(netOctets) + ' (host route)';
+      } else if(hostBitsCount === 1){
+        rangeText = octetsToIp(netOctets) + ' & ' + octetsToIp(bcastOctets);
+      } else {
+        const firstHost = netOctets.slice();
+        firstHost[3] += 1;
+        const lastHost = bcastOctets.slice();
+        lastHost[3] -= 1;
+        rangeText = octetsToIp(firstHost) + ' \u2013 ' + octetsToIp(lastHost);
+      }
+      document.getElementById('vizRange').textContent = rangeText;
+    }
+
+    render();
+  })();
+
+  /* ---------- SECTION 3: CIDR slider ---------- */
+  (function(){
+    const slider = document.getElementById('cidrSlider');
+    if(!slider) return;
+    function render(){
+      const cidr = parseInt(slider.value,10);
+      const maskOctets = cidrToMaskOctets(cidr);
+      const hostBits = 32 - cidr;
+      const total = Math.pow(2, hostBits);
+      let usable;
+      if(hostBits === 0) usable = 1;
+      else if(hostBits === 1) usable = 2;
+      else usable = total - 2;
+
+      document.getElementById('cidrSliderLabel').textContent = '/' + cidr;
+      document.getElementById('cidrSliderMask').textContent = octetsToIp(maskOctets);
+      document.getElementById('cidrSliderHostBits').textContent = hostBits;
+      document.getElementById('cidrSliderTotal').textContent = total.toLocaleString();
+      document.getElementById('cidrSliderUsable').textContent = usable.toLocaleString();
+    }
+    slider.addEventListener('input', render);
+    render();
+  })();
+
+  /* ---------- SECTION 8: quiz ---------- */
+  (function(){
+    const cards = document.querySelectorAll('.quiz-card');
+    cards.forEach(card=>{
+      const opts = card.querySelectorAll('.quiz-opt');
+      const feedback = card.querySelector('.quiz-feedback');
+      let answered = false;
+      opts.forEach(opt=>{
+        opt.addEventListener('click', ()=>{
+          if(answered) return;
+          answered = true;
+          const isCorrect = opt.getAttribute('data-correct') === 'true';
+          opt.classList.add(isCorrect ? 'correct' : 'wrong');
+          if(!isCorrect){
+            opts.forEach(o=>{ if(o.getAttribute('data-correct')==='true') o.classList.add('correct'); });
+          }
+          if(feedback) feedback.classList.add('show');
+        });
+      });
+    });
+  })();
+
+})();
+</script>
+</body>
+</html>

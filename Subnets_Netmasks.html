@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Subnetting & CIDR Tutorial</title>
+
+<style>
+body{
+    background:#0d1117;
+    color:#c9d1d9;
+    font-family:Segoe UI,Arial,sans-serif;
+    line-height:1.7;
+    margin:0;
+}
+
+header{
+    background:#161b22;
+    padding:30px;
+    text-align:center;
+    border-bottom:2px solid #30363d;
+}
+
+h1,h2,h3{
+    color:#58a6ff;
+}
+
+.container{
+    max-width:1200px;
+    margin:auto;
+    padding:20px;
+}
+
+.card{
+    background:#161b22;
+    padding:20px;
+    margin:20px 0;
+    border-radius:10px;
+    border-left:5px solid #58a6ff;
+}
+
+code{
+    background:#21262d;
+    padding:3px 6px;
+    border-radius:4px;
+    color:#79c0ff;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:15px;
+}
+
+table,th,td{
+    border:1px solid #30363d;
+}
+
+th{
+    background:#21262d;
+}
+
+th,td{
+    padding:10px;
+    text-align:left;
+}
+
+.highlight{
+    color:#7ee787;
+    font-weight:bold;
+}
+
+.warning{
+    color:#ffa657;
+}
+
+.footer{
+    text-align:center;
+    padding:20px;
+    color:#8b949e;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>IPv4 Subnetting, Netmasks & CIDR Tutorial</h1>
+<p>Complete Conceptual Guide for Network and Storage Administrators</p>
+</header>
+
+<div class="container">
+
+<div class="card">
+<h2>1. What is an IP Address?</h2>
+
+<p>An IPv4 address is a 32-bit number used to uniquely identify a device on a network.</p>
+
+<p>Example:</p>
+
+<code>192.168.10.25</code>
+
+<p>IPv4 contains 4 octets:</p>
+
+<table>
+<tr>
+<th>Octet1</th>
+<th>Octet2</th>
+<th>Octet3</th>
+<th>Octet4</th>
+</tr>
+<tr>
+<td>192</td>
+<td>168</td>
+<td>10</td>
+<td>25</td>
+</tr>
+</table>
+
+<p>Each octet ranges from 0 to 255.</p>
+
+</div>
+
+<div class="card">
+<h2>2. Binary Number System</h2>
+
+<p>Computers understand only binary digits (0 and 1).</p>
+
+<table>
+<tr>
+<th>Bit Position</th>
+<th>128</th>
+<th>64</th>
+<th>32</th>
+<th>16</th>
+<th>8</th>
+<th>4</th>
+<th>2</th>
+<th>1</th>
+</tr>
+
+<tr>
+<th>Binary Weight</th>
+<td>2⁷</td>
+<td>2⁶</td>
+<td>2⁵</td>
+<td>2⁴</td>
+<td>2³</td>
+<td>2²</td>
+<td>2¹</td>
+<td>2⁰</td>
+</tr>
+</table>
+
+</div>
+
+<div class="card">
+<h2>3. Binary to Decimal Conversion</h2>
+
+<h3>Example 1</h3>
+
+<code>10000000</code>
+
+<p>
+= 128
+</p>
+
+<p>
+Because only the 128 bit is ON.
+</p>
+
+<h3>Example 2</h3>
+
+<code>11110000</code>
+
+<p>
+128 + 64 + 32 + 16
+</p>
+
+<p class="highlight">
+= 240
+</p>
+
+<h3>Example 3</h3>
+
+<code>11111111</code>
+
+<p>
+128+64+32+16+8+4+2+1
+</p>
+
+<p class="highlight">
+= 255
+</p>
+
+</div>
+
+<div class="card">
+
+<h2>4. Decimal to Binary Conversion</h2>
+
+<h3>Convert 192</h3>
+
+<table>
+<tr>
+<th>128</th>
+<th>64</th>
+<th>32</th>
+<th>16</th>
+<th>8</th>
+<th>4</th>
+<th>2</th>
+<th>1</th>
+</tr>
+
+<tr>
+<td>1</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+</table>
+
+<p class="highlight">
+192 = 11000000
+</p>
+
+</div>
+
+<div class="card">
+
+<h2>5. What is a Netmask?</h2>
+
+<p>
+Netmask separates:
+</p>
+
+<ul>
+<li>Network Portion</li>
+<li>Host Portion</li>
+</ul>
+
+<p>Example:</p>
+
+<code>255.255.255.0</code>
+
+<p>Binary:</p>
+
+<code>
+11111111.11111111.11111111.00000000
+</code>
+
+<p>
+1 = Network Bit<br>
+0 = Host Bit
+</p>
+
+</div>
+
+<div class="card">
+
+<h2>6. CIDR Notation</h2>
+
+<p>
+CIDR = Classless Inter-Domain Routing
+</p>
+
+<p>
+Instead of writing:
+</p>
+
+<code>255.255.255.0</code>
+
+<p>we write:</p>
+
+<code>/24</code>
+
+<p>
+Because there are 24 network bits.
+</p>
+
+<table>
+<tr>
+<th>CIDR</th>
+<th>Netmask</th>
+<th>Hosts</th>
+</tr>
+
+<tr>
+<td>/24</td>
+<td>255.255.255.0</td>
+<td>254</td>
+</tr>
+
+<tr>
+<td>/25</td>
+<td>255.255.255.128</td>
+<td>126</td>
+</tr>
+
+<tr>
+<td>/26</td>
+<td>255.255.255.192</td>
+<td>62</td>
+</tr>
+
+<tr>
+<td>/27</td>
+<td>255.255.255.224</td>
+<td>30</td>
+</tr>
+
+<tr>
+<td>/28</td>
+<td>255.255.255.240</td>
+<td>14</td>
+</tr>
+
+<tr>
+<td>/29</td>
+<td>255.255.255.248</td>
+<td>6</td>
+</tr>
+
+<tr>
+<td>/30</td>
+<td>255.255.255.252</td>
+<td>2</td>
+</tr>
+
+</table>
+
+</div>
+
+<div class="card">
+
+<h2>7. CIDR Cheat Sheet</h2>
+
+<table>
+<tr>
+<th>CIDR</th>
+<th>Mask Value</th>
+</tr>
+
+<tr><td>/25</td><td>128</td></tr>
+<tr><td>/26</td><td>192</td></tr>
+<tr><td>/27</td><td>224</td></tr>
+<tr><td>/28</td><td>240</td></tr>
+<tr><td>/29</td><td>248</td></tr>
+<tr><td>/30</td><td>252</td></tr>
+<tr><td>/31</td><td>254</td></tr>
+<tr><td>/32</td><td>255</td></tr>
+
+</table>
+
+</div>
+
+<div class="card">
+
+<h2>8. Example: IP 10.10.0.100/24</h2>
+
+<p>
+IP Address:
+</p>
+
+<code>10.10.0.100</code>
+
+<p>
+Mask:
+</p>
+
+<code>255.255.255.0</code>
+
+<p>
+Network Address:
+</p>
+
+<code>10.10.0.0</code>
+
+<p>
+Broadcast Address:
+</p>
+
+<code>10.10.0.255</code>
+
+<p>
+Host Range:
+</p>
+
+<code>10.10.0.1 - 10.10.0.254</code>
+
+</div>
+
+<div class="card">
+
+<h2>9. Example: IP 10.10.0.100/25</h2>
+
+<p>Mask:</p>
+
+<code>255.255.255.128</code>
+
+<p>Block Size:</p>
+
+<code>128</code>
+
+<p>Subnets:</p>
+
+<ul>
+<li>10.10.0.0 - 10.10.0.127</li>
+<li>10.10.0.128 - 10.10.0.255</li>
+</ul>
+
+<p>
+IP 10.10.0.100 belongs to first subnet.
+</p>
+
+<p>
+Network = 10.10.0.0
+</p>
+
+<p>
+Broadcast = 10.10.0.127
+</p>
+
+<p>
+Usable Hosts = 10.10.0.1 - 10.10.0.126
+</p>
+
+</div>
+
+<div class="card">
+
+<h2>10. Fast Subnet Calculation Trick</h2>
+
+<p>
+Block Size =
+</p>
+
+<code>
+256 - Last Mask Octet
+</code>
+
+<h3>Example</h3>
+
+<code>
+255.255.255.240
+</code>
+
+<p>
+256 - 240 = 16
+</p>
+
+<p>
+Subnets increment by 16:
+</p>
+
+<code>
+0,16,32,48,64,80,96,112...
+</code>
+
+</div>
+
+<div class="card">
+
+<h2>11. Why Storage Administrators Need Subnetting?</h2>
+
+<ul>
+
+<li>Cluster LIF configuration</li>
+
+<li>Node Management LIFs</li>
+
+<li>Intercluster LIFs</li>
+
+<li>SnapMirror networking</li>
+
+<li>iSCSI networking</li>
+
+<li>NFS/CIFS client access</li>
+
+<li>VLAN troubleshooting</li>
+
+<li>Cloud Volumes ONTAP networking</li>
+
+</ul>
+
+</div>
+
+<div class="card">
+
+<h2>12. NetApp Interview Questions</h2>
+
+<ol>
+
+<li>Difference between subnet and VLAN?</li>
+
+<li>What is CIDR?</li>
+
+<li>What is /24 network?</li>
+
+<li>How many hosts in /26?</li>
+
+<li>Convert 240 to binary.</li>
+
+<li>Convert 128 to binary.</li>
+
+<li>What is broadcast address?</li>
+
+<li>What is network address?</li>
+
+<li>Why are network and broadcast addresses unusable?</li>
+
+<li>How do you calculate subnet ranges quickly?</li>
+
+</ol>
+
+</div>
+
+<div class="card">
+
+<h2>13. Quick Memory Formula</h2>
+
+<p class="highlight">
+
+128 = 10000000<br>
+192 = 11000000<br>
+224 = 11100000<br>
+240 = 11110000<br>
+248 = 11111000<br>
+252 = 11111100<br>
+254 = 11111110<br>
+255 = 11111111
+
+</p>
+
+</div>
+
+</div>
+
+<div class="footer">
+Subnetting Tutorial for Network & NetApp Storage Administrators
+</div>
+
+</body>
+</html>
