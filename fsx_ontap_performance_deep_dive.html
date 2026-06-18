@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FSx for ONTAP — Provisioned IOPS, Decoded</title>
+<style>
+  :root{
+    --bg: #14171D;
+    --panel: #1C2129;
+    --panel-raised: #232936;
+    --line: #2E3645;
+    --ink: #EDEAE3;
+    --ink-dim: #9BA3B0;
+    --ink-faint: #5D6675;
+    --teal: #3DDC97;
+    --teal-dim: #1F6B4D;
+    --amber: #E8A23D;
+    --amber-dim: #7A5826;
+    --blue: #5B8DEF;
+    --red: #E8634D;
+  }
+  *{ box-sizing: border-box; }
+  html{ scroll-behavior: smooth; }
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+  h1,h2,h3{ font-family: 'Space Grotesk', 'Inter', sans-serif; letter-spacing: -0.01em; margin:0; }
+  .mono{ font-family:'IBM Plex Mono','Courier New',monospace; }
+  a{ color: var(--teal); text-decoration:none; }
+  a:hover{ text-decoration:underline; }
+  a:focus-visible, button:focus-visible{ outline: 2px solid var(--teal); outline-offset: 3px; }
+
+  .wrap{ max-width: 980px; margin:0 auto; padding: 0 28px; }
+
+  header.hero{
+    position:relative;
+    padding: 88px 0 56px;
+    border-bottom: 1px solid var(--line);
+    overflow:hidden;
+  }
+  header.hero::before{
+    content:"";
+    position:absolute; inset:-40% -10% auto -10%;
+    height:600px;
+    background: radial-gradient(circle at 30% 30%, rgba(91,141,239,0.10), transparent 60%);
+    pointer-events:none;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px; letter-spacing:0.14em; text-transform:uppercase;
+    color: var(--blue);
+    display:flex; align-items:center; gap:10px;
+    margin-bottom:22px;
+  }
+  .eyebrow .dot{ width:7px; height:7px; border-radius:50%; background:var(--blue); box-shadow:0 0 0 4px rgba(91,141,239,0.15); }
+  h1.title{ font-size: clamp(2.1rem, 4.6vw, 3.2rem); font-weight:600; line-height:1.08; max-width:760px; }
+  h1.title em{ font-style:normal; color: var(--ink-dim); font-weight:400; }
+  .subhead{ margin-top:20px; max-width:620px; color: var(--ink-dim); font-size:1.06rem; }
+  .hero-meta{ margin-top:36px; display:flex; gap:28px; flex-wrap:wrap; font-family:'IBM Plex Mono', monospace; font-size:12.5px; color:var(--ink-faint); }
+  .hero-meta span b{ color: var(--ink-dim); font-weight:500; }
+
+  /* the verdict banner */
+  .verdict{
+    margin-top: 32px;
+    display:flex; gap:16px; align-items:flex-start;
+    background: linear-gradient(135deg, rgba(61,220,151,0.08), rgba(61,220,151,0.02));
+    border: 1px solid var(--teal-dim);
+    border-radius: 12px;
+    padding: 20px 24px;
+    max-width: 720px;
+  }
+  .verdict .mark{
+    flex-shrink:0;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: var(--teal);
+    color: #0B1410;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-size: 16px;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  .verdict p{ margin:0; color: var(--ink); font-size: 0.98rem; }
+  .verdict p b{ color: var(--teal); }
+
+  section{ padding: 60px 0; border-bottom: 1px solid var(--line); }
+  section:last-of-type{ border-bottom:none; }
+
+  .sec-head{ display:flex; align-items:baseline; gap:16px; margin-bottom: 30px; }
+  .sec-num{ font-family:'IBM Plex Mono', monospace; font-size:13px; color:var(--ink-faint); white-space:nowrap; }
+  h2.sec-title{ font-size:1.5rem; font-weight:600; }
+  .sec-dek{ color: var(--ink-dim); max-width: 660px; margin: -16px 0 28px; font-size: 0.98rem; }
+
+  .grid{ display:grid; gap:16px; }
+  .grid.cols-2{ grid-template-columns: repeat(2,1fr); }
+  .grid.cols-3{ grid-template-columns: repeat(3,1fr); }
+  @media (max-width:720px){ .grid.cols-2, .grid.cols-3{ grid-template-columns:1fr; } }
+
+  .card{ background: var(--panel); border:1px solid var(--line); border-radius:10px; padding:22px; }
+  .card h3{ font-size:1rem; margin-bottom:8px; display:flex; align-items:center; gap:10px; }
+  .card p{ color: var(--ink-dim); font-size:0.93rem; margin:0; }
+  .card p + p{ margin-top: 10px; }
+  .tag{
+    font-family:'IBM Plex Mono', monospace; font-size:11px;
+    color: var(--blue); background: rgba(91,141,239,0.08);
+    border:1px solid #2E4A7A; padding:2px 7px; border-radius:5px;
+  }
+  .tag.amber{ color: var(--amber); background: rgba(232,162,61,0.08); border-color: var(--amber-dim); }
+  .tag.teal{ color: var(--teal); background: rgba(61,220,151,0.08); border-color: var(--teal-dim); }
+
+  .diagram-frame{
+    background: var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding: 26px; margin: 26px 0;
+  }
+  .diagram-frame .cap{
+    font-family:'IBM Plex Mono', monospace; font-size:11.5px; color:var(--ink-faint);
+    margin-top:16px; text-align:center; letter-spacing:0.03em;
+  }
+  svg text{ font-family:'IBM Plex Mono', monospace; }
+
+  table{ width:100%; border-collapse:collapse; font-size:0.92rem; }
+  table th{
+    text-align:left; font-family:'IBM Plex Mono', monospace; font-size:11.5px;
+    text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-faint);
+    padding: 10px 14px; border-bottom: 1px solid var(--line);
+  }
+  table td{ padding: 13px 14px; border-bottom:1px solid var(--line); color: var(--ink-dim); vertical-align:top; }
+  table td.k{ color: var(--ink); font-weight:500; white-space:nowrap; }
+  table tr:last-child td{ border-bottom:none; }
+  table td.num{ font-family:'IBM Plex Mono', monospace; color: var(--ink); }
+
+  .scenario{
+    display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top:20px;
+  }
+  @media (max-width:720px){ .scenario{ grid-template-columns:1fr; } }
+  .scenario .case{
+    background: var(--panel-raised); border:1px solid var(--line); border-radius:10px; padding:20px;
+  }
+  .scenario .case h4{
+    font-family:'IBM Plex Mono', monospace; font-size:11.5px; letter-spacing:0.06em;
+    text-transform:uppercase; color: var(--ink-faint); margin: 0 0 14px;
+  }
+  .calc-line{ display:flex; justify-content:space-between; font-size:0.9rem; padding: 7px 0; border-bottom: 1px dashed var(--line); }
+  .calc-line:last-child{ border-bottom:none; }
+  .calc-line span:first-child{ color: var(--ink-dim); }
+  .calc-line span:last-child{ font-family:'IBM Plex Mono', monospace; color: var(--ink); }
+  .calc-result{
+    margin-top: 14px; padding: 10px 14px; border-radius: 8px;
+    font-family:'IBM Plex Mono', monospace; font-size: 0.88rem;
+    text-align:center;
+  }
+  .calc-result.bottleneck-iops{ background: rgba(232,99,77,0.1); color: var(--red); border:1px solid #7A3328; }
+  .calc-result.bottleneck-throughput{ background: rgba(232,162,61,0.1); color: var(--amber); border:1px solid var(--amber-dim); }
+
+  .checklist{ list-style:none; margin: 20px 0 0; padding:0; display:grid; gap:10px; }
+  .checklist li{
+    display:flex; gap:12px; align-items:flex-start;
+    background: var(--panel); border:1px solid var(--line); border-radius:8px;
+    padding: 13px 16px; font-size:0.93rem; color: var(--ink-dim);
+  }
+  .checklist li::before{
+    content:"✓"; color: var(--teal); font-weight:700; flex-shrink:0;
+    font-family:'IBM Plex Mono', monospace;
+  }
+  .checklist li b{ color: var(--ink); }
+
+  .qa-block{
+    background: var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding: 22px 24px; margin-top: 18px;
+  }
+  .qa-block .q{ font-weight:600; color: var(--ink); margin-bottom: 10px; font-size: 0.98rem; }
+  .qa-block .q::before{ content:"Q. "; color: var(--blue); font-family:'IBM Plex Mono', monospace; }
+  .qa-block .a{ color: var(--ink-dim); font-size: 0.93rem; margin:0; }
+
+  footer{ padding: 44px 0 76px; color: var(--ink-faint); font-size:0.85rem; }
+  footer a{ color: var(--ink-dim); }
+  ::selection{ background: rgba(91,141,239,0.25); }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow"><span class="dot"></span>FSx for ONTAP · PERFORMANCE DEEP DIVE</div>
+    <h1 class="title">What "Provisioned IOPS"<br><em>actually</em> means</h1>
+    <p class="subhead">A storage admin coming from on-prem AFF sees "3072 IOPS" on an FSx file system and assumes it's a hard ceiling. It isn't quite that — and understanding why changes how you size these systems.</p>
+    <div class="hero-meta">
+      <span>SERVICE&nbsp;<b>Amazon FSx for NetApp ONTAP</b></span>
+      <span>TOPIC&nbsp;<b>Provisioned IOPS vs. Throughput</b></span>
+      <span>AUDIENCE&nbsp;<b>Storage Admins / On-Prem → Cloud</b></span>
+    </div>
+
+    <div class="verdict">
+      <div class="mark">✓</div>
+      <p><b>Short answer:</b> No. A provisioned IOPS value of 3072 is not a hard cap on client-observed I/O. It describes the baseline SSD backend performance AWS guarantees for that file system — actual throughput to clients depends on block size, cache hit ratio, and the throughput capacity tier, and can comfortably exceed the provisioned number for many workloads.</p>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- 01 THE MENTAL MODEL SHIFT -->
+  <section id="mental-model">
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2 class="sec-title">Why the on-prem mental model doesn't transfer</h2>
+    </div>
+    <p class="sec-dek">On an AFF system, performance is a property of hardware you own. On FSx, performance is a property of a service tier you purchase.</p>
+
+    <div class="diagram-frame">
+      <svg viewBox="0 0 900 320" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Side by side comparison of on-premises AFF storage stack versus FSx for ONTAP managed storage stack">
+        <!-- divider -->
+        <line x1="450" y1="20" x2="450" y2="300" stroke="#2E3645" stroke-width="1" stroke-dasharray="4 4"/>
+
+        <!-- LEFT: on-prem -->
+        <text x="40" y="38" fill="#9BA3B0" font-size="12" letter-spacing="1.4">ON-PREM AFF — YOU OWN THE STACK</text>
+
+        <rect x="40" y="56" width="380" height="46" rx="8" fill="#1C2129" stroke="#2E3645"/>
+        <text x="230" y="84" fill="#EDEAE3" font-size="12" text-anchor="middle">Client I/O</text>
+
+        <line x1="230" y1="102" x2="230" y2="120" stroke="#5D6675" stroke-width="1.3"/>
+        <rect x="40" y="120" width="380" height="46" rx="8" fill="#1C2129" stroke="#2E3645"/>
+        <text x="230" y="148" fill="#EDEAE3" font-size="12" text-anchor="middle">Volume</text>
+
+        <line x1="230" y1="166" x2="230" y2="184" stroke="#5D6675" stroke-width="1.3"/>
+        <rect x="40" y="184" width="380" height="46" rx="8" fill="#1C2129" stroke="#2E3645"/>
+        <text x="230" y="212" fill="#EDEAE3" font-size="12" text-anchor="middle">Aggregate</text>
+
+        <line x1="230" y1="230" x2="230" y2="248" stroke="#5D6675" stroke-width="1.3"/>
+        <rect x="40" y="248" width="380" height="46" rx="8" fill="#1C2129" stroke="#3DDC97" stroke-width="1.4"/>
+        <text x="230" y="271" fill="#3DDC97" font-size="12" text-anchor="middle">Dedicated SSDs / NVRAM</text>
+        <text x="230" y="286" fill="#9BA3B0" font-size="9.5" text-anchor="middle">visible · countable · yours</text>
+
+        <!-- RIGHT: FSx -->
+        <text x="478" y="38" fill="#9BA3B0" font-size="12" letter-spacing="1.4">FSx FOR ONTAP — AWS OWNS THE STACK</text>
+
+        <rect x="478" y="56" width="380" height="46" rx="8" fill="#1C2129" stroke="#2E3645"/>
+        <text x="668" y="84" fill="#EDEAE3" font-size="12" text-anchor="middle">Client I/O (NFS / SMB / iSCSI)</text>
+
+        <line x1="668" y1="102" x2="668" y2="120" stroke="#5D6675" stroke-width="1.3"/>
+        <rect x="478" y="120" width="380" height="46" rx="8" fill="#1C2129" stroke="#2E3645"/>
+        <text x="668" y="148" fill="#EDEAE3" font-size="12" text-anchor="middle">ONTAP (volume, cache, WAFL)</text>
+
+        <line x1="668" y1="166" x2="668" y2="184" stroke="#5D6675" stroke-width="1.3"/>
+        <rect x="478" y="184" width="380" height="46" rx="8" fill="#1C2129" stroke="#2E3645" stroke-dasharray="4 3"/>
+        <text x="668" y="212" fill="#9BA3B0" font-size="12" text-anchor="middle">— abstraction boundary —</text>
+
+        <line x1="668" y1="230" x2="668" y2="248" stroke="#5D6675" stroke-width="1.3"/>
+        <rect x="478" y="248" width="380" height="46" rx="8" fill="#1C2129" stroke="#5B8DEF" stroke-width="1.4"/>
+        <text x="668" y="271" fill="#5B8DEF" font-size="12" text-anchor="middle">AWS-Managed SSD Storage</text>
+        <text x="668" y="286" fill="#9BA3B0" font-size="9.5" text-anchor="middle">sized via Throughput + Provisioned IOPS</text>
+      </svg>
+      <div class="cap">SAME ONTAP SOFTWARE — DIFFERENT VISIBILITY INTO THE PHYSICAL LAYER</div>
+    </div>
+
+    <div class="grid cols-2">
+      <div class="card">
+        <h3><span class="tag">on-prem</span> What you see and control</h3>
+        <p>Controller model, exact SSD count, RAID/aggregate layout, NVRAM, CPU. Performance ceilings like 100K–500K+ IOPS come directly from that dedicated hardware footprint.</p>
+      </div>
+      <div class="card">
+        <h3><span class="tag teal">FSx</span> What you purchase instead</h3>
+        <p>SSD capacity, throughput capacity (MB/s), and provisioned IOPS — three service-level dials. AWS handles everything underneath: SSD count, RAID, controller redundancy.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 WHAT 3072 ACTUALLY GUARANTEES -->
+  <section id="what-it-means">
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2 class="sec-title">What the number on the console actually guarantees</h2>
+    </div>
+    <p class="sec-dek">Provisioned IOPS is a backend SSD performance floor — not a client-facing operations ceiling.</p>
+
+    <p style="color:var(--ink-dim); max-width:680px;">When the console shows <span class="mono">Provisioned IOPS: 3072</span> alongside, say, <span class="mono">SSD Capacity: 1024 GB</span>, AWS is committing to a baseline level of backend SSD performance the storage subsystem can sustain — not capping how many operations a client can issue against the file system. Whether you actually observe more or fewer client-side IOPS depends on a handful of other factors working alongside it.</p>
+
+    <ul class="checklist">
+      <li>Provisioned IOPS describes <b>backend SSD subsystem performance</b>, not a hard client-facing operation limit.</li>
+      <li>CloudWatch will often show client IOPS <b>well above</b> the provisioned number — figures like 5,000, 8,000, or 12,000 aren't unusual for cache-friendly workloads.</li>
+      <li>The actual ceiling you hit depends on <b>throughput capacity, block size, caching behavior, and network bandwidth</b> — not provisioned IOPS in isolation.</li>
+      <li>Exact behavior varies by <b>FSx generation and performance configuration</b>, so always validate against current AWS documentation for your specific file system type.</li>
+    </ul>
+  </section>
+
+  <!-- 03 IOPS VS THROUGHPUT SCENARIOS -->
+  <section id="scenarios">
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2 class="sec-title">The real bottleneck: IOPS or throughput?</h2>
+    </div>
+    <p class="sec-dek">The same file system can be IOPS-bound or throughput-bound depending entirely on block size.</p>
+
+    <p style="color:var(--ink-dim); max-width:680px;">Take a file system configured with <span class="mono">Provisioned IOPS = 3072</span> and <span class="mono">Throughput Capacity = 512 MB/s</span>. Run the math at two different block sizes and the limiting factor flips entirely:</p>
+
+    <div class="scenario">
+      <div class="case">
+        <h4>Scenario 1 — Small, Random I/O</h4>
+        <div class="calc-line"><span>Block size</span><span>4 KB</span></div>
+        <div class="calc-line"><span>IOPS</span><span>3,072</span></div>
+        <div class="calc-line"><span>Resulting throughput</span><span>≈ 12 MB/s</span></div>
+        <div class="calc-result bottleneck-iops">⚠ IOPS is the limiting factor — throughput capacity (512 MB/s) is barely touched</div>
+      </div>
+      <div class="case">
+        <h4>Scenario 2 — Large, Sequential I/O</h4>
+        <div class="calc-line"><span>Block size</span><span>256 KB</span></div>
+        <div class="calc-line"><span>IOPS</span><span>≈ 2,000</span></div>
+        <div class="calc-line"><span>Resulting throughput</span><span>≈ 500 MB/s</span></div>
+        <div class="calc-result bottleneck-throughput">⚠ Throughput capacity (512 MB/s) becomes the limiting factor first — well below the 3,072 IOPS ceiling</div>
+      </div>
+    </div>
+
+    <div class="diagram-frame" style="margin-top:28px;">
+      <svg viewBox="0 0 900 220" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram showing how small block workloads are limited by IOPS while large block workloads are limited by throughput capacity">
+        <text x="40" y="32" fill="#9BA3B0" font-size="12" letter-spacing="1">WHICH WALL DO YOU HIT FIRST?</text>
+
+        <!-- axis -->
+        <line x1="60" y1="180" x2="840" y2="180" stroke="#2E3645" stroke-width="1.3"/>
+        <text x="450" y="206" fill="#5D6675" font-size="10.5" text-anchor="middle">BLOCK SIZE →  small (4KB) ────────────────────────── large (256KB)</text>
+
+        <!-- IOPS wall -->
+        <rect x="90" y="60" width="290" height="110" rx="6" fill="rgba(232,99,77,0.10)" stroke="#7A3328"/>
+        <text x="235" y="85" fill="#E8634D" font-size="12" text-anchor="middle">IOPS-bound zone</text>
+        <text x="235" y="103" fill="#9BA3B0" font-size="10" text-anchor="middle">small, random I/O</text>
+        <text x="235" y="120" fill="#9BA3B0" font-size="10" text-anchor="middle">hits the 3072 IOPS</text>
+        <text x="235" y="135" fill="#9BA3B0" font-size="10" text-anchor="middle">ceiling long before</text>
+        <text x="235" y="150" fill="#9BA3B0" font-size="10" text-anchor="middle">throughput matters</text>
+
+        <!-- throughput wall -->
+        <rect x="490" y="60" width="290" height="110" rx="6" fill="rgba(232,162,61,0.10)" stroke="#7A5826"/>
+        <text x="635" y="85" fill="#E8A23D" font-size="12" text-anchor="middle">Throughput-bound zone</text>
+        <text x="635" y="103" fill="#9BA3B0" font-size="10" text-anchor="middle">large, sequential I/O</text>
+        <text x="635" y="120" fill="#9BA3B0" font-size="10" text-anchor="middle">hits the MB/s ceiling</text>
+        <text x="635" y="135" fill="#9BA3B0" font-size="10" text-anchor="middle">well before the IOPS</text>
+        <text x="635" y="150" fill="#9BA3B0" font-size="10" text-anchor="middle">number is exhausted</text>
+      </svg>
+      <div class="cap">SAME FILE SYSTEM, SAME PROVISIONED LIMITS — DIFFERENT BOTTLENECK PER WORKLOAD SHAPE</div>
+    </div>
+  </section>
+
+  <!-- 04 WHY AFF SHOWS BIGGER NUMBERS -->
+  <section id="aff-comparison">
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <h2 class="sec-title">Why your AFF filer shows 100K+ IOPS and FSx doesn't</h2>
+    </div>
+    <p class="sec-dek">It's not that FSx is "slower" — it's that dedicated hardware and shared service tiers report performance differently.</p>
+
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>Dedicated hardware footprint</h3>
+        <p>A platform like an AFF A400 brings dozens of NVMe SSDs, a large CPU complex, and NVRAM, all dedicated to that one system — so 100K, 200K, even 500K+ IOPS is a direct function of owning all of it outright.</p>
+      </div>
+      <div class="card">
+        <h3>Consumption-based sizing</h3>
+        <p>FSx sells capacity, throughput, and provisioned IOPS as purchasable parameters instead of a controller model and SSD count — AWS abstracts the physical layer entirely so you size against service tiers, not hardware specs.</p>
+      </div>
+    </div>
+
+    <div class="qa-block" style="margin-top:24px;">
+      <p class="q">A useful way to frame the difference for non-storage stakeholders</p>
+      <p class="a">On-prem AFF is like owning the car outright — you have full access to the entire engine. FSx for ONTAP is closer to renting a lane on a highway: AWS guarantees you a certain lane width (throughput) and a certain traffic allowance (IOPS), but the engine underneath stays out of view.</p>
+    </div>
+  </section>
+
+  <!-- 05 SIZING CHECKLIST -->
+  <section id="sizing">
+    <div class="sec-head">
+      <span class="sec-num">05</span>
+      <h2 class="sec-title">What to actually size against</h2>
+    </div>
+    <p class="sec-dek">Provisioned IOPS is one input among several — treat it as part of a profile, not a standalone spec.</p>
+
+    <table>
+      <tr><th>Factor</th><th>Why it matters</th></tr>
+      <tr><td class="k">Throughput capacity (MB/s)</td><td>Usually the most important number to size against — large-block and sequential workloads hit this ceiling before IOPS.</td></tr>
+      <tr><td class="k">Latency</td><td>End-to-end responsiveness clients actually feel, shaped by network hops, ONTAP processing, and backend SSD response time together.</td></tr>
+      <tr><td class="k">Provisioned IOPS</td><td>The guaranteed backend SSD performance floor — relevant mainly for small-block, random-I/O-heavy workloads.</td></tr>
+      <tr><td class="k">Network bandwidth</td><td>The pipe between clients and the file system can itself become the bottleneck, independent of FSx's internal limits.</td></tr>
+      <tr><td class="k">Workload block size</td><td>The single biggest variable in whether you'll be IOPS-bound or throughput-bound — always profile this before sizing.</td></tr>
+      <tr><td class="k">Cache hit ratio</td><td>ONTAP's read cache and WAFL optimizations can serve a large share of requests without touching backend SSDs at all, which is exactly why observed client IOPS can run well past the provisioned number.</td></tr>
+    </table>
+  </section>
+
+  <!-- 06 INTERVIEW-READY SUMMARY -->
+  <section id="summary">
+    <div class="sec-head">
+      <span class="sec-num">06</span>
+      <h2 class="sec-title">The one-paragraph version</h2>
+    </div>
+
+    <div class="qa-block">
+      <p class="q">How would you explain Provisioned IOPS in FSx for ONTAP in an interview?</p>
+      <p class="a">Provisioned IOPS represents the SSD storage performance AWS allocates and guarantees for a given FSx for ONTAP file system — it's a backend service-level commitment, not necessarily the maximum I/O a client will ever observe. Real-world performance depends on throughput capacity, caching efficiency, block size, and network bandwidth working together. That's a contrast with on-prem AFF systems, where performance comes directly from dedicated hardware; FSx instead exposes performance through purchasable service parameters like throughput capacity and provisioned IOPS, with the physical layer abstracted away.</p>
+    </div>
+
+    <ul class="checklist" style="margin-top:24px;">
+      <li>Provisioned IOPS is <b>not</b> a hard ceiling on client-observed I/O.</li>
+      <li>ONTAP's cache can serve a large share of requests <b>without touching backend SSDs</b> at all.</li>
+      <li>Throughput capacity is <b>often the real performance driver</b> in FSx, more so than IOPS alone.</li>
+      <li>Always evaluate <b>IOPS, throughput, latency, cache hit ratio, and block size together</b> — never in isolation.</li>
+      <li>A workload generating 100K client-side IOPS may need <b>far fewer backend SSD IOPS</b> when cache efficiency is high.</li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Internal knowledge-portal reference on Amazon FSx for NetApp ONTAP performance sizing — written for storage admins transitioning from on-prem NetApp AFF environments. Performance characteristics vary by FSx generation and configuration; validate specifics against current <a href="https://docs.aws.amazon.com/fsx/latest/ONTAPGuide/performance.html" target="_blank" rel="noopener">AWS FSx for ONTAP performance documentation</a> before sizing production workloads.</p>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,174 @@
+<!DOCTYPE html><html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FSx for ONTAP Performance Deep Dive</title><style>
+body{
+    font-family:Segoe UI,Arial,sans-serif;
+    margin:0;
+    background:#0f172a;
+    color:#e2e8f0;
+    line-height:1.7;
+}
+header{
+    background:linear-gradient(135deg,#1e3a8a,#0284c7);
+    padding:40px;
+    text-align:center;
+}
+header h1{
+    margin:0;
+    font-size:38px;
+}
+header p{
+    color:#cbd5e1;
+}
+.container{
+    width:90%;
+    max-width:1400px;
+    margin:auto;
+    padding:30px;
+}
+.section{
+    background:#1e293b;
+    margin-bottom:25px;
+    padding:25px;
+    border-radius:12px;
+}
+h2{
+    color:#38bdf8;
+    border-bottom:1px solid #334155;
+    padding-bottom:10px;
+}
+h3{
+    color:#7dd3fc;
+}
+pre{
+    background:#020617;
+    padding:15px;
+    border-radius:8px;
+    overflow:auto;
+    border-left:5px solid #0ea5e9;
+}
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+th{
+    background:#2563eb;
+    color:white;
+    padding:12px;
+}
+td{
+    border:1px solid #334155;
+    padding:10px;
+}
+.note{
+    background:#14532d;
+    padding:15px;
+    border-left:5px solid #22c55e;
+    border-radius:8px;
+}
+.warning{
+    background:#7f1d1d;
+    padding:15px;
+    border-left:5px solid #ef4444;
+    border-radius:8px;
+}
+.footer{
+    text-align:center;
+    padding:30px;
+    color:#94a3b8;
+}
+</style></head><body><header>
+<h1>FSx for ONTAP Performance Deep Dive</h1>
+<p>Provisioned IOPS, Throughput Capacity, Cache Behavior & Real-World Sizing</p>
+</header><div class="container"><div class="section">
+<h2>Introduction</h2><p>
+One of the most common questions from NetApp administrators moving to AWS is:
+</p><div class="warning">
+"My FSx file system shows 3072 Provisioned IOPS.
+Does that mean my workload is limited to 3072 IOPS?"
+</div><p>
+The answer is usually <b>No</b>.
+Provisioned IOPS represents backend SSD performance allocation and should not be confused with client-visible NFS, SMB, or iSCSI operations.
+</p>
+</div><div class="section">
+<h2>Traditional AFF Thinking</h2><pre>
+                AFF A400
+
+        +-------------------+
+        |      ONTAP        |
+        +-------------------+
+                 |
+                 V
+
+        +-------------------+
+        | NVRAM / NVLOG     |
+        +-------------------+
+                 |
+                 V
+
+        +-------------------+
+        | SSD Aggregates    |
+        | RAID Groups       |
+        +-------------------+
+
+Result:
+100K - 500K+ IOPS
+
+Storage Admin View:
+"How many disks and controllers
+do I have?"
+</pre><p>
+On-premises NetApp systems expose hardware resources directly.
+Performance is driven by SSD count, controller model, CPU, memory and NVRAM.
+</p></div><div class="section"><h2>FSx for ONTAP Performance Model</h2><pre>
+                Amazon FSx
+
+        +-------------------+
+        |      ONTAP        |
+        +-------------------+
+                 |
+                 V
+
+      AWS Managed Storage Layer
+
+                 |
+      -------------------------
+      |           |           |
+      V           V           V
+
+ SSD Capacity  Throughput   IOPS
+               Capacity
+
+</pre><p>
+AWS abstracts the hardware layer.
+You purchase performance through service-level attributes rather than controller hardware.
+</p></div><div class="section"><h2>What Does 3072 Provisioned IOPS Mean?</h2><p>
+Suppose AWS displays:
+</p><pre>
+SSD Capacity      : 10 TB
+Provisioned IOPS  : 3072
+Throughput        : 512 MB/s
+</pre><p>
+This means AWS guarantees backend SSD performance allocation equivalent to approximately 3072 SSD IOPS.
+</p><div class="warning">
+It does NOT automatically mean clients can perform only 3072 NFS or SMB operations.
+</div></div><div class="section"><h2>Client IOPS vs SSD IOPS</h2><pre>
+Client Read Request
+          |
+          V
+
+   +---------------+
+   | ONTAP Cache   |
+   +---------------+
+
+      |        |
+      |        |
+ Cache Hit   Cache Miss
+      |        |
+      V        V
+
+ Memory      SSD
+</pre><p>
+A large percentage of client operations may be served from memo
