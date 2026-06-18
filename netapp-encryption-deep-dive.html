@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetApp Encryption — Deep Conceptual Guide</title>
+<style>
+  :root{
+    --bg: #14171D;
+    --panel: #1C2129;
+    --panel-raised: #232936;
+    --line: #2E3645;
+    --ink: #EDEAE3;
+    --ink-dim: #9BA3B0;
+    --ink-faint: #5D6675;
+    --teal: #3DDC97;
+    --teal-dim: #1F6B4D;
+    --amber: #E8A23D;
+    --amber-dim: #7A5826;
+    --blue: #5B8DEF;
+    --purple: #9B7EDE;
+    --red: #E8634D;
+  }
+  *{ box-sizing: border-box; }
+  html{ scroll-behavior: smooth; }
+  body{
+    margin:0; background: var(--bg); color: var(--ink);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    line-height:1.6; -webkit-font-smoothing:antialiased;
+  }
+  @media (prefers-reduced-motion: reduce){ *{ animation-duration:0.01ms !important; transition-duration:0.01ms !important; } }
+  h1,h2,h3{ font-family:'Space Grotesk','Inter',sans-serif; letter-spacing:-0.01em; margin:0; }
+  .mono{ font-family:'IBM Plex Mono','Courier New',monospace; }
+  a{ color: var(--teal); text-decoration:none; }
+  a:hover{ text-decoration:underline; }
+  a:focus-visible, button:focus-visible{ outline:2px solid var(--teal); outline-offset:3px; }
+
+  .wrap{ max-width: 1040px; margin:0 auto; padding: 0 28px; }
+
+  nav.toc{
+    position: sticky; top:0; z-index: 50;
+    background: rgba(20,23,29,0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  nav.toc .inner{ max-width:1040px; margin:0 auto; padding:14px 28px; display:flex; gap:16px; flex-wrap:wrap; align-items:center; }
+  nav.toc .brand{ font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:0.92rem; color: var(--ink); margin-right:8px; }
+  nav.toc a{ font-family:'IBM Plex Mono',monospace; font-size:11px; color: var(--ink-dim); padding:5px 10px; border-radius:6px; border:1px solid transparent; }
+  nav.toc a:hover{ color: var(--ink); border-color: var(--line); text-decoration:none; background: var(--panel); }
+
+  header.hero{ position:relative; padding:80px 0 52px; border-bottom:1px solid var(--line); overflow:hidden; }
+  header.hero::before{
+    content:""; position:absolute; inset:-40% -10% auto -10%; height:600px;
+    background: radial-gradient(circle at 25% 30%, rgba(91,141,239,0.10), transparent 60%);
+    pointer-events:none;
+  }
+  .eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:12.5px; letter-spacing:0.14em; text-transform:uppercase; color: var(--blue); display:flex; align-items:center; gap:10px; margin-bottom:20px; }
+  .eyebrow .dot{ width:7px; height:7px; border-radius:50%; background: var(--blue); box-shadow:0 0 0 4px rgba(91,141,239,0.15); }
+  h1.title{ font-size: clamp(2.1rem, 4.6vw, 3.2rem); font-weight:600; line-height:1.08; max-width:780px; }
+  h1.title em{ font-style:normal; color: var(--ink-dim); font-weight:400; }
+  .subhead{ margin-top:18px; max-width:660px; color: var(--ink-dim); font-size:1.04rem; }
+  .hero-meta{ margin-top:30px; display:flex; gap:24px; flex-wrap:wrap; font-family:'IBM Plex Mono',monospace; font-size:12px; color: var(--ink-faint); }
+
+  section{ padding: 58px 0; border-bottom: 1px solid var(--line); }
+  section:last-of-type{ border-bottom:none; }
+
+  .sec-head{ display:flex; align-items:baseline; gap:16px; margin-bottom:28px; }
+  .sec-num{ font-family:'IBM Plex Mono',monospace; font-size:13px; color: var(--ink-faint); white-space:nowrap; }
+  h2.sec-title{ font-size:1.5rem; font-weight:600; }
+  .sec-dek{ color: var(--ink-dim); max-width:660px; margin:-14px 0 26px; font-size:0.97rem; }
+
+  .grid{ display:grid; gap:14px; }
+  .grid.cols-2{ grid-template-columns: repeat(2,1fr); }
+  .grid.cols-3{ grid-template-columns: repeat(3,1fr); }
+  @media (max-width:760px){ .grid.cols-2,.grid.cols-3{ grid-template-columns:1fr; } }
+
+  .card{ background: var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px 20px; }
+  .card h3{ font-size:0.97rem; margin-bottom:7px; display:flex; align-items:center; gap:9px; }
+  .card p{ color: var(--ink-dim); font-size:0.89rem; margin:0; }
+  .card p + p{ margin-top:8px; }
+  .tag{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color: var(--blue); background: rgba(91,141,239,0.08); border:1px solid #2E4A7A; padding:2px 7px; border-radius:5px; }
+  .tag.teal{ color: var(--teal); background: rgba(61,220,151,0.08); border-color: var(--teal-dim); }
+  .tag.amber{ color: var(--amber); background: rgba(232,162,61,0.08); border-color: var(--amber-dim); }
+  .tag.purple{ color: var(--purple); background: rgba(155,126,222,0.08); border-color: #4A3A6E; }
+  .tag.red{ color: var(--red); background: rgba(232,99,77,0.08); border-color: #7A3328; }
+
+  .diagram-frame{ background: var(--panel); border:1px solid var(--line); border-radius:12px; padding:24px; margin:24px 0; }
+  .diagram-frame .cap{ font-family:'IBM Plex Mono',monospace; font-size:11px; color: var(--ink-faint); margin-top:14px; text-align:center; letter-spacing:0.03em; }
+  svg text{ font-family:'IBM Plex Mono',monospace; }
+
+  table{ width:100%; border-collapse:collapse; font-size:0.9rem; }
+  table th{ text-align:left; font-family:'IBM Plex Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color: var(--ink-faint); padding:10px 14px; border-bottom:1px solid var(--line); }
+  table td{ padding:12px 14px; border-bottom:1px solid var(--line); color: var(--ink-dim); vertical-align:top; }
+  table td.k{ color: var(--ink); font-weight:500; white-space:nowrap; }
+  table tr:last-child td{ border-bottom:none; }
+  table td.center{ text-align:center; }
+  table td.yes{ color: var(--teal); }
+  table td.no{ color: var(--ink-faint); }
+
+  .checklist{ list-style:none; margin:18px 0 0; padding:0; display:grid; gap:9px; }
+  .checklist li{ display:flex; gap:11px; align-items:flex-start; background: var(--panel); border:1px solid var(--line); border-radius:8px; padding:11px 15px; font-size:0.89rem; color: var(--ink-dim); }
+  .checklist li::before{ content:"✓"; color: var(--teal); font-weight:700; flex-shrink:0; font-family:'IBM Plex Mono',monospace; }
+  .checklist li b{ color: var(--ink); }
+
+  .qa-block{ background: var(--panel); border:1px solid var(--line); border-radius:10px; padding:20px 22px; margin-top:16px; }
+  .qa-block .q{ font-weight:600; color: var(--ink); margin-bottom:9px; font-size:0.95rem; }
+  .qa-block .q::before{ content:"Q. "; color: var(--blue); font-family:'IBM Plex Mono',monospace; }
+  .qa-block .a{ color: var(--ink-dim); font-size:0.9rem; margin:0; }
+
+  .layer-stack{ display:flex; flex-direction:column; gap: 10px; margin: 20px 0; }
+  .layer{ display:flex; align-items:center; gap: 16px; border-radius: 10px; padding: 16px 20px; border: 1px solid var(--line); }
+  .layer .lnum{ font-family:'IBM Plex Mono',monospace; font-size: 11px; color: var(--ink-faint); width: 20px; flex-shrink:0; }
+  .layer .lbody h4{ font-size: 0.93rem; color: var(--ink); margin: 0 0 3px; }
+  .layer .lbody p{ font-size: 0.84rem; color: var(--ink-dim); margin:0; }
+  .layer.nse{ background: rgba(91,141,239,0.06); border-color: #2E4A7A; }
+  .layer.nve{ background: rgba(61,220,151,0.06); border-color: var(--teal-dim); }
+  .layer.nae{ background: rgba(232,162,61,0.06); border-color: var(--amber-dim); }
+  .layer.km{ background: rgba(155,126,222,0.06); border-color: #4A3A6E; }
+
+  .cmd{
+    font-family:'IBM Plex Mono',monospace; font-size: 0.82rem; color: var(--teal);
+    background: #0F1217; border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px 16px; margin: 10px 0; overflow-x: auto; white-space: pre;
+  }
+  .cmd .out{ color: var(--ink-faint); }
+
+  footer{ padding:42px 0 72px; color: var(--ink-faint); font-size:0.84rem; }
+  footer a{ color: var(--ink-dim); }
+  ::selection{ background: rgba(91,141,239,0.25); }
+</style>
+</head>
+<body>
+
+<nav class="toc">
+  <div class="inner">
+    <span class="brand">NetApp Encryption</span>
+    <a href="#why">Why It Matters</a>
+    <a href="#landscape">The Landscape</a>
+    <a href="#nse">NSE / SED</a>
+    <a href="#nve">NVE</a>
+    <a href="#nae">NAE</a>
+    <a href="#keymanagement">Key Management</a>
+    <a href="#combining">Layering Them</a>
+    <a href="#default">Defaults Today</a>
+    <a href="#interview">Interview Prep</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow"><span class="dot"></span>NETAPP ONTAP · DEEP CONCEPTUAL GUIDE</div>
+    <h1 class="title">NetApp Encryption,<br><em>layer by layer</em></h1>
+    <p class="subhead">NSE, NVE, NAE, FIPS drives, onboard vs. external key management — four overlapping technologies that solve the same problem (protecting data at rest) from different points in the storage stack. Here's how each actually works, and how they fit together.</p>
+    <div class="hero-meta">
+      <span>HARDWARE&nbsp;·&nbsp;NSE / SED</span>
+      <span>SOFTWARE&nbsp;·&nbsp;NVE / NAE</span>
+      <span>KEYS&nbsp;·&nbsp;OKM / External KMIP</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- 01 WHY -->
+  <section id="why">
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2 class="sec-title">Why "encryption" isn't one thing here</h2>
+    </div>
+    <p class="sec-dek">The question "is my NetApp system encrypted?" doesn't have a single yes/no answer — encryption can exist at the drive level, the aggregate level, or the volume level, independently of each other.</p>
+
+    <p style="color:var(--ink-dim); max-width:700px;">All of NetApp's at-rest encryption technologies protect against the same core threat: <b style="color:var(--ink)">someone gaining physical or logical possession of storage media without authorization</b> — a stolen drive, a returned lease unit, a misplaced shelf, or repurposed hardware that wasn't properly wiped. What differs is <i>where</i> the encryption happens, <i>what granularity</i> it operates at, and <i>what it costs you</i> in performance, licensing, or storage-efficiency tradeoffs.</p>
+
+    <div class="grid cols-3">
+      <div class="card"><h3><span class="tag">Hardware layer</span></h3><p>NetApp Storage Encryption (NSE) — encryption built into the physical drive itself, via self-encrypting drives (SEDs).</p></div>
+      <div class="card"><h3><span class="tag teal">Software layer</span></h3><p>NetApp Volume Encryption (NVE) and NetApp Aggregate Encryption (NAE) — encryption performed by ONTAP itself, independent of the underlying disk.</p></div>
+      <div class="card"><h3><span class="tag purple">Key management layer</span></h3><p>Onboard Key Manager (OKM) or an external KMIP-based key manager — governs who can actually unlock any of the above.</p></div>
+    </div>
+  </section>
+
+  <!-- 02 LANDSCAPE OVERVIEW DIAGRAM -->
+  <section id="landscape">
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2 class="sec-title">The full encryption landscape, in one picture</h2>
+    </div>
+    <p class="sec-dek">Where each technology sits in the ONTAP write path, from network to physical disk.</p>
+
+    <div class="diagram-frame">
+      <svg viewBox="0 0 940 360" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram showing where NVE, NAE, and NSE each encrypt data along the ONTAP write path from client to physical disk">
+        <line x1="470" y1="20" x2="470" y2="340" stroke="#2E3645" stroke-width="1" stroke-dasharray="3 3"/>
+
+        <rect x="40" y="20" width="180" height="44" rx="8" fill="#1C2129" stroke="#2E3645"/>
+        <text x="130" y="47" fill="#EDEAE3" font-size="12" text-anchor="middle">Client / Application</text>
+
+        <line x1="130" y1="64" x2="130" y2="92" stroke="#5D6675" stroke-width="1.3"/>
+        <rect x="40" y="92" width="180" height="44" rx="8" fill="#1C2129" stroke="#2E3645"/>
+        <text x="130" y="119" fill="#EDEAE3" font-size="12" text-anchor="middle">Network (NFS/SMB/iSCSI)</text>
+
+        <line x1="130" y1="136" x2="130" y2="164" stroke="#5D6675" stroke-width="1.3"/>
+        <rect x="40" y="164" width="180" height="44" rx="8" fill="#1C2129" stroke="#2E3645"/>
+        <text x="130" y="191" fill="#EDEAE3" font-size="12" text-anchor="middle">ONTAP WAFL</text>
+
+        <line x1="130" y1="208" x2="130" y2="236" stroke="#5D6675" stroke-width="1.3"/>
+        <rect x="40" y="236" width="180" height="56" rx="8" fill="#212833" stroke="#3DDC97" stroke-width="1.5"/>
+        <text x="130" y="260" fill="#3DDC97" font-size="12" text-anchor="middle">NVE / NAE</text>
+        <text x="130" y="276" fill="#9BA3B0" font-size="9.5" text-anchor="middle">encrypts here — software layer</text>
+
+        <line x1="130" y1="292" x2="130" y2="320" stroke="#5D6675" stroke-width="1.3"/>
+        <rect x="40" y="320" width="180" height="32" rx="8" fill="#1C2129" stroke="#2E3645"/>
+        <text x="130" y="340" fill="#9BA3B0" font-size="11" text-anchor="middle">RAID Layer</text>
+
+        <!-- right side: NSE -->
+        <rect x="700" y="20" width="200" height="44" rx="8" fill="#1C2129" stroke="#2E3645"/>
+        <text x="800" y="47" fill="#EDEAE3" font-size="12" text-anchor="middle">(same path down to RAID)</text>
+
+        <line x1="800" y1="64" x2="800" y2="280" stroke="#5D6675" stroke-width="1.3" stroke-dasharray="4 3"/>
+
+        <rect x="700" y="280" width="200" height="64" rx="8" fill="#212833" stroke="#5B8DEF" stroke-width="1.5"/>
+        <text x="800" y="306" fill="#5B8DEF" font-size="12" text-anchor="middle">NSE / SED</text>
+        <text x="800" y="322" fill="#9BA3B0" font-size="9.5" text-anchor="middle">encrypts here — inside the</text>
+        <text x="800" y="335" fill="#9BA3B0" font-size="9.5" text-anchor="middle">physical drive's own firmware</text>
+
+        <text x="470" y="16" fill="#5D6675" font-size="10.5" text-anchor="middle"> </text>
+        <text x="350" y="200" fill="#5D6675" font-size="11" text-anchor="middle">software path →</text>
+        <text x="610" y="200" fill="#5D6675" font-size="11" text-anchor="middle">← hardware path</text>
+      </svg>
+      <div class="cap">NVE/NAE ENCRYPT BEFORE DATA REACHES RAID — NSE/SED ENCRYPT AT THE PHYSICAL MEDIA LEVEL, AFTER EVERYTHING ELSE</div>
+    </div>
+
+    <p style="color:var(--ink-dim); max-width:700px;">Because these operate at different points in the stack, <b style="color:var(--ink)">they're not mutually exclusive</b> — you can run NVE or NAE on top of NSE drives for layered, double encryption, which is exactly what NetApp's own documentation describes as a supported configuration.</p>
+  </section>
+
+  <!-- 03 NSE -->
+  <section id="nse">
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2 class="sec-title">NetApp Storage Encryption (NSE) &amp; SEDs</h2>
+    </div>
+    <p class="sec-dek">Hardware-based encryption — every bit written to the drive is encrypted by the drive itself, transparently and continuously.</p>
+
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>How it works mechanically</h3>
+        <p>NSE supports self-encrypting drives (SEDs) that encrypt data as it's written. The data cannot be read without an encryption key stored on the disk, and that key is accessible only to an authenticated node. The encryption engine lives inside the drive's own firmware — completely invisible to ONTAP, WAFL, or any application above it.</p>
+      </div>
+      <div class="card">
+        <h3>Authentication key behavior</h3>
+        <p>Data encryption operations, including generating an authentication key, are performed internally, with the authentication key generated the first time the disk is accessed by the storage system. After that, the drive requires storage system authentication for every subsequent data operation.</p>
+      </div>
+    </div>
+
+    <h3 style="margin: 26px 0 10px; font-size:1.05rem;">Two flavors of self-encrypting drive</h3>
+    <table>
+      <tr><th>Type</th><th>FIPS status</th><th>Notes</th></tr>
+      <tr><td class="k">FIPS-certified SED</td><td>FIPS 140-2 Level 2 validated</td><td>Self-encrypting FIPS-certified SAS or NVMe drives are supported on all FAS and AFF systems. NSE drives carry this Level 2 hardware validation, compared to the Level 1 validation of the software CryptoMod used by NVE/NAE.</td></tr>
+      <tr><td class="k">Non-FIPS NVMe SED</td><td>Not FIPS-certified, still encrypted</td><td>Beginning with ONTAP 9.6, self-encrypting NVMe drives that haven't undergone FIPS testing are supported on AFF A800, A320, and later systems, offering the same encryption capabilities as FIPS drives but able to be mixed with non-encrypting drives on the same node or HA pair. These use AES 256-bit transparent disk encryption to protect data at rest, even without formal FIPS 140-2/140-3 certification.</td></tr>
+    </table>
+
+    <div class="qa-block">
+      <p class="q">If NSE drives are self-encrypting, why does anyone need a key manager for them?</p>
+      <p class="a">The drive always encrypts mechanically — that part is automatic. What a key manager controls is the <i>authentication key</i> that unlocks the drive's internal encryption key. Out of the box, that authentication key sits at a known default (the manufacturer secure ID, or a null key for NVMe), meaning the drive will decrypt for anyone. Assigning a real key through an onboard or external key manager is what actually turns on the protection — without it, the drive is technically self-encrypting but practically unlocked.</p>
+    </div>
+
+    <div class="checklist">
+      <li>NSE protection is <b>per-drive</b>, completely independent of how ONTAP organizes volumes or aggregates above it.</li>
+      <li><b>No CPU overhead on the controller</b> — the encryption work happens entirely in dedicated drive silicon.</li>
+      <li>Best suited for protecting against <b>physical drive theft or improper disposal</b> — it does nothing for data already exposed once a node is authenticated and reading normally.</li>
+      <li>You can check whether a system actually has SEDs with <span class="mono">storage disk show -fields is-sed,is-fips-sed,is-non-fips-sed</span> — if there are none, the encryption-specific show command returns nothing.</li>
+    </div>
+  </section>
+
+  <!-- 04 NVE -->
+  <section id="nve">
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <h2 class="sec-title">NetApp Volume Encryption (NVE)</h2>
+    </div>
+    <p class="sec-dek">Software-based encryption, applied one volume at a time, with no special drive hardware required.</p>
+
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>What it actually encrypts</h3>
+        <p>NVE is a software-based technology for encrypting data at rest one volume at a time. An encryption key accessible only to the storage system ensures volume data cannot be read if the underlying device is repurposed, returned, misplaced, or stolen. With NVE, both metadata and data — including snapshots — are encrypted.</p>
+      </div>
+      <div class="card">
+        <h3>Key model</h3>
+        <p>Access to the data is given by a unique XTS-AES-256 key, one per volume. Ordinarily, every encrypted volume is assigned a unique key, and when the volume is deleted, the key is deleted with it.</p>
+      </div>
+    </div>
+
+    <div class="diagram-frame">
+      <svg viewBox="0 0 900 200" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram showing NVE assigning a unique encryption key to each individual volume in an aggregate">
+        <rect x="40" y="60" width="180" height="100" rx="10" fill="#1C2129" stroke="#2E3645"/>
+        <text x="130" y="86" fill="#9BA3B0" font-size="11" text-anchor="middle">AGGREGATE</text>
+
+        <rect x="280" y="30" width="160" height="46" rx="8" fill="#212833" stroke="#3DDC97"/>
+        <text x="360" y="50" fill="#3DDC97" font-size="11" text-anchor="middle">Volume A</text>
+        <text x="360" y="65" fill="#9BA3B0" font-size="9" text-anchor="middle">key: XTS-AES-256 (unique)</text>
+
+        <rect x="280" y="86" width="160" height="46" rx="8" fill="#212833" stroke="#3DDC97"/>
+        <text x="360" y="106" fill="#3DDC97" font-size="11" text-anchor="middle">Volume B</text>
+        <text x="360" y="121" fill="#9BA3B0" font-size="9" text-anchor="middle">key: XTS-AES-256 (unique)</text>
+
+        <rect x="280" y="142" width="160" height="46" rx="8" fill="#1C2129" stroke="#5D6675" stroke-dasharray="4 3"/>
+        <text x="360" y="162" fill="#9BA3B0" font-size="11" text-anchor="middle">Volume C</text>
+        <text x="360" y="177" fill="#5D6675" font-size="9" text-anchor="middle">unencrypted — NVE is opt-in per volume</text>
+
+        <rect x="540" y="86" width="160" height="46" rx="8" fill="#212833" stroke="#9B7EDE"/>
+        <text x="620" y="106" fill="#9B7EDE" font-size="11" text-anchor="middle">Onboard / External</text>
+        <text x="620" y="121" fill="#9B7EDE" font-size="9" text-anchor="middle">Key Manager</text>
+
+        <line x1="440" y1="53" x2="540" y2="100" stroke="#5D6675" stroke-width="1" stroke-dasharray="3 2"/>
+        <line x1="440" y1="109" x2="540" y2="109" stroke="#5D6675" stroke-width="1" stroke-dasharray="3 2"/>
+      </svg>
+      <div class="cap">EACH NVE VOLUME GETS ITS OWN INDEPENDENT KEY — UNENCRYPTED VOLUMES CAN COEXIST IN THE SAME AGGREGATE</div>
+    </div>
+
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>Granularity is the whole point</h3>
+        <p>With NVE, you can choose which volumes are encrypted and which are not — useful when only some data actually needs encryption, or when you're rolling it out incrementally rather than converting an entire environment at once.</p>
+      </div>
+      <div class="card">
+        <h3>Storage efficiency tradeoff</h3>
+        <p>NVE supports the full range of storage efficiency features, including deduplication and compression within a volume — but aggregate-level deduplication is not supported by NVE, since dedup across volumes can't see past each volume's independent encryption.</p>
+      </div>
+    </div>
+
+    <div class="checklist">
+      <li>NVE works on <b>any drive type</b> — HDD, SSD, hybrid — no SED hardware required.</li>
+      <li>Customers can use any existing disk with NVE, including NSE drives, for double or layered encryption.</li>
+      <li>NVE and NAE are the only options available for encrypting data in NetApp MetroCluster software and ONTAP Select — environments without dedicated SED hardware support.</li>
+      <li>When an NVE volume is <b>SnapMirrored to another cluster</b>, the destination volume gets its own new, unique key — the source key is never reused at the destination.</li>
+    </div>
+  </section>
+
+  <!-- 05 NAE -->
+  <section id="nae">
+    <div class="sec-head">
+      <span class="sec-num">05</span>
+      <h2 class="sec-title">NetApp Aggregate Encryption (NAE)</h2>
+    </div>
+    <p class="sec-dek">NVE's sibling — same software encryption mechanism, but keyed at the aggregate instead of the volume, specifically to preserve cross-volume storage efficiency.</p>
+
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>The problem NAE solves</h3>
+        <p>With NVE, every volume has its own key, so two volumes with identical data blocks produce completely different ciphertext — deduplication across volumes becomes impossible. NAE fixes this by sharing a single key across an entire aggregate.</p>
+      </div>
+      <div class="card">
+        <h3>How it's implemented</h3>
+        <p>NAE allows ONTAP to encrypt data for each volume with keys shared for the aggregate, and enables use of aggregate deduplication for greater storage efficiency. A benefit of NAE is that its volumes are included in aggregate-level deduplication, whereas NVE volumes are excluded.</p>
+      </div>
+    </div>
+
+    <div class="diagram-frame">
+      <svg viewBox="0 0 900 180" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram showing NAE sharing one encryption key across all volumes in an aggregate, enabling cross-volume deduplication">
+        <rect x="40" y="30" width="500" height="120" rx="10" fill="#1C2129" stroke="#E8A23D" stroke-width="1.5"/>
+        <text x="60" y="54" fill="#E8A23D" font-size="12" text-anchor="middle" text-anchor="start">NAE AGGREGATE — one shared key for all volumes</text>
+
+        <rect x="60" y="70" width="130" height="60" rx="8" fill="#232936" stroke="#E8A23D"/>
+        <text x="125" y="96" fill="#EDEAE3" font-size="11" text-anchor="middle">Volume A</text>
+        <text x="125" y="112" fill="#9BA3B0" font-size="9" text-anchor="middle">shares agg key</text>
+
+        <rect x="210" y="70" width="130" height="60" rx="8" fill="#232936" stroke="#E8A23D"/>
+        <text x="275" y="96" fill="#EDEAE3" font-size="11" text-anchor="middle">Volume B</text>
+        <text x="275" y="112" fill="#9BA3B0" font-size="9" text-anchor="middle">shares agg key</text>
+
+        <rect x="360" y="70" width="130" height="60" rx="8" fill="#232936" stroke="#E8A23D"/>
+        <text x="425" y="96" fill="#EDEAE3" font-size="11" text-anchor="middle">Volume C</text>
+        <text x="425" y="112" fill="#9BA3B0" font-size="9" text-anchor="middle">shares agg key</text>
+
+        <text x="290" y="148" fill="#9BA3B0" font-size="10.5" text-anchor="middle">↕ identical blocks across A, B, C can now be deduplicated</text>
+
+        <rect x="610" y="55" width="160" height="46" rx="8" fill="#212833" stroke="#9B7EDE"/>
+        <text x="690" y="75" fill="#9B7EDE" font-size="11" text-anchor="middle">Onboard / External</text>
+        <text x="690" y="90" fill="#9B7EDE" font-size="9" text-anchor="middle">Key Manager</text>
+        <line x1="540" y1="78" x2="610" y2="78" stroke="#5D6675" stroke-width="1" stroke-dasharray="3 2"/>
+      </svg>
+      <div class="cap">ONE AGGREGATE-LEVEL KEY LETS NAE VOLUMES PARTICIPATE IN CROSS-VOLUME DEDUPLICATION — NVE VOLUMES CANNOT</div>
+    </div>
+
+    <table>
+      <tr><th>Aspect</th><th>NVE</th><th>NAE</th></tr>
+      <tr><td class="k">Key scope</td><td>One unique key per volume</td><td>One key shared across the whole aggregate</td></tr>
+      <tr><td class="k">Aggregate dedup</td><td class="no">Excluded</td><td class="yes">Included</td></tr>
+      <tr><td class="k">Key lifecycle on deletion</td><td>Key deleted when the volume is deleted</td><td>Keys for the aggregate are preserved when one encrypted volume is deleted — they're only removed if the entire aggregate is deleted</td></tr>
+      <tr><td class="k">Mixed unencrypted volumes allowed?</td><td class="yes">Yes — encryption is opt-in per volume</td><td class="no">No — with an NAE aggregate, unencrypted volumes aren't allowed; all volumes on an NAE aggregate must be either NAE or NVE encrypted</td></tr>
+      <tr><td class="k">Available since</td><td>ONTAP 9.1 on new hardware platforms</td><td>ONTAP 9.6</td></tr>
+    </table>
+
+    <div class="checklist">
+      <li>NVE and NAE volumes <b>can coexist on the same aggregate</b> — they're not strictly either/or at the aggregate level.</li>
+      <li>You can <b>convert between NVE and NAE</b> using a volume move operation, in either direction.</li>
+      <li>Storage efficiency in general — compression, dedup within the volume — <b>isn't disabled</b> by either NVE or NAE; the only loss is cross-volume dedup specifically under NVE.</li>
+    </div>
+  </section>
+
+  <!-- 06 KEY MANAGEMENT -->
+  <section id="keymanagement">
+    <div class="sec-head">
+      <span class="sec-num">06</span>
+      <h2 class="sec-title">Key management: the layer that actually matters most</h2>
+    </div>
+    <p class="sec-dek">Every encryption technology above is only as strong as how its keys are generated, stored, and controlled.</p>
+
+    <div class="grid cols-2">
+      <div class="card">
+        <h3><span class="tag purple">Onboard Key Manager (OKM)</span></h3>
+        <p>The Onboard Key Manager is a built-in tool that serves keys to nodes from the same storage system as your data. The OKM provides a self-contained encryption solution for data at rest with NSE, NVE, or NAE. Simpler to set up, but the keys live alongside the data they protect.</p>
+      </div>
+      <div class="card">
+        <h3><span class="tag blue">External Key Manager (KMIP)</span></h3>
+        <p>The external key management server is a third-party system in your storage environment that serves keys to nodes using the Key Management Interoperability Protocol (KMIP), and it's a best practice to configure it on a different storage system from your data.</p>
+      </div>
+    </div>
+
+    <h3 style="margin: 26px 0 10px; font-size:1.05rem;">When external key management is the right call</h3>
+    <div class="checklist">
+      <li>Your encryption key management solution must comply with Federal Information Processing Standards (FIPS) 140-2 or the OASIS KMIP standard.</li>
+      <li>You need a multi-cluster solution with centralized management of encryption keys.</li>
+      <li>Your business requires the added security of storing authentication keys on a system or in a location different from the data.</li>
+      <li>You're in a <b>multi-tenant environment</b> — an SVM scope can configure external key management for a specific data SVM in the cluster, which is best for multitenant setups where each tenant uses a different SVM, so only that tenant's SVM administrator has access to their own keys.</li>
+    </div>
+
+    <div class="qa-block">
+      <p class="q">Does the FIPS validation level of the key management module matter?</p>
+      <p class="a">Yes, and it's a real distinction, not just paperwork: NSE drives are FIPS 140-2 Level 2 validated, while the CryptoMod used by NVE and NAE is FIPS 140-2 Level 1 validated — Level 1 being the highest attainable level for a purely software-based module. Organizations with strict compliance requirements sometimes need to factor this distinction in when choosing between hardware and software encryption paths.</p>
+    </div>
+  </section>
+
+  <!-- 07 COMBINING -->
+  <section id="combining">
+    <div class="sec-head">
+      <span class="sec-num">07</span>
+      <h2 class="sec-title">Layering them: double encryption</h2>
+    </div>
+    <p class="sec-dek">Hardware and software encryption aren't competing options — NetApp explicitly supports running both at once.</p>
+
+    <div class="layer-stack">
+      <div class="layer nve"><div class="lnum">①</div><div class="lbody"><h4>NVE or NAE encrypts first</h4><p>Data is encrypted in software by ONTAP, before it ever reaches the RAID layer or physical disk.</p></div></div>
+      <div class="layer nse"><div class="lnum">②</div><div class="lbody"><h4>NSE/SED encrypts again at the drive</h4><p>The already-encrypted data is then encrypted a second time by the drive's own hardware as it's physically written.</p></div></div>
+      <div class="layer km"><div class="lnum">③</div><div class="lbody"><h4>Two independent key domains protect it</h4><p>Software keys (OKM/KMIP for NVE/NAE) and hardware authentication keys (for the SED) are managed separately — compromising one doesn't expose the other.</p></div></div>
+    </div>
+
+    <p style="color:var(--ink-dim); max-width:700px;">You can use both software (NAE or NVE) and hardware (NSE or NVMe SED) encryption solutions together to achieve double encryption at rest — NVE can be used together with NetApp Storage Encryption specifically to double-encrypt data on NSE drives. ONTAP does not pregenerate or reuse keys for either layer, and never displays them in plain text.</p>
+
+    <div class="checklist">
+      <li><b>Double encryption is supported, not just theoretically possible</b> — it's a documented, validated configuration.</li>
+      <li>The two layers use <b>cryptographically independent keys</b>, so there's no shared point of failure between them.</li>
+      <li>This combination is typically chosen for the <b>highest compliance bar</b> — defense in depth at both the hardware and software level simultaneously.</li>
+    </div>
+  </section>
+
+  <!-- 08 DEFAULTS TODAY -->
+  <section id="default">
+    <div class="sec-head">
+      <span class="sec-num">08</span>
+      <h2 class="sec-title">What's actually on by default in modern ONTAP</h2>
+    </div>
+    <p class="sec-dek">This is the detail that resolves the "is everything automatically encrypted?" question precisely.</p>
+
+    <div class="card" style="border-color: var(--teal-dim); background: rgba(61,220,151,0.05);">
+      <h3 style="color: var(--teal);">The actual default behavior, starting ONTAP 9.7</h3>
+      <p>Beginning with ONTAP 9.7, NAE and NVE are enabled by default if the volume encryption (VE) license is in place, either the onboard or an external key manager is configured, and NSE is not in use. NAE volumes are created by default on NAE aggregates, and NVE volumes are created by default on non-NAE aggregates.</p>
+      <p>Brand new aggregates will have NetApp Aggregate Encryption enabled by default, and brand new volumes not part of an NAE aggregate will have NetApp Volume Encryption enabled by default — but only once an onboard or external key manager is actually configured.</p>
+    </div>
+
+    <h3 style="margin: 24px 0 10px; font-size:1.05rem;">So is "everything encrypted by default" true?</h3>
+    <table>
+      <tr><th>Condition</th><th>Result</th></tr>
+      <tr><td class="k">VE license present + key manager configured + no NSE in use</td><td class="yes">New aggregates/volumes get NAE/NVE by default — yes, automatically.</td></tr>
+      <tr><td class="k">No key manager configured at all</td><td class="no">Nothing encrypts by default — there's no key to encrypt with.</td></tr>
+      <tr><td class="k">System uses NSE/SED drives</td><td>Hardware encryption is mechanically always happening, but data is only <i>protected</i> once a non-default authentication key is assigned via a key manager.</td></tr>
+      <tr><td class="k">Existing aggregates/volumes created before 9.7 or before key manager setup</td><td class="no">Not retroactively encrypted — defaults apply to newly created objects, not historical ones.</td></tr>
+    </table>
+
+    <p style="color:var(--ink-dim); max-width:700px; margin-top:14px;">You can also explicitly turn this default off if needed: you can override the default-encryption behavior by entering <span class="mono">options -option-name encryption.data_at_rest_encryption.disable_by_default true</span> at the cluster level.</p>
+  </section>
+
+  <!-- 09 INTERVIEW PREP -->
+  <section id="interview">
+    <div class="sec-head">
+      <span class="sec-num">09</span>
+      <h2 class="sec-title">Interview-ready summary</h2>
+    </div>
+
+    <div class="qa-block">
+      <p class="q">Walk me through NetApp's encryption-at-rest options.</p>
+      <p class="a">NetApp offers both hardware and software encryption at rest. NetApp Storage Encryption (NSE) is hardware-based, using self-encrypting drives that transparently encrypt every write at the drive's own firmware level. NetApp Volume Encryption (NVE) and NetApp Aggregate Encryption (NAE) are software-based alternatives built into ONTAP itself — NVE assigns a unique key per volume, while NAE shares one key across an entire aggregate so that cross-volume deduplication still works. All three can use either the Onboard Key Manager or an external KMIP-based key manager to control the actual encryption keys, and hardware and software encryption can be layered together for double encryption. Starting in ONTAP 9.7, NAE and NVE are enabled by default for newly created aggregates and volumes, but only once a volume encryption license is present and a key manager is actually configured.</p>
+    </div>
+
+    <div class="grid cols-2" style="margin-top:18px;">
+      <div class="card">
+        <h3>Quick distinctions to keep straight</h3>
+        <p><b style="color:var(--ink)">NSE</b> = hardware, per-drive.<br><b style="color:var(--ink)">NVE</b> = software, per-volume.<br><b style="color:var(--ink)">NAE</b> = software, per-aggregate (enables dedup).<br><b style="color:var(--ink)">OKM</b> = keys stored on the same system as the data.<br><b style="color:var(--ink)">External KMIP</b> = keys stored elsewhere, for compliance/multi-cluster needs.</p>
+      </div>
+      <div class="card">
+        <h3>The trap question to watch for</h3>
+        <p>"Are all NetApp drives self-encrypting by default?" — No. SED-capable hardware varies by platform and what was purchased, and even when present, a SED sits in an unprotected/default-key state until a key manager assigns a real authentication key.</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Internal knowledge-portal reference on NetApp ONTAP encryption-at-rest concepts — NSE/SED, NVE, NAE, and key management. Compiled from NetApp's public documentation and knowledge base; always validate exact behavior, licensing terms (NVE is a Global Trade Compliance controlled item in some jurisdictions), and platform support against the current NetApp documentation and Interoperability Matrix Tool for your specific ONTAP version and hardware.</p>
+  </div>
+</footer>
+
+</body>
+</html>
