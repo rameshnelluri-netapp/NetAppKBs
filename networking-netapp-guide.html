@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Networking Fundamentals &amp; NetApp ONTAP — Field Guide</title>
+<style>
+  :root{
+    --bg: #14171D;
+    --panel: #1C2129;
+    --panel-raised: #232936;
+    --line: #2E3645;
+    --ink: #EDEAE3;
+    --ink-dim: #9BA3B0;
+    --ink-faint: #5D6675;
+    --teal: #3DDC97;
+    --teal-dim: #1F6B4D;
+    --amber: #E8A23D;
+    --amber-dim: #7A5826;
+    --blue: #5B8DEF;
+    --purple: #9B7EDE;
+    --red: #E8634D;
+  }
+  *{ box-sizing: border-box; }
+  html{ scroll-behavior: smooth; }
+  body{
+    margin:0; background: var(--bg); color: var(--ink);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    line-height:1.6; -webkit-font-smoothing:antialiased;
+  }
+  @media (prefers-reduced-motion: reduce){ *{ animation-duration:0.01ms !important; transition-duration:0.01ms !important; } }
+  h1,h2,h3{ font-family:'Space Grotesk','Inter',sans-serif; letter-spacing:-0.01em; margin:0; }
+  .mono{ font-family:'IBM Plex Mono','Courier New',monospace; }
+  a{ color: var(--teal); text-decoration:none; }
+  a:hover{ text-decoration:underline; }
+  a:focus-visible, button:focus-visible{ outline:2px solid var(--teal); outline-offset:3px; }
+
+  .wrap{ max-width: 1040px; margin:0 auto; padding: 0 28px; }
+
+  /* nav */
+  nav.toc{
+    position: sticky; top:0; z-index: 50;
+    background: rgba(20,23,29,0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  nav.toc .inner{
+    max-width: 1040px; margin:0 auto; padding: 14px 28px;
+    display:flex; gap: 18px; flex-wrap: wrap; align-items:center;
+  }
+  nav.toc .brand{ font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:0.92rem; color: var(--ink); margin-right: 8px; }
+  nav.toc a{
+    font-family:'IBM Plex Mono',monospace; font-size:11.5px; color: var(--ink-dim);
+    padding: 5px 10px; border-radius: 6px; border:1px solid transparent;
+  }
+  nav.toc a:hover{ color: var(--ink); border-color: var(--line); text-decoration:none; background: var(--panel); }
+
+  header.hero{
+    position:relative; padding: 76px 0 52px; border-bottom: 1px solid var(--line); overflow:hidden;
+  }
+  header.hero::before{
+    content:""; position:absolute; inset:-40% -10% auto -10%; height:600px;
+    background: radial-gradient(circle at 25% 30%, rgba(91,141,239,0.10), transparent 60%);
+    pointer-events:none;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace; font-size:12.5px; letter-spacing:0.14em; text-transform:uppercase;
+    color: var(--blue); display:flex; align-items:center; gap:10px; margin-bottom:20px;
+  }
+  .eyebrow .dot{ width:7px; height:7px; border-radius:50%; background: var(--blue); box-shadow:0 0 0 4px rgba(91,141,239,0.15); }
+  h1.title{ font-size: clamp(2rem, 4.4vw, 3.1rem); font-weight:600; line-height:1.1; max-width:780px; }
+  h1.title em{ font-style:normal; color: var(--ink-dim); font-weight:400; }
+  .subhead{ margin-top:18px; max-width:640px; color: var(--ink-dim); font-size:1.04rem; }
+  .hero-meta{ margin-top: 30px; display:flex; gap: 24px; flex-wrap:wrap; font-family:'IBM Plex Mono',monospace; font-size:12px; color: var(--ink-faint); }
+
+  section{ padding: 58px 0; border-bottom: 1px solid var(--line); }
+  section:last-of-type{ border-bottom:none; }
+
+  .sec-head{ display:flex; align-items:baseline; gap:16px; margin-bottom: 28px; }
+  .sec-num{ font-family:'IBM Plex Mono',monospace; font-size:13px; color: var(--ink-faint); white-space:nowrap; }
+  h2.sec-title{ font-size:1.5rem; font-weight:600; }
+  .sec-dek{ color: var(--ink-dim); max-width:660px; margin: -14px 0 26px; font-size:0.97rem; }
+
+  .grid{ display:grid; gap:14px; }
+  .grid.cols-2{ grid-template-columns: repeat(2,1fr); }
+  .grid.cols-3{ grid-template-columns: repeat(3,1fr); }
+  .grid.cols-4{ grid-template-columns: repeat(4,1fr); }
+  @media (max-width:760px){ .grid.cols-2,.grid.cols-3,.grid.cols-4{ grid-template-columns:1fr; } }
+
+  .card{ background: var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px 20px; }
+  .card h3{ font-size:0.96rem; margin-bottom:6px; display:flex; align-items:center; gap:9px; }
+  .card p{ color: var(--ink-dim); font-size:0.88rem; margin:0; }
+  .tag{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color: var(--blue); background: rgba(91,141,239,0.08); border:1px solid #2E4A7A; padding:2px 7px; border-radius:5px; }
+  .tag.teal{ color: var(--teal); background: rgba(61,220,151,0.08); border-color: var(--teal-dim); }
+  .tag.amber{ color: var(--amber); background: rgba(232,162,61,0.08); border-color: var(--amber-dim); }
+  .tag.purple{ color: var(--purple); background: rgba(155,126,222,0.08); border-color: #4A3A6E; }
+
+  /* Protocol glossary grid */
+  .proto-grid{ display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media (max-width: 900px){ .proto-grid{ grid-template-columns: repeat(2,1fr); } }
+  @media (max-width: 520px){ .proto-grid{ grid-template-columns: 1fr; } }
+  .proto-card{
+    background: var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px;
+    display:flex; flex-direction:column; gap:6px;
+  }
+  .proto-card .abbr{ font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:1.05rem; color: var(--teal); }
+  .proto-card .full{ font-size: 0.78rem; color: var(--ink-dim); }
+  .proto-card .desc{ font-size: 0.82rem; color: var(--ink-faint); margin-top:2px; }
+  .proto-card .port{
+    align-self:flex-start; margin-top: 4px;
+    font-family:'IBM Plex Mono',monospace; font-size:10px; color: var(--amber);
+    background: rgba(232,162,61,0.08); border:1px solid var(--amber-dim);
+    padding: 1px 7px; border-radius: 10px;
+  }
+
+  .diagram-frame{ background: var(--panel); border:1px solid var(--line); border-radius:12px; padding: 24px; margin: 24px 0; }
+  .diagram-frame .cap{ font-family:'IBM Plex Mono',monospace; font-size:11px; color: var(--ink-faint); margin-top:14px; text-align:center; letter-spacing:0.03em; }
+  svg text{ font-family:'IBM Plex Mono',monospace; }
+
+  table{ width:100%; border-collapse:collapse; font-size:0.9rem; }
+  table th{ text-align:left; font-family:'IBM Plex Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color: var(--ink-faint); padding:10px 14px; border-bottom:1px solid var(--line); }
+  table td{ padding:12px 14px; border-bottom:1px solid var(--line); color: var(--ink-dim); vertical-align:top; }
+  table td.k{ color: var(--ink); font-weight:500; white-space:nowrap; }
+  table tr:last-child td{ border-bottom:none; }
+
+  .step-row{ display:flex; gap:16px; padding:16px 0; border-bottom:1px solid var(--line); }
+  .step-row:last-child{ border-bottom:none; }
+  .step-row .num{
+    flex-shrink:0; width:30px; height:30px; border-radius:50%;
+    background: var(--panel-raised); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'IBM Plex Mono',monospace; font-size:12.5px; color: var(--teal);
+  }
+  .step-row h3{ font-size:0.96rem; margin-bottom:4px; }
+  .step-row p{ color: var(--ink-dim); font-size:0.88rem; margin:0; }
+
+  .checklist{ list-style:none; margin:18px 0 0; padding:0; display:grid; gap:9px; }
+  .checklist li{ display:flex; gap:11px; align-items:flex-start; background: var(--panel); border:1px solid var(--line); border-radius:8px; padding:11px 15px; font-size:0.89rem; color: var(--ink-dim); }
+  .checklist li::before{ content:"✓"; color: var(--teal); font-weight:700; flex-shrink:0; font-family:'IBM Plex Mono',monospace; }
+  .checklist li b{ color: var(--ink); }
+
+  .qa-block{ background: var(--panel); border:1px solid var(--line); border-radius:10px; padding:20px 22px; margin-top:16px; }
+  .qa-block .q{ font-weight:600; color: var(--ink); margin-bottom:9px; font-size:0.95rem; }
+  .qa-block .q::before{ content:"Q. "; color: var(--blue); font-family:'IBM Plex Mono',monospace; }
+  .qa-block .a{ color: var(--ink-dim); font-size:0.9rem; margin:0; }
+
+  footer{ padding: 42px 0 72px; color: var(--ink-faint); font-size:0.84rem; }
+  footer a{ color: var(--ink-dim); }
+  ::selection{ background: rgba(91,141,239,0.25); }
+</style>
+</head>
+<body>
+
+<nav class="toc">
+  <div class="inner">
+    <span class="brand">Field Guide</span>
+    <a href="#protocols">Protocols</a>
+    <a href="#dhcp">DHCP</a>
+    <a href="#dns">DNS</a>
+    <a href="#ontap-arch">ONTAP Architecture</a>
+    <a href="#cifs">CIFS / SMB</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow"><span class="dot"></span>NETWORKING &amp; NETAPP · FIELD GUIDE</div>
+    <h1 class="title">Networking Fundamentals,<br><em>then NetApp ONTAP on top</em></h1>
+    <p class="subhead">The networking concepts every storage admin leans on daily — IP, DHCP, DNS — followed by how NetApp's ONTAP operating system and CIFS/SMB sit on that foundation.</p>
+    <div class="hero-meta">
+      <span>PART 1&nbsp;·&nbsp;Core Networking Vocabulary</span>
+      <span>PART 2&nbsp;·&nbsp;DHCP &amp; DNS Walkthroughs</span>
+      <span>PART 3&nbsp;·&nbsp;ONTAP Architecture &amp; CIFS/SMB</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- 01 PROTOCOL GLOSSARY -->
+  <section id="protocols">
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2 class="sec-title">Common networking abbreviations</h2>
+    </div>
+    <p class="sec-dek">The vocabulary that shows up constantly in storage, backup, and infrastructure work — grouped so related terms sit near each other.</p>
+
+    <div class="proto-grid">
+      <div class="proto-card"><div class="abbr">IP</div><div class="full">Internet Protocol</div><div class="desc">The unique address that identifies a device on a network.</div></div>
+      <div class="proto-card"><div class="abbr">DNS</div><div class="full">Domain Name System</div><div class="desc">Translates human-readable domain names into IP addresses.</div><div class="port">UDP/TCP 53</div></div>
+      <div class="proto-card"><div class="abbr">DHCP</div><div class="full">Dynamic Host Configuration Protocol</div><div class="desc">Automatically assigns IP addresses and network settings to devices.</div><div class="port">UDP 67/68</div></div>
+      <div class="proto-card"><div class="abbr">MAC</div><div class="full">Media Access Control</div><div class="desc">The unique hardware address burned into a network interface.</div></div>
+      <div class="proto-card"><div class="abbr">LAN</div><div class="full">Local Area Network</div><div class="desc">A network confined to a small area — home, office, or single site.</div></div>
+      <div class="proto-card"><div class="abbr">WAN</div><div class="full">Wide Area Network</div><div class="desc">A network spanning large geographic areas, often connecting multiple LANs.</div></div>
+      <div class="proto-card"><div class="abbr">SSID</div><div class="full">Service Set Identifier</div><div class="desc">The broadcast name of a Wi-Fi network.</div></div>
+      <div class="proto-card"><div class="abbr">TCP</div><div class="full">Transmission Control Protocol</div><div class="desc">Connection-oriented delivery with guaranteed, ordered data transfer.</div></div>
+      <div class="proto-card"><div class="abbr">UDP</div><div class="full">User Datagram Protocol</div><div class="desc">Faster, connectionless transport with no delivery guarantee.</div></div>
+      <div class="proto-card"><div class="abbr">HTTP</div><div class="full">HyperText Transfer Protocol</div><div class="desc">The foundational protocol for transferring web content.</div><div class="port">TCP 80</div></div>
+      <div class="proto-card"><div class="abbr">HTTPS</div><div class="full">HTTP Secure</div><div class="desc">HTTP wrapped in TLS encryption for secure communication.</div><div class="port">TCP 443</div></div>
+      <div class="proto-card"><div class="abbr">FTP</div><div class="full">File Transfer Protocol</div><div class="desc">Transfers files between hosts over a network.</div><div class="port">TCP 20/21</div></div>
+      <div class="proto-card"><div class="abbr">SMTP</div><div class="full">Simple Mail Transfer Protocol</div><div class="desc">Sends outbound email messages between servers.</div><div class="port">TCP 25</div></div>
+      <div class="proto-card"><div class="abbr">POP3</div><div class="full">Post Office Protocol 3</div><div class="desc">Retrieves email from a mail server, typically removing it after download.</div><div class="port">TCP 110</div></div>
+      <div class="proto-card"><div class="abbr">IMAP</div><div class="full">Internet Message Access Protocol</div><div class="desc">Accesses email while keeping it synced on the server.</div><div class="port">TCP 143</div></div>
+      <div class="proto-card"><div class="abbr">NAT</div><div class="full">Network Address Translation</div><div class="desc">Lets multiple devices share a single public IP address.</div></div>
+      <div class="proto-card"><div class="abbr">VPN</div><div class="full">Virtual Private Network</div><div class="desc">Creates a secure, encrypted tunnel over the public internet.</div></div>
+      <div class="proto-card"><div class="abbr">QoS</div><div class="full">Quality of Service</div><div class="desc">Prioritizes certain traffic types to manage congestion.</div></div>
+      <div class="proto-card"><div class="abbr">ARP</div><div class="full">Address Resolution Protocol</div><div class="desc">Maps an IP address to its corresponding MAC address on a LAN.</div></div>
+      <div class="proto-card"><div class="abbr">ICMP</div><div class="full">Internet Control Message Protocol</div><div class="desc">Used for diagnostics — the protocol behind <span class="mono">ping</span>.</div></div>
+      <div class="proto-card"><div class="abbr">TTL</div><div class="full">Time To Live</div><div class="desc">Limits how long a packet can keep hopping before being discarded.</div></div>
+      <div class="proto-card"><div class="abbr">MTU</div><div class="full">Maximum Transmission Unit</div><div class="desc">The largest packet size a network segment will carry, typically 1500 bytes on Ethernet.</div></div>
+      <div class="proto-card"><div class="abbr">VLAN</div><div class="full">Virtual LAN</div><div class="desc">Segments one physical network into multiple isolated logical networks.</div></div>
+      <div class="proto-card"><div class="abbr">PoE</div><div class="full">Power over Ethernet</div><div class="desc">Delivers electrical power and data over a single Ethernet cable.</div></div>
+      <div class="proto-card"><div class="abbr">BGP</div><div class="full">Border Gateway Protocol</div><div class="desc">Routes traffic between autonomous systems across the internet.</div></div>
+      <div class="proto-card"><div class="abbr">OSPF</div><div class="full">Open Shortest Path First</div><div class="desc">An interior gateway routing protocol used within a single network.</div></div>
+      <div class="proto-card"><div class="abbr">STP</div><div class="full">Spanning Tree Protocol</div><div class="desc">Prevents bridge loops in switched Ethernet networks.</div></div>
+      <div class="proto-card"><div class="abbr">RIP</div><div class="full">Routing Information Protocol</div><div class="desc">An early distance-vector routing protocol for small networks.</div></div>
+      <div class="proto-card"><div class="abbr">NTP</div><div class="full">Network Time Protocol</div><div class="desc">Synchronizes clocks across devices on a network.</div><div class="port">UDP 123</div></div>
+      <div class="proto-card"><div class="abbr">SNMP</div><div class="full">Simple Network Management Protocol</div><div class="desc">Monitors and manages network devices remotely.</div><div class="port">UDP 161</div></div>
+    </div>
+  </section>
+
+  <!-- 02 DHCP -->
+  <section id="dhcp">
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2 class="sec-title">DHCP and the DORA process</h2>
+    </div>
+    <p class="sec-dek">How a device gets handed an IP address automatically, without anyone configuring it by hand.</p>
+
+    <div class="grid cols-2" style="margin-bottom: 8px;">
+      <div class="card"><h3>What it does</h3><p>Hands out IP addresses and network configuration automatically, so devices don't need static, manually entered settings.</p></div>
+      <div class="card"><h3>Ports used</h3><p>Runs over UDP — port <span class="mono">67</span> on the server side, port <span class="mono">68</span> on the client side — chosen for speed over TCP's overhead.</p></div>
+    </div>
+
+    <div class="diagram-frame">
+      <svg viewBox="0 0 920 280" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="DORA process diagram showing Discover, Offer, Request, and Acknowledge steps between a DHCP client and server">
+        <line x1="120" y1="60" x2="120" y2="240" stroke="#2E3645" stroke-width="1.3"/>
+        <line x1="800" y1="60" x2="800" y2="240" stroke="#2E3645" stroke-width="1.3"/>
+        <rect x="50" y="24" width="140" height="36" rx="8" fill="#232936" stroke="#3DDC97"/>
+        <text x="120" y="47" fill="#3DDC97" font-size="12" text-anchor="middle">DHCP CLIENT</text>
+        <rect x="730" y="24" width="140" height="36" rx="8" fill="#232936" stroke="#5B8DEF"/>
+        <text x="800" y="47" fill="#5B8DEF" font-size="12" text-anchor="middle">DHCP SERVER</text>
+
+        <!-- D -->
+        <line x1="120" y1="80" x2="800" y2="80" stroke="#9BA3B0" stroke-width="1.3" marker-end="url(#arr1)"/>
+        <text x="460" y="73" fill="#EDEAE3" font-size="11.5" text-anchor="middle">1 · DISCOVER (broadcast) — "any DHCP server out there?"</text>
+
+        <!-- O -->
+        <line x1="800" y1="120" x2="120" y2="120" stroke="#9BA3B0" stroke-width="1.3" marker-end="url(#arr2)"/>
+        <text x="460" y="113" fill="#EDEAE3" font-size="11.5" text-anchor="middle">2 · OFFER (broadcast) — server proposes an IP + config</text>
+
+        <!-- R -->
+        <line x1="120" y1="160" x2="800" y2="160" stroke="#9BA3B0" stroke-width="1.3" marker-end="url(#arr1)"/>
+        <text x="460" y="153" fill="#EDEAE3" font-size="11.5" text-anchor="middle">3 · REQUEST (broadcast) — client formally asks for that IP</text>
+
+        <!-- A -->
+        <line x1="800" y1="200" x2="120" y2="200" stroke="#9BA3B0" stroke-width="1.3" marker-end="url(#arr2)"/>
+        <text x="460" y="193" fill="#EDEAE3" font-size="11.5" text-anchor="middle">4 · ACKNOWLEDGE (broadcast) — server confirms the lease</text>
+
+        <defs>
+          <marker id="arr1" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#3DDC97"/></marker>
+          <marker id="arr2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#5B8DEF"/></marker>
+        </defs>
+
+        <text x="460" y="240" fill="#5D6675" font-size="11" text-anchor="middle">D-O-R-A — every exchange is a broadcast until the client has a confirmed address</text>
+      </svg>
+      <div class="cap">DORA: DISCOVER → OFFER → REQUEST → ACKNOWLEDGE</div>
+    </div>
+
+    <table>
+      <tr><th>Step</th><th>Direction</th><th>What happens</th></tr>
+      <tr><td class="k">Discover</td><td>0.0.0.0:68 → 255.255.255.255:67</td><td>The client, with no IP yet, broadcasts a request asking if any DHCP server is listening.</td></tr>
+      <tr><td class="k">Offer</td><td>Server IP:67 → 255.255.255.255:68</td><td>A DHCP server responds with a proposed IP address and configuration details (subnet, gateway, DNS).</td></tr>
+      <tr><td class="k">Request</td><td>0.0.0.0:68 → 255.255.255.255:67</td><td>The client broadcasts back, formally requesting the offered address (so other servers know it's taken).</td></tr>
+      <tr><td class="k">Acknowledge</td><td>Server IP:67 → 255.255.255.255:68</td><td>The server confirms the lease, and the client can now use the assigned IP.</td></tr>
+    </table>
+  </section>
+
+  <!-- 03 DNS -->
+  <section id="dns">
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2 class="sec-title">DNS resolution, step by step</h2>
+    </div>
+    <p class="sec-dek">Domain names are for humans; IP addresses are what the network actually routes on. DNS is the translation layer between them.</p>
+
+    <div class="grid cols-2" style="margin-bottom:8px;">
+      <div class="card"><h3>Forward lookup</h3><p>Domain Name → IP Address. The everyday case: typing a hostname and getting routed to the right server.</p></div>
+      <div class="card"><h3>Reverse lookup</h3><p>IP Address → Domain Name. Used for verification, logging, and anti-spam/email authentication checks.</p></div>
+    </div>
+    <p style="color:var(--ink-dim); max-width:680px; margin-top:4px;">DNS runs over UDP port 53 for both queries and responses (falling back to TCP for larger replies, such as zone transfers).</p>
+
+    <div class="diagram-frame">
+      <svg viewBox="0 0 920 240" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="DNS query and response flow between a client and DNS server showing domain name to IP address resolution">
+        <rect x="40" y="80" width="180" height="80" rx="10" fill="#232936" stroke="#3DDC97"/>
+        <text x="130" y="112" fill="#EDEAE3" font-size="12" text-anchor="middle">DNS Client</text>
+        <text x="130" y="130" fill="#9BA3B0" font-size="10" text-anchor="middle">S.IP 192.168.1.10</text>
+        <text x="130" y="144" fill="#9BA3B0" font-size="10" text-anchor="middle">S.Port 49152 (ephemeral)</text>
+
+        <rect x="700" y="80" width="180" height="80" rx="10" fill="#232936" stroke="#5B8DEF"/>
+        <text x="790" y="112" fill="#EDEAE3" font-size="12" text-anchor="middle">DNS Server</text>
+        <text x="790" y="130" fill="#9BA3B0" font-size="10" text-anchor="middle">D.IP 192.168.1.1</text>
+        <text x="790" y="144" fill="#9BA3B0" font-size="10" text-anchor="middle">D.Port 53</text>
+
+        <line x1="220" y1="96" x2="700" y2="96" stroke="#3DDC97" stroke-width="1.3" marker-end="url(#arr3)"/>
+        <text x="460" y="89" fill="#3DDC97" font-size="11" text-anchor="middle">1 · Query: "what's the IP for example.com?"</text>
+
+        <line x1="700" y1="124" x2="220" y2="124" stroke="#5B8DEF" stroke-width="1.3" marker-end="url(#arr4)"/>
+        <text x="460" y="117" fill="#5B8DEF" font-size="11" text-anchor="middle">2 · Response: 93.184.216.34</text>
+
+        <line x1="220" y1="152" x2="700" y2="152" stroke="#3DDC97" stroke-width="1.3" marker-end="url(#arr3)" stroke-dasharray="5 3"/>
+        <text x="460" y="145" fill="#9BA3B0" font-size="10.5" text-anchor="middle">3 · Reverse query (optional): "whose IP is 93.184.216.34?"</text>
+
+        <line x1="700" y1="178" x2="220" y2="178" stroke="#5B8DEF" stroke-width="1.3" marker-end="url(#arr4)" stroke-dasharray="5 3"/>
+        <text x="460" y="171" fill="#9BA3B0" font-size="10.5" text-anchor="middle">4 · Response: example.com</text>
+
+        <defs>
+          <marker id="arr3" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#3DDC97"/></marker>
+          <marker id="arr4" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#5B8DEF"/></marker>
+        </defs>
+      </svg>
+      <div class="cap">FORWARD LOOKUP (STEPS 1–2) AND REVERSE LOOKUP (STEPS 3–4)</div>
+    </div>
+
+    <div class="qa-block">
+      <p class="q">Why does DNS use UDP instead of TCP?</p>
+      <p class="a">Most DNS queries and responses are small enough to fit in a single packet, so the connection setup overhead of TCP isn't worth it — UDP's speed wins for the common case. DNS does fall back to TCP for larger payloads, such as zone transfers between name servers or responses that exceed a single UDP packet.</p>
+    </div>
+  </section>
+
+  <!-- 04 ONTAP ARCHITECTURE -->
+  <section id="ontap-arch">
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <h2 class="sec-title">ONTAP architecture overview</h2>
+    </div>
+    <p class="sec-dek">NetApp's storage operating system, built as a clustered architecture where multiple nodes act as one logical storage system.</p>
+
+    <p style="color:var(--ink-dim); max-width:700px;">ONTAP is the operating system underpinning NetApp storage — used for VMware environments, Windows file shares, Linux/UNIX NFS workloads, databases, backup targets, and disaster recovery, among others. Its architecture is built around a small set of composable concepts that combine to deliver scalability, high availability, and rich data protection.</p>
+
+    <div class="diagram-frame">
+      <svg viewBox="0 0 940 300" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ONTAP cluster architecture diagram showing nodes containing aggregates, volumes, SVMs, LIFs, protocols, snapshots, and SnapMirror">
+        <rect x="370" y="14" width="200" height="38" rx="8" fill="#232936" stroke="#3DDC97"/>
+        <text x="470" y="38" fill="#3DDC97" font-size="12.5" text-anchor="middle">ONTAP CLUSTER</text>
+
+        <line x1="470" y1="52" x2="220" y2="86" stroke="#5D6675" stroke-width="1.2"/>
+        <line x1="470" y1="52" x2="720" y2="86" stroke="#5D6675" stroke-width="1.2"/>
+
+        <rect x="100" y="86" width="240" height="44" rx="8" fill="#1C2129" stroke="#2E3645"/>
+        <text x="220" y="113" fill="#EDEAE3" font-size="12" text-anchor="middle">NODE 1</text>
+
+        <rect x="600" y="86" width="240" height="44" rx="8" fill="#1C2129" stroke="#2E3645"/>
+        <text x="720" y="113" fill="#EDEAE3" font-size="12" text-anchor="middle">NODE N</text>
+
+        <text x="470" y="113" fill="#5D6675" font-size="14" text-anchor="middle">···</text>
+
+        <!-- shared building blocks row -->
+        <g font-size="10.5">
+          <rect x="40" y="160" width="124" height="58" rx="8" fill="#232936" stroke="#3DDC97"/>
+          <text x="102" y="183" fill="#3DDC97" text-anchor="middle">Aggregates /</text>
+          <text x="102" y="197" fill="#3DDC97" text-anchor="middle">Local Tiers</text>
+
+          <rect x="176" y="160" width="124" height="58" rx="8" fill="#232936" stroke="#5B8DEF"/>
+          <text x="238" y="183" fill="#5B8DEF" text-anchor="middle">Volumes</text>
+
+          <rect x="312" y="160" width="124" height="58" rx="8" fill="#232936" stroke="#E8A23D"/>
+          <text x="374" y="183" fill="#E8A23D" text-anchor="middle">SVMs</text>
+
+          <rect x="448" y="160" width="124" height="58" rx="8" fill="#232936" stroke="#9B7EDE"/>
+          <text x="510" y="183" fill="#9B7EDE" text-anchor="middle">LIFs</text>
+
+          <rect x="584" y="160" width="124" height="58" rx="8" fill="#232936" stroke="#E8634D"/>
+          <text x="646" y="183" fill="#E8634D" text-anchor="middle">Protocols</text>
+          <text x="646" y="197" fill="#9BA3B0" text-anchor="middle">(NAS / SAN)</text>
+
+          <rect x="720" y="160" width="124" height="58" rx="8" fill="#232936" stroke="#3DDC97"/>
+          <text x="782" y="183" fill="#3DDC97" text-anchor="middle">Snapshots</text>
+
+          <rect x="856" y="160" width="44" height="58" rx="8" fill="#232936" stroke="#5B8DEF" stroke-dasharray="3 2"/>
+        </g>
+        <text x="878" y="195" fill="#5B8DEF" font-size="9" text-anchor="middle">Snap-</text>
+        <text x="878" y="207" fill="#5B8DEF" font-size="9" text-anchor="middle">Mirror</text>
+
+        <line x1="220" y1="130" x2="450" y2="160" stroke="#5D6675" stroke-width="1"/>
+        <line x1="720" y1="130" x2="650" y2="160" stroke="#5D6675" stroke-width="1"/>
+
+        <text x="470" y="260" fill="#9BA3B0" font-size="11" text-anchor="middle">Every node contributes the same building blocks — together they form one logical, highly available storage system</text>
+      </svg>
+      <div class="cap">CLUSTER → NODES → SHARED BUILDING BLOCKS (AGGREGATES, VOLUMES, SVMs, LIFs, PROTOCOLS, SNAPSHOTS, SNAPMIRROR)</div>
+    </div>
+
+    <div class="grid cols-3">
+      <div class="card"><h3><span class="tag teal">Cluster</span></h3><p>A group of NetApp nodes managed as one system — provides scalability, high availability, and non-disruptive operations.</p></div>
+      <div class="card"><h3><span class="tag">Node</span></h3><p>A physical or virtual controller with CPU, memory, network ports, and disk shelves. Nodes pair up so a partner can take over if one fails.</p></div>
+      <div class="card"><h3><span class="tag amber">HA Pair</span></h3><p>Two nodes connected for high availability — if one fails, its partner takes over the workload automatically.</p></div>
+      <div class="card"><h3><span class="tag">Aggregate / Local Tier</span></h3><p>A collection of physical disks grouped together to provide the raw capacity from which volumes are created.</p></div>
+      <div class="card"><h3><span class="tag">Volume</span></h3><p>The logical storage container carved out from an aggregate — where databases, VMware datastores, and file shares actually live.</p></div>
+      <div class="card"><h3><span class="tag purple">SVM</span></h3><p>A Storage Virtual Machine — a logical storage server inside ONTAP, with its own LIFs, volumes, protocols, and security settings.</p></div>
+    </div>
+
+    <div class="card" style="margin-top:14px;">
+      <h3>Basic data access flow — example: CIFS / NFS</h3>
+      <p>1) Client/application sends a request to an ONTAP data LIF → 2) the LIF belongs to an SVM → 3) the SVM checks protocol and security settings → 4) the request is directed to the correct volume → 5) the volume reads/writes data from the underlying aggregate/local tier → 6) ONTAP returns data back to the client.</p>
+    </div>
+
+    <div class="grid cols-2" style="margin-top:14px;">
+      <div class="card">
+        <h3>Data protection building blocks</h3>
+        <p><b style="color:var(--ink)">Snapshot</b> — a point-in-time copy of data, used for fast recovery, file restores, volume restores, and ransomware recovery.<br><br>
+        <b style="color:var(--ink)">SnapMirror</b> — replication between source and destination ONTAP systems, used for disaster recovery, data migration, and remote copies.<br><br>
+        <b style="color:var(--ink)">SnapVault</b> — a backup relationship (depending on ONTAP version/design) used for longer-term backup retention.</p>
+      </div>
+      <div class="card">
+        <h3>Common health checks to run</h3>
+        <p>Cluster health · node health · HA status · aggregate capacity · volume status · SVM status · LIF status · protocol status · disk health · snapshot usage · SnapMirror status · network port status · performance (latency, IOPS, throughput).</p>
+      </div>
+    </div>
+
+    <div class="qa-block">
+      <p class="q">How would you explain ONTAP architecture in an interview?</p>
+      <p class="a">NetApp ONTAP uses a clustered architecture where multiple nodes work together as a single storage system. The main components are clusters, HA pairs, aggregates or local tiers, SVMs, LIFs, and protocols. Clients access data through LIFs connected to SVMs, and data is stored in volumes created from aggregates. ONTAP also provides high availability, snapshots, and replication through SnapMirror, with support for both NAS and SAN protocols.</p>
+    </div>
+  </section>
+
+  <!-- 05 CIFS/SMB -->
+  <section id="cifs">
+    <div class="sec-head">
+      <span class="sec-num">05</span>
+      <h2 class="sec-title">CIFS / SMB configuration on ONTAP</h2>
+    </div>
+    <p class="sec-dek">The protocol behind every Windows file share, department folder, and backup staging area in an enterprise NAS environment.</p>
+
+    <div class="grid cols-2" style="margin-bottom:8px;">
+      <div class="card">
+        <h3>What it is</h3>
+        <p>SMB (Server Message Block) — often still called CIFS from its earlier implementation — is the network protocol providing file-level access to Windows users and applications. A typical path looks like <span class="mono">\\fileserver01\Finance_Share</span>.</p>
+      </div>
+      <div class="card">
+        <h3>Where it shows up</h3>
+        <p>Windows file shares, department shared folders, user home directories, application file storage, backup staging folders, file server migrations, and broader enterprise NAS environments.</p>
+      </div>
+    </div>
+
+    <div class="diagram-frame">
+      <svg viewBox="0 0 940 260" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="CIFS SMB configuration flow showing eight steps from creating an SVM to testing client access">
+        <g font-size="11">
+          <!-- 8 steps in a row, wrapping -->
+          <rect x="20" y="30" width="155" height="52" rx="8" fill="#232936" stroke="#3DDC97"/>
+          <text x="97" y="52" fill="#3DDC97" text-anchor="middle">1 · Create / use SVM</text>
+          <text x="97" y="68" fill="#9BA3B0" font-size="9.5" text-anchor="middle">storage virtual machine</text>
+
+          <rect x="195" y="30" width="155" height="52" rx="8" fill="#232936" stroke="#5B8DEF"/>
+          <text x="272" y="52" fill="#5B8DEF" text-anchor="middle">2 · Configure data LIF</text>
+          <text x="272" y="68" fill="#9BA3B0" font-size="9.5" text-anchor="middle">for client access</text>
+
+          <rect x="370" y="30" width="155" height="52" rx="8" fill="#232936" stroke="#E8A23D"/>
+          <text x="447" y="52" fill="#E8A23D" text-anchor="middle">3 · Join AD domain</text>
+          <text x="447" y="68" fill="#9BA3B0" font-size="9.5" text-anchor="middle">SVM ↔ Active Directory</text>
+
+          <rect x="545" y="30" width="155" height="52" rx="8" fill="#232936" stroke="#9B7EDE"/>
+          <text x="622" y="52" fill="#9B7EDE" text-anchor="middle">4 · Create a volume</text>
+          <text x="622" y="68" fill="#9BA3B0" font-size="9.5" text-anchor="middle">backing storage container</text>
+
+          <rect x="720" y="30" width="200" height="52" rx="8" fill="#232936" stroke="#E8634D"/>
+          <text x="820" y="52" fill="#E8634D" text-anchor="middle">5 · Create CIFS/SMB share</text>
+          <text x="820" y="68" fill="#9BA3B0" font-size="9.5" text-anchor="middle">exposes the volume</text>
+
+          <rect x="20" y="110" width="200" height="52" rx="8" fill="#232936" stroke="#3DDC97"/>
+          <text x="120" y="132" fill="#3DDC97" text-anchor="middle">6 · Set share-level perms</text>
+          <text x="120" y="148" fill="#9BA3B0" font-size="9.5" text-anchor="middle">controls access at share level</text>
+
+          <rect x="240" y="110" width="200" height="52" rx="8" fill="#232936" stroke="#5B8DEF"/>
+          <text x="340" y="132" fill="#5B8DEF" text-anchor="middle">7 · Set NTFS permissions</text>
+          <text x="340" y="148" fill="#9BA3B0" font-size="9.5" text-anchor="middle">folder / file-level access</text>
+
+          <rect x="460" y="110" width="200" height="52" rx="8" fill="#232936" stroke="#E8A23D"/>
+          <text x="560" y="132" fill="#E8A23D" text-anchor="middle">8 · Test from Windows client</text>
+          <text x="560" y="148" fill="#9BA3B0" font-size="9.5" text-anchor="middle">confirm access end-to-end</text>
+        </g>
+
+        <text x="470" y="210" fill="#9BA3B0" font-size="11" text-anchor="middle">Both share permissions AND NTFS permissions apply — the more restrictive of the two wins</text>
+      </svg>
+      <div class="cap">SVM → DATA LIF → AD JOIN → VOLUME → SHARE → SHARE PERMS → NTFS PERMS → CLIENT TEST</div>
+    </div>
+
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>Requirements before you start</h3>
+        <p>An existing or new SVM · a data LIF for client access · Active Directory and DNS reachability · firewall rules allowing TCP 445 · AD users/groups already provisioned for permissions.</p>
+      </div>
+      <div class="card">
+        <h3>Key concepts to keep straight</h3>
+        <p><b style="color:var(--ink)">SVM</b> hosts the CIFS service · <b style="color:var(--ink)">CIFS server</b> is the SMB identity created inside the SVM · <b style="color:var(--ink)">Data LIF</b> is the network interface clients connect through · <b style="color:var(--ink)">Share permission</b> vs. <b style="color:var(--ink)">NTFS permission</b> control access at different layers · <b style="color:var(--ink)">UNC path</b> (<span class="mono">\\server-name\share-name</span>) is how clients reach the share.</p>
+      </div>
+    </div>
+
+    <table style="margin-top:16px;">
+      <tr><th>Symptom</th><th>Likely cause to check</th></tr>
+      <tr><td class="k">Can't resolve server name</td><td>DNS resolution issue — confirm forward/reverse records exist and are reachable from the client.</td></tr>
+      <tr><td class="k">Authentication failures</td><td>AD domain join failure, or the SVM's machine account isn't healthy in AD.</td></tr>
+      <tr><td class="k">Access denied despite valid login</td><td>Incorrect share-level permissions, or NTFS folder/file permissions blocking the user.</td></tr>
+      <tr><td class="k">Connects intermittently or times out</td><td>Data LIF connectivity issue, or a routing/network path problem to the SVM.</td></tr>
+      <tr><td class="k">Can't reach the share at all</td><td>Firewall blocking TCP 445, or the user/group isn't part of the required AD group.</td></tr>
+      <tr><td class="k">Share simply isn't there</td><td>The SMB service on the SVM isn't running — verify CIFS server status.</td></tr>
+    </table>
+
+    <div class="checklist">
+      <li><b>SMB/CIFS</b> is the primary protocol for Windows file sharing in enterprise NAS environments.</li>
+      <li>Proper configuration of the <b>SVM, LIF, AD join, share, and permissions</b> all have to line up — a gap in any one breaks access.</li>
+      <li><b>Share permissions and NTFS permissions</b> both apply simultaneously; plan for the more restrictive one to govern actual access.</li>
+      <li>Always validate access <b>from an actual Windows client</b>, not just from the storage side — many issues only surface client-side.</li>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Internal knowledge-portal reference combining core networking fundamentals with NetApp ONTAP architecture and CIFS/SMB configuration — written as a study and quick-reference guide. Validate protocol ports, ONTAP behavior, and AD/DNS requirements against current NetApp and vendor documentation for your specific environment and ONTAP version.</p>
+  </div>
+</footer>
+
+</body>
+</html>

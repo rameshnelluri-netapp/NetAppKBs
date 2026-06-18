@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rubrik — Backup Administrator Field Guide</title>
+<style>
+  :root{
+    --bg: #12161C;
+    --panel: #1A1F27;
+    --panel-raised: #212833;
+    --line: #2C3340;
+    --ink: #ECEAE4;
+    --ink-dim: #9CA4B1;
+    --ink-faint: #5E6775;
+    --teal: #2FBE91;
+    --teal-dim: #1B5C46;
+    --amber: #E0A23C;
+    --amber-dim: #715226;
+    --blue: #5688E8;
+    --red: #E25C46;
+    --gold: #D6A93B;
+    --silver: #9AA3B0;
+    --bronze: #C57C45;
+  }
+  *{ box-sizing: border-box; }
+  html{ scroll-behavior: smooth; }
+  body{
+    margin:0; background: var(--bg); color: var(--ink);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    line-height:1.6; -webkit-font-smoothing:antialiased;
+  }
+  @media (prefers-reduced-motion: reduce){ *{ animation-duration:0.01ms !important; transition-duration:0.01ms !important; } }
+  h1,h2,h3{ font-family:'Space Grotesk','Inter',sans-serif; letter-spacing:-0.01em; margin:0; }
+  .mono{ font-family:'IBM Plex Mono','Courier New',monospace; }
+  a{ color: var(--teal); text-decoration:none; }
+  a:hover{ text-decoration:underline; }
+  a:focus-visible, button:focus-visible{ outline:2px solid var(--teal); outline-offset:3px; }
+
+  .wrap{ max-width: 1040px; margin:0 auto; padding: 0 28px; }
+
+  nav.toc{
+    position: sticky; top:0; z-index: 50;
+    background: rgba(18,22,28,0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  nav.toc .inner{ max-width:1040px; margin:0 auto; padding:14px 28px; display:flex; gap:18px; flex-wrap:wrap; align-items:center; }
+  nav.toc .brand{ font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:0.92rem; color: var(--ink); margin-right:8px; }
+  nav.toc a{ font-family:'IBM Plex Mono',monospace; font-size:11.5px; color: var(--ink-dim); padding:5px 10px; border-radius:6px; border:1px solid transparent; }
+  nav.toc a:hover{ color: var(--ink); border-color: var(--line); text-decoration:none; background: var(--panel); }
+
+  header.hero{ position:relative; padding:76px 0 52px; border-bottom:1px solid var(--line); overflow:hidden; }
+  header.hero::before{
+    content:""; position:absolute; inset:-40% -10% auto -10%; height:600px;
+    background: radial-gradient(circle at 25% 30%, rgba(47,190,145,0.10), transparent 60%);
+    pointer-events:none;
+  }
+  .eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:12.5px; letter-spacing:0.14em; text-transform:uppercase; color: var(--teal); display:flex; align-items:center; gap:10px; margin-bottom:20px; }
+  .eyebrow .dot{ width:7px; height:7px; border-radius:50%; background: var(--teal); box-shadow:0 0 0 4px rgba(47,190,145,0.15); }
+  h1.title{ font-size: clamp(2rem, 4.4vw, 3.1rem); font-weight:600; line-height:1.1; max-width:780px; }
+  h1.title em{ font-style:normal; color: var(--ink-dim); font-weight:400; }
+  .subhead{ margin-top:18px; max-width:640px; color: var(--ink-dim); font-size:1.04rem; }
+  .hero-meta{ margin-top:30px; display:flex; gap:24px; flex-wrap:wrap; font-family:'IBM Plex Mono',monospace; font-size:12px; color: var(--ink-faint); }
+
+  section{ padding: 58px 0; border-bottom: 1px solid var(--line); }
+  section:last-of-type{ border-bottom:none; }
+
+  .sec-head{ display:flex; align-items:baseline; gap:16px; margin-bottom:28px; }
+  .sec-num{ font-family:'IBM Plex Mono',monospace; font-size:13px; color: var(--ink-faint); white-space:nowrap; }
+  h2.sec-title{ font-size:1.5rem; font-weight:600; }
+  .sec-dek{ color: var(--ink-dim); max-width:660px; margin:-14px 0 26px; font-size:0.97rem; }
+
+  .grid{ display:grid; gap:14px; }
+  .grid.cols-2{ grid-template-columns: repeat(2,1fr); }
+  .grid.cols-3{ grid-template-columns: repeat(3,1fr); }
+  .grid.cols-4{ grid-template-columns: repeat(4,1fr); }
+  @media (max-width:760px){ .grid.cols-2,.grid.cols-3,.grid.cols-4{ grid-template-columns:1fr; } }
+
+  .card{ background: var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px 20px; }
+  .card h3{ font-size:0.96rem; margin-bottom:6px; display:flex; align-items:center; gap:9px; }
+  .card p{ color: var(--ink-dim); font-size:0.88rem; margin:0; }
+  .tag{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color: var(--teal); background: rgba(47,190,145,0.08); border:1px solid var(--teal-dim); padding:2px 7px; border-radius:5px; }
+  .tag.amber{ color: var(--amber); background: rgba(224,162,60,0.08); border-color: var(--amber-dim); }
+  .tag.blue{ color: var(--blue); background: rgba(86,136,232,0.08); border-color: #2E4A7A; }
+  .tag.red{ color: var(--red); background: rgba(226,92,70,0.08); border-color: #7A3328; }
+
+  /* SLA tier cards */
+  .sla-row{ display:grid; grid-template-columns: repeat(3,1fr); gap:14px; margin-top: 8px; }
+  @media (max-width:760px){ .sla-row{ grid-template-columns:1fr; } }
+  .sla-card{ border-radius:10px; padding:18px 20px; border:1px solid var(--line); background: var(--panel); }
+  .sla-card .medal{ display:inline-flex; align-items:center; gap:8px; font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; padding:3px 10px; border-radius:20px; margin-bottom:10px; }
+  .sla-card.gold .medal{ background: rgba(214,169,59,0.12); color: var(--gold); border:1px solid #6B5526; }
+  .sla-card.silver .medal{ background: rgba(154,163,176,0.12); color: var(--silver); border:1px solid #4B5360; }
+  .sla-card.bronze .medal{ background: rgba(197,124,69,0.12); color: var(--bronze); border:1px solid #6B4A2C; }
+  .sla-card h4{ font-size:0.95rem; margin: 0 0 6px; color: var(--ink); }
+  .sla-card p{ font-size:0.85rem; color: var(--ink-dim); margin:0; }
+
+  .diagram-frame{ background: var(--panel); border:1px solid var(--line); border-radius:12px; padding:24px; margin:24px 0; }
+  .diagram-frame .cap{ font-family:'IBM Plex Mono',monospace; font-size:11px; color: var(--ink-faint); margin-top:14px; text-align:center; letter-spacing:0.03em; }
+  svg text{ font-family:'IBM Plex Mono',monospace; }
+
+  table{ width:100%; border-collapse:collapse; font-size:0.9rem; }
+  table th{ text-align:left; font-family:'IBM Plex Mono',monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color: var(--ink-faint); padding:10px 14px; border-bottom:1px solid var(--line); }
+  table td{ padding:12px 14px; border-bottom:1px solid var(--line); color: var(--ink-dim); vertical-align:top; }
+  table td.k{ color: var(--ink); font-weight:500; white-space:nowrap; }
+  table tr:last-child td{ border-bottom:none; }
+
+  .step-flow{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin: 18px 0; }
+  .step-flow .step{
+    flex:1; min-width: 120px;
+    background: var(--panel-raised); border:1px solid var(--line); border-radius:10px;
+    padding: 14px 12px; text-align:center;
+  }
+  .step-flow .step .n{ font-family:'IBM Plex Mono',monospace; color: var(--teal); font-size:11px; margin-bottom:4px; }
+  .step-flow .step .t{ font-size:0.84rem; color: var(--ink); font-weight:500; }
+  .step-flow .arrow{ color: var(--ink-faint); font-size: 1.1rem; flex-shrink:0; }
+  @media (max-width:760px){ .step-flow{ flex-direction:column; } .step-flow .arrow{ transform: rotate(90deg); } }
+
+  .step-row{ display:flex; gap:16px; padding:16px 0; border-bottom:1px solid var(--line); }
+  .step-row:last-child{ border-bottom:none; }
+  .step-row .num{ flex-shrink:0; width:30px; height:30px; border-radius:50%; background: var(--panel-raised); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono',monospace; font-size:12.5px; color: var(--teal); }
+  .step-row h3{ font-size:0.96rem; margin-bottom:4px; }
+  .step-row p{ color: var(--ink-dim); font-size:0.88rem; margin:0; }
+
+  .checklist{ list-style:none; margin:18px 0 0; padding:0; display:grid; gap:9px; }
+  .checklist li{ display:flex; gap:11px; align-items:flex-start; background: var(--panel); border:1px solid var(--line); border-radius:8px; padding:11px 15px; font-size:0.89rem; color: var(--ink-dim); }
+  .checklist li::before{ content:"✓"; color: var(--teal); font-weight:700; flex-shrink:0; font-family:'IBM Plex Mono',monospace; }
+  .checklist li b{ color: var(--ink); }
+
+  .qa-block{ background: var(--panel); border:1px solid var(--line); border-radius:10px; padding:20px 22px; margin-top:16px; }
+  .qa-block .q{ font-weight:600; color: var(--ink); margin-bottom:9px; font-size:0.95rem; }
+  .qa-block .q::before{ content:"Q. "; color: var(--blue); font-family:'IBM Plex Mono',monospace; }
+  .qa-block .a{ color: var(--ink-dim); font-size:0.9rem; margin:0; }
+
+  .severity-grid{ display:grid; grid-template-columns: repeat(4,1fr); gap:10px; margin-top:14px; }
+  @media (max-width:760px){ .severity-grid{ grid-template-columns: repeat(2,1fr); } }
+  .sev{ border-radius:8px; padding:12px 14px; font-size:0.82rem; border:1px solid var(--line); }
+  .sev.sev1{ background: rgba(226,92,70,0.1); border-color:#7A3328; color:#F0A998; }
+  .sev.sev2{ background: rgba(224,162,60,0.1); border-color: var(--amber-dim); color:#F0CB8E; }
+  .sev.sev3{ background: rgba(86,136,232,0.1); border-color:#2E4A7A; color:#A9C2F0; }
+  .sev.sev4{ background: rgba(47,190,145,0.1); border-color: var(--teal-dim); color:#8FE0C5; }
+  .sev b{ display:block; font-family:'IBM Plex Mono',monospace; margin-bottom:3px; }
+
+  footer{ padding:42px 0 72px; color: var(--ink-faint); font-size:0.84rem; }
+  footer a{ color: var(--ink-dim); }
+  ::selection{ background: rgba(47,190,145,0.25); }
+</style>
+</head>
+<body>
+
+<nav class="toc">
+  <div class="inner">
+    <span class="brand">Rubrik Field Guide</span>
+    <a href="#sla">SLA Domains</a>
+    <a href="#vmware">VMware Backup</a>
+    <a href="#nas">NAS Backup</a>
+    <a href="#cloudout">CloudOut Archival</a>
+    <a href="#health">Health Checks</a>
+    <a href="#troubleshoot">Troubleshooting</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow"><span class="dot"></span>RUBRIK · BACKUP ADMINISTRATOR FIELD GUIDE</div>
+    <h1 class="title">How Rubrik actually<br><em>protects your workloads</em></h1>
+    <p class="subhead">SLA Domains, VMware backup mechanics, NAS protection, cloud archival, daily health discipline, and the troubleshooting playbook for when a job fails.</p>
+    <div class="hero-meta">
+      <span>POLICY&nbsp;·&nbsp;SLA Domains</span>
+      <span>WORKLOADS&nbsp;·&nbsp;VMware &amp; NAS</span>
+      <span>LIFECYCLE&nbsp;·&nbsp;Archive, Health, Recovery</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- 01 SLA DOMAINS -->
+  <section id="sla">
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2 class="sec-title">SLA Domains explained</h2>
+    </div>
+    <p class="sec-dek">The single policy object that replaces manually scheduling backups for every server or VM.</p>
+
+    <div class="grid cols-2" style="margin-bottom: 6px;">
+      <div class="card">
+        <h3>What it is</h3>
+        <p>An SLA Domain is a policy-based backup rule. Instead of configuring backup frequency, retention, replication, and archival separately for every workload, you define those settings once in an SLA Domain and assign it to whatever needs that protection level — VMs, databases, filesets, or NAS shares.</p>
+      </div>
+      <div class="card">
+        <h3>Why it matters</h3>
+        <p>It simplifies backup management, ensures policy-based protection across the environment, improves compliance, supports automation, reduces manual configuration, and makes large environments far easier to manage and audit.</p>
+      </div>
+    </div>
+
+    <div class="diagram-frame">
+      <svg viewBox="0 0 900 200" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram showing how an SLA Domain governs backup frequency, retention, replication, and archival for VMs, databases, and filesets">
+        <rect x="40" y="60" width="260" height="80" rx="10" fill="#1A1F27" stroke="#2C3340"/>
+        <text x="170" y="84" fill="#ECEAE4" font-size="12" text-anchor="middle">Workloads</text>
+        <text x="170" y="104" fill="#9CA4B1" font-size="10" text-anchor="middle">VMs · Databases · Filesets · NAS Shares</text>
+
+        <line x1="300" y1="100" x2="380" y2="100" stroke="#5E6775" stroke-width="1.3" marker-end="url(#arrS)"/>
+
+        <rect x="380" y="50" width="180" height="100" rx="10" fill="#212833" stroke="#2FBE91" stroke-width="1.5"/>
+        <text x="470" y="78" fill="#2FBE91" font-size="12" text-anchor="middle">SLA DOMAIN</text>
+        <text x="470" y="98" fill="#9CA4B1" font-size="9.5" text-anchor="middle">frequency · retention</text>
+        <text x="470" y="112" fill="#9CA4B1" font-size="9.5" text-anchor="middle">replication · archival</text>
+        <text x="470" y="126" fill="#9CA4B1" font-size="9.5" text-anchor="middle">compliance monitoring</text>
+
+        <line x1="560" y1="100" x2="640" y2="100" stroke="#5E6775" stroke-width="1.3" marker-end="url(#arrS)"/>
+
+        <rect x="640" y="60" width="220" height="80" rx="10" fill="#1A1F27" stroke="#2C3340"/>
+        <text x="750" y="84" fill="#ECEAE4" font-size="12" text-anchor="middle">Automated Outcomes</text>
+        <text x="750" y="104" fill="#9CA4B1" font-size="10" text-anchor="middle">snapshots · replication · archive</text>
+
+        <defs><marker id="arrS" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#5E6775"/></marker></defs>
+      </svg>
+      <div class="cap">ASSIGN ONCE — RUBRIK HANDLES SNAPSHOTS, RETENTION, REPLICATION, AND ARCHIVAL FROM THERE</div>
+    </div>
+
+    <h3 style="margin: 28px 0 4px; font-size:1.05rem;">Common SLA types</h3>
+    <div class="sla-row">
+      <div class="sla-card gold"><div class="medal">🥇 Gold SLA</div><h4>Critical production workloads</h4><p>Mission-critical databases, ERP systems, payment applications — shortest RPO, longest retention.</p></div>
+      <div class="sla-card silver"><div class="medal">🥈 Silver SLA</div><h4>Medium-priority applications</h4><p>Application servers, internal tools, reporting servers — balanced frequency and retention.</p></div>
+      <div class="sla-card bronze"><div class="medal">🥉 Bronze SLA</div><h4>Low-priority workloads</h4><p>Test servers, development systems, non-critical VMs — lighter protection footprint.</p></div>
+    </div>
+
+    <div class="grid cols-2" style="margin-top:22px;">
+      <div class="card">
+        <h3>SLA Domain components</h3>
+        <p>Snapshot frequency · retention period · replication target · archival location · backup window · first full backup behavior · compliance status.</p>
+      </div>
+      <div class="card">
+        <h3>Real-time example — production SQL Server</h3>
+        <p>Business requirement: back up every 4 hours, retain for 30 days, replicate to a DR site, and archive a monthly copy to cloud. Assign the SQL Server to a <span class="mono">Gold_SLA</span> domain configured with exactly those parameters — Rubrik then runs snapshots, replication, and archival automatically with no per-server scheduling required.</p>
+      </div>
+    </div>
+
+    <div class="qa-block">
+      <p class="q">What is an SLA Domain in Rubrik?</p>
+      <p class="a">An SLA Domain in Rubrik is a policy-based backup configuration that defines how frequently data should be backed up, how long it should be retained, whether it should be replicated or archived, and whether the workload is compliant with the defined protection policy.</p>
+    </div>
+  </section>
+
+  <!-- 02 VMWARE BACKUP WORKFLOW -->
+  <section id="vmware">
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2 class="sec-title">VMware backup workflow in Rubrik</h2>
+    </div>
+    <p class="sec-dek">From vCenter discovery to indexed, restorable recovery points — eight stages, mostly automated.</p>
+
+    <div class="step-row">
+      <div class="num">1</div>
+      <div><h3>Add vCenter to Rubrik</h3><p>Rubrik connects to vCenter and discovers ESXi hosts, clusters, datastores, folders, tags, and VMs.</p></div>
+    </div>
+    <div class="step-row">
+      <div class="num">2</div>
+      <div><h3>Assign SLA Domain</h3><p>The VM is assigned to an SLA Domain manually, or automatically through folder-, cluster-, host-, or tag-based rules.</p></div>
+    </div>
+    <div class="step-row">
+      <div class="num">3</div>
+      <div><h3>Rubrik triggers a snapshot</h3><p>During backup, Rubrik creates a VMware snapshot using VMware APIs. The first backup is always full; later backups use Changed Block Tracking (CBT) for incrementals.</p></div>
+    </div>
+    <div class="step-row">
+      <div class="num">4</div>
+      <div><h3>Data transfer to the Rubrik cluster</h3><p>Changed data blocks are transferred from the VMware environment to the Rubrik cluster, using the best available transport mode (commonly NBDSSL).</p></div>
+    </div>
+    <div class="step-row">
+      <div class="num">5</div>
+      <div><h3>Deduplication and compression</h3><p>Rubrik stores the backup efficiently using global deduplication and compression across the cluster.</p></div>
+    </div>
+    <div class="step-row">
+      <div class="num">6</div>
+      <div><h3>Snapshot removal</h3><p>After the backup completes, the VMware-level snapshot is removed to avoid datastore growth or VM performance impact.</p></div>
+    </div>
+    <div class="step-row">
+      <div class="num">7</div>
+      <div><h3>Indexing and cataloging</h3><p>Rubrik indexes metadata so individual files, folders, or full VMs can be searched and restored quickly later.</p></div>
+    </div>
+    <div class="step-row">
+      <div class="num">8</div>
+      <div><h3>Restore options</h3><p>From the same backup, you can perform a full VM restore, instant recovery / live mount, file-level recovery, disk export, or restore to an alternate location.</p></div>
+    </div>
+
+    <div class="qa-block">
+      <p class="q">How would you summarize this workflow in an interview?</p>
+      <p class="a">In Rubrik, VMware backups are SLA-based. First we add vCenter to Rubrik, then Rubrik discovers the VMware inventory. We assign an SLA Domain to the VM, or use automatic protection through folders, clusters, hosts, or tags. When the backup runs, Rubrik takes a VMware snapshot, takes the first backup full, and uses CBT-based incrementals afterward. Data is transferred to the Rubrik cluster, stored efficiently, indexed, and made available for restore. After backup completion, the VMware-level snapshot is removed.</p>
+    </div>
+  </section>
+
+  <!-- 03 NAS BACKUP -->
+  <section id="nas">
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2 class="sec-title">NAS backup in Rubrik</h2>
+    </div>
+    <p class="sec-dek">Protecting NFS and SMB shares — from NetApp, Isilon, Windows File Server, and Linux NAS exports — with the same policy-driven model.</p>
+
+    <div class="step-flow">
+      <div class="step"><div class="n">1</div><div class="t">Add NAS Share</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">2</div><div class="t">Create Fileset</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">3</div><div class="t">Assign SLA Domain</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">4</div><div class="t">Run Backup &amp; Monitor</div></div>
+      <div class="arrow">→</div>
+      <div class="step"><div class="n">5</div><div class="t">Restore Files / Folders</div></div>
+    </div>
+
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>Adding a NAS share</h3>
+        <p>Choose share type (NFS or SMB), provide the hostname/IP and export path, give it a display name, and supply credentials — typically a username/password with sufficient read access for backup, plus write access on the target if restores will land there.</p>
+      </div>
+      <div class="card">
+        <h3>Creating a fileset</h3>
+        <p>A fileset names the NAS share to protect and defines include/exclude paths — for example, including <span class="mono">/data</span> and <span class="mono">/reports</span> while excluding <span class="mono">/temp</span> and <span class="mono">/cache</span> to skip transient data.</p>
+      </div>
+    </div>
+
+    <table style="margin-top:16px;">
+      <tr><th>Stage</th><th>What it controls</th></tr>
+      <tr><td class="k">SLA Domain assignment</td><td>Sets backup frequency, retention period, replication, and archival for the fileset — same model as VM or database protection.</td></tr>
+      <tr><td class="k">On-demand backup</td><td>Run a backup outside the schedule when needed, and monitor it through the standard job activity view.</td></tr>
+      <tr><td class="k">Browse backup snapshot</td><td>Drill into a point-in-time snapshot to see exactly which files and folders were captured, down to size and path.</td></tr>
+      <tr><td class="k">Restore</td><td>Restore individual files/folders to original location or an alternate path, choosing whether to overwrite existing data.</td></tr>
+    </table>
+
+    <div class="grid cols-3" style="margin-top:16px;">
+      <div class="card"><h3>Types of NAS supported</h3><p>NFS (Linux/Unix NAS exports) and SMB (Windows File Server shares).</p></div>
+      <div class="card"><h3>Permissions required</h3><p>Backup needs read access to the share; restore needs write access to the destination.</p></div>
+      <div class="card"><h3>Key point for NetApp</h3><p>SnapDiff-style integration (where supported) helps speed up incremental backups by leveraging the storage array's own change-tracking rather than a full file walk.</p></div>
+    </div>
+
+    <div class="checklist">
+      <li>Rubrik supports NAS backup for <b>both NFS and SMB</b> shares.</li>
+      <li>Filesets define <b>exactly what to include or exclude</b> within a share.</li>
+      <li>The <b>SLA Domain</b> controls backup frequency, retention, and replication — same as any other protected object.</li>
+      <li><b>Read access is required for backup; write access is required for restore</b> — keep credentials scoped accordingly.</li>
+      <li>File-level restore lets you recover <b>specific files or folders</b> without restoring an entire share.</li>
+    </div>
+  </section>
+
+  <!-- 04 CLOUDOUT -->
+  <section id="cloudout">
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <h2 class="sec-title">CloudOut archival explained</h2>
+    </div>
+    <p class="sec-dek">Rubrik's mechanism for moving aging backup snapshots off local storage and into cheaper, longer-term archive targets.</p>
+
+    <p style="color:var(--ink-dim); max-width:700px;">CloudOut is Rubrik's archival capability — it moves older backup snapshots from on-prem Rubrik storage to cloud or external archive storage for long-term retention, governed entirely by the archive policy configured inside an SLA Domain.</p>
+
+    <div class="diagram-frame">
+      <svg viewBox="0 0 940 220" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="CloudOut archival flow showing production workloads being snapshotted, governed by SLA policy, and archived to cloud targets for long-term retention">
+        <g font-size="10.5">
+          <rect x="20" y="70" width="140" height="60" rx="8" fill="#1A1F27" stroke="#2C3340"/>
+          <text x="90" y="94" fill="#ECEAE4" text-anchor="middle">Production</text>
+          <text x="90" y="108" fill="#ECEAE4" text-anchor="middle">Workloads</text>
+          <text x="90" y="122" fill="#9CA4B1" font-size="9" text-anchor="middle">VMs / DBs / Files</text>
+
+          <rect x="190" y="70" width="140" height="60" rx="8" fill="#212833" stroke="#2FBE91"/>
+          <text x="260" y="94" fill="#2FBE91" text-anchor="middle">Rubrik Local</text>
+          <text x="260" y="108" fill="#2FBE91" text-anchor="middle">Snapshot</text>
+          <text x="260" y="122" fill="#9CA4B1" font-size="9" text-anchor="middle">fast restore copy</text>
+
+          <rect x="360" y="70" width="140" height="60" rx="8" fill="#1A1F27" stroke="#2C3340"/>
+          <text x="430" y="94" fill="#ECEAE4" text-anchor="middle">SLA Domain /</text>
+          <text x="430" y="108" fill="#ECEAE4" text-anchor="middle">Archive Policy</text>
+          <text x="430" y="122" fill="#9CA4B1" font-size="9" text-anchor="middle">decides timing</text>
+
+          <rect x="530" y="60" width="180" height="80" rx="8" fill="#212833" stroke="#5688E8" stroke-dasharray="4 3"/>
+          <text x="620" y="84" fill="#5688E8" text-anchor="middle">Archive Target</text>
+          <text x="620" y="100" fill="#9CA4B1" font-size="9" text-anchor="middle">AWS S3 / Azure Blob</text>
+          <text x="620" y="113" fill="#9CA4B1" font-size="9" text-anchor="middle">GCP / NFS / Tape</text>
+
+          <rect x="750" y="70" width="170" height="60" rx="8" fill="#1A1F27" stroke="#2C3340"/>
+          <text x="835" y="94" fill="#ECEAE4" text-anchor="middle">Long-Term</text>
+          <text x="835" y="108" fill="#ECEAE4" text-anchor="middle">Retention</text>
+          <text x="835" y="122" fill="#9CA4B1" font-size="9" text-anchor="middle">compliance / DR copy</text>
+        </g>
+
+        <line x1="160" y1="100" x2="190" y2="100" stroke="#5E6775" stroke-width="1.3" marker-end="url(#arrC)"/>
+        <line x1="330" y1="100" x2="360" y2="100" stroke="#5E6775" stroke-width="1.3" marker-end="url(#arrC)"/>
+        <line x1="500" y1="100" x2="530" y2="100" stroke="#5E6775" stroke-width="1.3" marker-end="url(#arrC)"/>
+        <line x1="710" y1="100" x2="750" y2="100" stroke="#5E6775" stroke-width="1.3" marker-end="url(#arrC)"/>
+        <defs><marker id="arrC" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#5E6775"/></marker></defs>
+      </svg>
+      <div class="cap">PRODUCTION → LOCAL SNAPSHOT → SLA-DRIVEN ARCHIVE POLICY → ARCHIVE TARGET → LONG-TERM RETENTION</div>
+    </div>
+
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>How it works</h3>
+        <p>Rubrik first takes a local backup snapshot. The SLA Domain decides when that snapshot should be archived. The data is then copied to the configured archive location, and Rubrik retains the archive copy according to the retention policy. During a restore, Rubrik can retrieve the required snapshot back from the archive location as needed.</p>
+      </div>
+      <div class="card">
+        <h3>Why CloudOut is used</h3>
+        <p>Long-term retention for compliance · cost optimization versus keeping everything on local fast storage · an offsite DR copy · a modern replacement for physical tape · and keeping local Rubrik storage free for faster, more recent recovery points.</p>
+      </div>
+    </div>
+
+    <table style="margin-top:16px;">
+      <tr><th>Area</th><th>What it means</th></tr>
+      <tr><td class="k">Local snapshot</td><td>Used for fast backup and quick restore — the first line of recovery.</td></tr>
+      <tr><td class="k">CloudOut archive</td><td>Used for long-term, lower-cost storage — not the fastest path to restore.</td></tr>
+      <tr><td class="k">SLA Domain</td><td>Controls both backup frequency and archive retention/timing in one place.</td></tr>
+      <tr><td class="k">Archive target</td><td>AWS S3, Azure Blob, GCP, generic object storage, NFS, or tape.</td></tr>
+      <tr><td class="k">Restore impact</td><td>Restoring from archive typically takes longer than restoring from local Rubrik storage.</td></tr>
+      <tr><td class="k">Security</td><td>Rubrik uses encrypted transfer where possible, and can dedupe, compress, and encrypt archived data depending on what the target supports.</td></tr>
+    </table>
+
+    <div class="qa-block">
+      <p class="q">Key takeaway</p>
+      <p class="a">Local backup is for fast restore. CloudOut archive is for long-term retention and offsite protection. They serve different purposes in the same recovery strategy, not interchangeable copies of the same thing.</p>
+    </div>
+  </section>
+
+  <!-- 05 DAILY HEALTH CHECKS -->
+  <section id="health">
+    <div class="sec-head">
+      <span class="sec-num">05</span>
+      <h2 class="sec-title">Daily health checks in Rubrik</h2>
+    </div>
+    <p class="sec-dek">The backup administrator's job isn't done once schedules are configured — it continues every single day.</p>
+
+    <p style="color:var(--ink-dim); max-width:700px;">Daily health checks verify that the backup environment is stable, protected, and ready for recovery — covering backup job status, SLA compliance, cluster health, storage usage, replication status, and any security-related alerts.</p>
+
+    <div class="grid cols-4" style="margin-top: 18px;">
+      <div class="card"><h3>Early issue detection</h3><p>Catch problems before they compound into a missed recovery point.</p></div>
+      <div class="card"><h3>Improved backup success rate</h3><p>Consistent monitoring catches drift before it becomes a pattern of failures.</p></div>
+      <div class="card"><h3>Better SLA compliance</h3><p>Keeps protection commitments measurable and auditable.</p></div>
+      <div class="card"><h3>Faster troubleshooting</h3><p>Daily familiarity with the environment shortens diagnosis time when something does break.</p></div>
+    </div>
+
+    <h3 style="margin: 26px 0 4px; font-size:1.05rem;">Daily health check list</h3>
+    <div class="checklist">
+      <li><b>Backup job failures</b> — check for failed or warning states across backup jobs.</li>
+      <li><b>SLA Domain compliance</b> — confirm SLA domains are at or near 100% compliant.</li>
+      <li><b>Protected and unprotected workloads</b> — review anything newly added that isn't yet protected.</li>
+      <li><b>Cluster node health</b> — ensure all nodes are healthy and connected.</li>
+      <li><b>Storage capacity usage</b> — monitor consumption trends before they become urgent.</li>
+      <li><b>Replication and archival status</b> — verify both are completing as expected.</li>
+      <li><b>Ransomware or anomaly alerts</b> — review any threat or anomaly detections.</li>
+      <li><b>Snapshot availability</b> — confirm snapshots are actually being created on schedule.</li>
+      <li><b>Failed recovery points</b> — check for any gaps in recoverable history.</li>
+      <li><b>Open alerts and warnings</b> — review and act on anything outstanding.</li>
+    </div>
+
+    <div class="qa-block">
+      <p class="q">Why this matters as a backup administrator</p>
+      <p class="a">The job isn't only to configure backups — it's to ensure backups are running successfully, recovery points are actually available, and the environment stays healthy every day. A small backup failure today can become a major recovery risk tomorrow if it isn't monitored properly.</p>
+    </div>
+  </section>
+
+  <!-- 06 TROUBLESHOOTING -->
+  <section id="troubleshoot">
+    <div class="sec-head">
+      <span class="sec-num">06</span>
+      <h2 class="sec-title">Backup failure troubleshooting</h2>
+    </div>
+    <p class="sec-dek">Failures are routine in daily operations — what matters is finding the root cause quickly, not just rerunning the job.</p>
+
+    <div class="grid cols-2">
+      <div class="card">
+        <h3>Common reasons backups fail</h3>
+        <p>Network connectivity issues · VM snapshot failure (VMware tooling, resources, or configuration) · credential or permission issues · storage capacity problems on the Rubrik cluster · SLA Domain misconfiguration · guest OS or application-level issues · replication or archival failure · temporary workload unavailability · cluster or node health issues.</p>
+      </div>
+      <div class="card">
+        <h3>The mindset that matters</h3>
+        <p>Backup failure troubleshooting isn't only about rerunning the job — it's about understanding why the job failed and preventing the same issue from happening again. As a backup administrator, monitor failed jobs daily, fix recurring issues, document root cause, and keep business-critical workloads protected.</p>
+      </div>
+    </div>
+
+    <h3 style="margin: 26px 0 8px; font-size:1.05rem;">Basic troubleshooting approach</h3>
+    <div class="step-row"><div class="num">1</div><div><h3>Check the failed job details</h3><p>Review job status and the failure summary first.</p></div></div>
+    <div class="step-row"><div class="num">2</div><div><h3>Review error message and event logs</h3><p>Check detailed error and event logs for the specific failure signature.</p></div></div>
+    <div class="step-row"><div class="num">3</div><div><h3>Verify workload availability</h3><p>Confirm the source VM or application is actually up and reachable.</p></div></div>
+    <div class="step-row"><div class="num">4</div><div><h3>Check network connectivity</h3><p>Verify connectivity between all components in the backup path.</p></div></div>
+    <div class="step-row"><div class="num">5</div><div><h3>Validate credentials and permissions</h3><p>Ensure the service account or credentials used are correct and valid.</p></div></div>
+    <div class="step-row"><div class="num">6</div><div><h3>Review SLA Domain assignment</h3><p>Verify the SLA Domain and its schedules are configured as intended.</p></div></div>
+    <div class="step-row"><div class="num">7</div><div><h3>Check Rubrik cluster health</h3><p>Ensure all nodes and services on the cluster are healthy.</p></div></div>
+    <div class="step-row"><div class="num">8</div><div><h3>Verify storage capacity</h3><p>Check capacity headroom and ensure there's enough space for the job.</p></div></div>
+    <div class="step-row"><div class="num">9</div><div><h3>Retry the failed job</h3><p>Run the job again once the underlying issue is actually fixed — not before.</p></div></div>
+    <div class="step-row"><div class="num">10</div><div><h3>Escalate if repeated failures occur</h3><p>Involve the support team if the issue persists after the steps above.</p></div></div>
+
+    <div class="qa-block">
+      <p class="q">The three-part framing worth remembering</p>
+      <p class="a"><b style="color:var(--ink)">Failure is an alert.</b> <b style="color:var(--ink)">Troubleshooting is action.</b> <b style="color:var(--ink)">A successful backup is recovery confidence.</b> Treat every failure as a signal to investigate, not just a button to retry.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Internal knowledge-portal reference on Rubrik backup administration — SLA Domains, VMware and NAS protection workflows, CloudOut archival, daily operational discipline, and failure troubleshooting. Written as a study and quick-reference guide; validate specific workflows, supported transport modes, and archive target options against current Rubrik product documentation for your platform version.</p>
+  </div>
+</footer>
+
+</body>
+</html>
