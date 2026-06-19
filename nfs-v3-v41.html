@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NFSv3 vs NFSv4.1 — A Wire-Level Field Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #EEF1EF;
+    --paper: #F8FAF9;
+    --ink: #131B1A;
+    --ink-soft: #4B5957;
+    --line: #C7D0CC;
+    --v3: #C2611B;
+    --v3-soft: #F4E2D1;
+    --v41: #126B66;
+    --v41-soft: #D8EBE9;
+    --code-bg: #101716;
+    --code-text: #E7EFEC;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:16px;
+    line-height:1.6;
+  }
+  h1,h2,h3,.mono{
+    font-family:'IBM Plex Mono', monospace;
+  }
+  a{color:var(--v41);}
+
+  /* ---------- topbar ---------- */
+  .topbar{
+    position:sticky; top:0; z-index:50;
+    background:rgba(248,250,249,0.92);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:24px;
+    padding:14px 28px;
+    overflow-x:auto;
+    white-space:nowrap;
+  }
+  .topbar .brand{
+    font-weight:700; font-size:14px; letter-spacing:0.04em;
+    color:var(--ink); margin-right:8px;
+  }
+  .topbar a{
+    color:var(--ink-soft); text-decoration:none; font-size:13px;
+    font-family:'IBM Plex Mono', monospace;
+    padding:4px 0; border-bottom:2px solid transparent;
+  }
+  .topbar a:hover{color:var(--ink); border-bottom-color:var(--v41);}
+
+  /* ---------- hero ---------- */
+  .hero{
+    max-width:1080px; margin:0 auto;
+    padding:72px 28px 40px;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--ink-soft);
+    display:flex; align-items:center; gap:10px;
+  }
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--v41);}
+  .hero h1{
+    font-size:clamp(2.1rem, 4.4vw, 3.4rem);
+    line-height:1.08;
+    margin:18px 0 14px;
+    max-width:18ch;
+  }
+  .hero h1 .v3{color:var(--v3);}
+  .hero h1 .v41{color:var(--v41);}
+  .hero p.lede{
+    max-width:62ch; color:var(--ink-soft); font-size:1.08rem;
+  }
+
+  /* ---------- wire strip (signature element) ---------- */
+  .wirestrip{
+    max-width:1080px; margin:36px auto 0; padding:0 28px;
+  }
+  .wirestrip-card{
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:22px 24px 26px;
+  }
+  .wirestrip-head{
+    display:flex; justify-content:space-between; align-items:baseline;
+    margin-bottom:14px; flex-wrap:wrap; gap:8px;
+  }
+  .wirestrip-head h3{margin:0; font-size:13px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-soft);}
+  .wirestrip-legend{font-size:12px; font-family:'IBM Plex Mono', monospace; color:var(--ink-soft); display:flex; gap:16px;}
+  .legend-chip{display:inline-flex; align-items:center; gap:6px;}
+  .legend-swatch{width:10px;height:10px;border-radius:2px;}
+  .lane{display:flex; align-items:center; gap:14px; margin:10px 0;}
+  .lane-label{width:70px; flex-shrink:0; font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--ink-soft);}
+  .lane-track{
+    position:relative; flex:1; height:34px;
+    background:repeating-linear-gradient(to right, var(--line) 0 1px, transparent 1px 80px);
+  }
+  .pkt{
+    position:absolute; top:4px; height:26px;
+    border-radius:5px; font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px; color:#fff; display:flex; align-items:center;
+    padding:0 8px; white-space:nowrap;
+    opacity:0; transform:translateY(4px);
+    animation: rise .5s ease forwards;
+  }
+  @keyframes rise{ to{opacity:1; transform:translateY(0);} }
+  .pkt.v3{background:var(--v3);}
+  .pkt.v41{background:var(--v41);}
+  .wirestrip-foot{
+    margin-top:16px; font-size:13px; color:var(--ink-soft);
+  }
+  .wirestrip-foot strong{color:var(--ink);}
+
+  /* ---------- section shell ---------- */
+  section{
+    max-width:1080px; margin:0 auto; padding:64px 28px;
+    border-top:1px solid var(--line);
+  }
+  section.no-border{border-top:none;}
+  .sec-eyebrow{
+    font-family:'IBM Plex Mono', monospace; font-size:12px;
+    letter-spacing:0.12em; text-transform:uppercase; color:var(--ink-soft);
+    margin-bottom:10px;
+  }
+  section h2{
+    font-size:clamp(1.5rem, 2.6vw, 2.05rem);
+    margin:0 0 18px;
+  }
+  section > p.intro{
+    max-width:68ch; color:var(--ink-soft); margin-bottom:32px; font-size:1.02rem;
+  }
+
+  /* ---------- compare grid ---------- */
+  .compare{
+    display:grid; grid-template-columns:1fr 1fr; gap:18px;
+  }
+  @media (max-width:760px){ .compare{grid-template-columns:1fr;} }
+  .card{
+    border-radius:10px; padding:22px 22px 24px;
+    border:1px solid var(--line); background:var(--paper);
+  }
+  .card.v3{border-top:4px solid var(--v3);}
+  .card.v41{border-top:4px solid var(--v41);}
+  .card h3{
+    margin:0 0 4px; font-size:1.15rem; display:flex; align-items:center; gap:10px;
+  }
+  .tag{
+    font-size:10.5px; font-family:'IBM Plex Mono',monospace; padding:3px 8px;
+    border-radius:99px; letter-spacing:0.04em;
+  }
+  .card.v3 .tag{background:var(--v3-soft); color:var(--v3);}
+  .card.v41 .tag{background:var(--v41-soft); color:var(--v41);}
+  .card ul{margin:14px 0 0; padding-left:20px;}
+  .card li{margin-bottom:8px; color:var(--ink-soft); font-size:0.95rem;}
+  .card li strong{color:var(--ink);}
+
+  /* ---------- code blocks ---------- */
+  pre{
+    background:var(--code-bg); color:var(--code-text);
+    border-radius:8px; padding:16px 18px;
+    overflow-x:auto; font-family:'IBM Plex Mono', monospace;
+    font-size:13px; line-height:1.6; margin:14px 0;
+  }
+  pre .c{color:#7FAE9E;} /* comment */
+  pre .p{color:#E8B463;} /* prompt */
+  code.inline{
+    background:var(--code-bg); color:var(--code-text);
+    font-family:'IBM Plex Mono', monospace; font-size:0.85em;
+    padding:2px 6px; border-radius:4px;
+  }
+  .note{
+    border-left:3px solid var(--v41);
+    background:var(--v41-soft);
+    padding:12px 16px; border-radius:6px; margin:16px 0;
+    font-size:0.93rem; color:var(--ink);
+  }
+  .warn{
+    border-left:3px solid var(--v3);
+    background:var(--v3-soft);
+  }
+
+  /* ---------- lab steps ---------- */
+  .step{
+    display:grid; grid-template-columns:44px 1fr; gap:16px;
+    margin-bottom:28px;
+  }
+  .step-num{
+    font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:14px;
+    color:var(--ink-soft); border:1px solid var(--line);
+    border-radius:50%; width:32px; height:32px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .step h4{margin:4px 0 6px; font-size:1.02rem;}
+
+  /* ---------- table ---------- */
+  table{
+    width:100%; border-collapse:collapse; margin:8px 0 0;
+    font-size:0.92rem;
+  }
+  th,td{
+    text-align:left; padding:10px 12px; border-bottom:1px solid var(--line);
+  }
+  th{
+    font-family:'IBM Plex Mono', monospace; font-size:11.5px;
+    text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft);
+  }
+  td.v3cell{color:var(--v3); font-family:'IBM Plex Mono',monospace; font-size:0.85rem;}
+  td.v41cell{color:var(--v41); font-family:'IBM Plex Mono',monospace; font-size:0.85rem;}
+
+  /* ---------- mountstats highlight ---------- */
+  .flagline{display:block;}
+  .flagline .hl{background:#FCE9C9; border-radius:3px; padding:0 3px;}
+
+  footer{
+    max-width:1080px; margin:0 auto; padding:40px 28px 80px;
+    color:var(--ink-soft); font-size:13px; border-top:1px solid var(--line);
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .pkt{animation:none; opacity:1; transform:none;}
+  }
+</style>
+</head>
+<body>
+
+<nav class="topbar">
+  <span class="brand">NFS&nbsp;FIELD&nbsp;GUIDE</span>
+  <a href="#mounts">Mounts</a>
+  <a href="#locking">Locking</a>
+  <a href="#state">Statefulness</a>
+  <a href="#wire">Compounding</a>
+  <a href="#lab">Hands-on lab</a>
+  <a href="#cheatsheet">Cheatsheet</a>
+</nav>
+
+<header class="hero">
+  <div class="eyebrow"><span class="dot"></span>SAME EXPORT, TWO PROTOCOLS, ONE SERVER AT 192.168.0.131</div>
+  <h1>NFS<span class="v3">v3</span> vs NFS<span class="v41">v4.1</span> — what actually differs on the wire</h1>
+  <p class="lede">Both versions hand you a POSIX-looking filesystem. The interesting part is everything underneath that you can't see until you capture packets, kill a daemon, or reboot a server mid-lock. This guide walks through exactly that — using one real client, one real server, two mounts of the same volume.</p>
+</header>
+
+<div class="wirestrip">
+  <div class="wirestrip-card">
+    <div class="wirestrip-head">
+      <h3>One write, two protocols</h3>
+      <div class="wirestrip-legend">
+        <span class="legend-chip"><span class="legend-swatch" style="background:var(--v3)"></span>NFSv3 — discrete RPCs</span>
+        <span class="legend-chip"><span class="legend-swatch" style="background:var(--v41)"></span>NFSv4.1 — one COMPOUND</span>
+      </div>
+    </div>
+
+    <div class="lane">
+      <div class="lane-label">v3</div>
+      <div class="lane-track">
+        <div class="pkt v3" style="left:0px; width:80px; animation-delay:.05s;">LOOKUP</div>
+        <div class="pkt v3" style="left:90px; width:80px; animation-delay:.25s;">CREATE</div>
+        <div class="pkt v3" style="left:180px; width:80px; animation-delay:.45s;">GETATTR</div>
+        <div class="pkt v3" style="left:270px; width:80px; animation-delay:.65s;">WRITE</div>
+        <div class="pkt v3" style="left:360px; width:80px; animation-delay:.85s;">COMMIT</div>
+      </div>
+    </div>
+
+    <div class="lane">
+      <div class="lane-label">v4.1</div>
+      <div class="lane-track">
+        <div class="pkt v41" style="left:0px; width:430px; animation-delay:.25s;">COMPOUND&nbsp;[ SEQUENCE → LOOKUP → OPEN → WRITE → GETATTR → CLOSE ]</div>
+      </div>
+    </div>
+
+    <div class="wirestrip-foot">
+      <strong>5 round-trips vs 1.</strong> NFSv3 issues each operation as its own RPC call/reply. NFSv4.1 bundles a whole chain of operations into a single COMPOUND request — fewer round-trips for the same logical file write, which matters most on high-latency links.
+    </div>
+  </div>
+</div>
+
+<section id="mounts" class="no-border">
+  <div class="sec-eyebrow">00 — Ground truth</div>
+  <h2>Check what you're actually mounting</h2>
+  <p class="intro">Before comparing anything, confirm the negotiated version per mount — don't assume it from the export name.</p>
+
+  <pre><span class="p">[root@linux2 ~]#</span> nfsstat -m
+<span class="c"># /mnt/nfs and /mnt/v4 point at the SAME export — only the version differs</span>
+/mnt/nfs from 192.168.0.131:/vol_nfs/nfs
+ Flags: rw,relatime,<span class="flagline hl">vers=3</span>,proto=tcp,mountport=635,mountproto=udp,local_lock=none
+
+/mnt/v4 from 192.168.0.131:/vol_nfs/nfs
+ Flags: rw,relatime,<span class="flagline hl">vers=4.1</span>,proto=tcp,clientaddr=192.168.0.63,local_lock=none</pre>
+
+  <div class="note">
+    <strong>Why this pairing matters:</strong> mounting the same backend export over both versions means the protocol is the <em>only</em> variable left. Any difference you observe in your captures is attributable to the protocol, not the storage or the data.
+  </div>
+</section>
+
+<section id="locking">
+  <div class="sec-eyebrow">01 — Locking</div>
+  <h2>Same behavior, completely different machinery</h2>
+  <p class="intro"><code class="inline">flock</code> blocks the same way on both mounts. That's the trap — the user-visible result is identical, so the difference only shows up underneath, in what's actually carried on the wire.</p>
+
+  <div class="compare">
+    <div class="card v3">
+      <h3>NFSv3 <span class="tag">bolted on</span></h3>
+      <ul>
+        <li>Locking is <strong>not part of the NFS protocol</strong> at all — it's a side protocol called <strong>NLM</strong> (Network Lock Manager).</li>
+        <li>Runs as its own RPC service, its own port, its own daemon (<code class="inline">rpc.lockd</code>).</li>
+        <li>Crash/reboot recovery depends on a second side-channel daemon, <code class="inline">rpc.statd</code> (NSM), watching for reboot notifications.</li>
+        <li>Visible in <code class="inline">rpcinfo -p</code> as <code class="inline">nlockmgr</code> — but that just means the daemon exists, not that it was used in your test.</li>
+      </ul>
+    </div>
+    <div class="card v41">
+      <h3>NFSv4.1 <span class="tag">native</span></h3>
+      <ul>
+        <li><code class="inline">LOCK</code> / <code class="inline">LOCKU</code> are first-class NFS operations, sent inside a <strong>COMPOUND</strong> over the same port 2049.</li>
+        <li>No separate daemon, no separate port — lock state lives with the client's session.</li>
+        <li>Recovery is spec-defined: a structured <strong>grace period</strong> on server restart, not a guess from a side daemon.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h4 style="margin-top:34px; font-family:'IBM Plex Mono', monospace; font-size:0.95rem; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.06em;">Prove it — two-terminal contention test</h4>
+  <pre><span class="c"># Terminal 1 — hold the lock for 30s</span>
+<span class="p">$</span> flock /mnt/nfs/test1 -c "echo locked-v3; sleep 30"
+
+<span class="c"># Terminal 2 — started immediately, should HANG until Terminal 1 finishes</span>
+<span class="p">$</span> flock /mnt/nfs/test1 -c "echo got-lock-v3"
+
+<span class="c"># Repeat identically against /mnt/v4/test1 — same blocking behavior, different wire traffic</span></pre>
+
+  <div class="note warn">
+    A single <code class="inline">flock ... -c "echo got lock"</code> with no contender proves nothing — it acquires and releases instantly. You need two terminals racing for the same lock, captured with <code class="inline">tcpdump</code>, to actually see NLM vs native LOCK traffic.
+  </div>
+</section>
+
+<section id="state">
+  <div class="sec-eyebrow">02 — Statefulness</div>
+  <h2>Who notices when a client disappears?</h2>
+  <p class="intro">This is the difference that actually has teeth — but only under failure, not on the happy path.</p>
+
+  <table>
+    <tr><th>Scenario</th><th>NFSv3</th><th>NFSv4.1</th></tr>
+    <tr><td>Client crashes mid-lock</td><td class="v3cell">rpc.statd must notice and broadcast a reboot notification</td><td class="v41cell">Server expires the client's lease deterministically</td></tr>
+    <tr><td>Server reboots</td><td class="v3cell">NLM has no native recovery — relies on NSM side-channel</td><td class="v41cell">Spec-defined grace period; clients reclaim state on schedule</td></tr>
+    <tr><td>Liveness signal</td><td class="v3cell">External daemon, separate protocol (NSM)</td><td class="v41cell">Built-in lease renewal, piggybacks on normal ops</td></tr>
+  </table>
+
+  <p style="margin-top:22px; color:var(--ink-soft); font-size:0.95rem;">In your topology, the <strong>server</strong> is the storage box — <code class="inline">192.168.0.131</code> — and your <code class="inline">linux2</code> box is the <strong>client</strong>. The lease lives on the server; the client is responsible for renewing it before it expires (commonly ~90s, implementation-dependent).</p>
+
+  <pre><span class="c"># Inspect live NFSv4 client lease state on the server (if Linux-based nfsd)</span>
+<span class="p">[root@storage ~]#</span> cat /proc/fs/nfsd/clients/*/info</pre>
+</section>
+
+<section id="wire">
+  <div class="sec-eyebrow">03 — Round trips</div>
+  <h2>Compounding: where v4.1's design pays off</h2>
+  <p class="intro">Locking parity is a wash. Compounding is where you'll actually see fewer packets for identical work — count them yourself.</p>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div>
+      <h4>Capture each version separately, same operation</h4>
+      <pre><span class="p">$</span> tcpdump -i any -w v3_create.pcap host 192.168.0.131 and port 2049 -nn
+<span class="p">$</span> touch /mnt/nfs/file1 && echo hi > /mnt/nfs/file1
+<span class="c"># Ctrl+C, then repeat against /mnt/v4</span>
+<span class="p">$</span> tcpdump -i any -w v4_create.pcap host 192.168.0.131 and port 2049 -nn
+<span class="p">$</span> touch /mnt/v4/file1 && echo hi > /mnt/v4/file1</pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <div>
+      <h4>Count packets per capture</h4>
+      <pre><span class="p">$</span> tcpdump -r v3_create.pcap -nn | wc -l
+<span class="p">$</span> tcpdump -r v4_create.pcap -nn | wc -l</pre>
+      <p style="color:var(--ink-soft); font-size:0.93rem;">Expect fewer, larger frames in the v4.1 capture — multiple logical operations riding inside one COMPOUND.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <div>
+      <h4>Open both in Wireshark, filter <code class="inline">nfs</code></h4>
+      <p style="color:var(--ink-soft); font-size:0.93rem; margin:0;">v3 shows separate <code class="inline">LOOKUP / CREATE / WRITE / GETATTR / COMMIT</code> calls. v4.1 shows one or more <code class="inline">COMPOUND</code> frames — expand them to see the bundled operation list.</p>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>Why <code class="inline">strace -e trace=network</code> shows nothing here:</strong> <code class="inline">touch</code> and shell redirection only make filesystem syscalls (<code class="inline">open</code>, <code class="inline">write</code>, <code class="inline">close</code>). The actual RPC traffic is generated by the <em>kernel's</em> NFS client module, invisible to a userspace process trace. That's exactly why packet capture, not syscall tracing, is the right tool for this comparison.
+  </div>
+</section>
+
+<section id="lab">
+  <div class="sec-eyebrow">04 — Hands-on lab</div>
+  <h2>Full sequence, start to finish</h2>
+  <p class="intro">Everything above, assembled into one run you can replay against your own pair of mounts.</p>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div><h4>Confirm versions</h4><pre><span class="p">$</span> nfsstat -m</pre></div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div><h4>Check what's registered (informational only)</h4><pre><span class="p">$</span> rpcinfo -p | grep nlockmgr</pre></div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div><h4>Run the two-terminal lock race on v3, then on v4.1</h4><pre><span class="p">$</span> flock /mnt/nfs/test1 -c "echo locked; sleep 30"   <span class="c"># terminal 1</span>
+<span class="p">$</span> flock /mnt/nfs/test1 -c "echo got lock"          <span class="c"># terminal 2 — should hang ~30s</span></pre></div>
+  </div>
+  <div class="step">
+    <div class="step-num">4</div>
+    <div><h4>Capture during the race</h4><pre><span class="p">$</span> tcpdump -i any -w v3_lock.pcap port 2049 -nn
+<span class="c"># also try: portrange covering the rpcinfo-reported NLM port for v3</span></pre></div>
+  </div>
+  <div class="step">
+    <div class="step-num">5</div>
+    <div><h4>Repeat against /mnt/v4, capture as v4_lock.pcap</h4></div>
+  </div>
+  <div class="step">
+    <div class="step-num">6</div>
+    <div><h4>Compare in Wireshark</h4><pre><span class="c"># v3 capture — separate protocol layer</span>
+nlm
+
+<span class="c"># v4.1 capture — LOCK/LOCKU embedded inside COMPOUND</span>
+nfs</pre></div>
+  </div>
+</section>
+
+<section id="cheatsheet">
+  <div class="sec-eyebrow">05 — Reference</div>
+  <h2>Cheatsheet</h2>
+  <table>
+    <tr><th>Question</th><th>NFSv3</th><th>NFSv4.1</th></tr>
+    <tr><td>Locking protocol</td><td class="v3cell">Separate NLM, own port/daemon</td><td class="v41cell">Native LOCK/LOCKU in COMPOUND</td></tr>
+    <tr><td>Statefulness</td><td class="v3cell">Stateless; locks tracked outside NFS</td><td class="v41cell">Stateful sessions, leases, opens</td></tr>
+    <tr><td>Crash recovery</td><td class="v3cell">rpc.statd / NSM side-channel</td><td class="v41cell">Spec-defined lease expiry + grace period</td></tr>
+    <tr><td>ACL model</td><td class="v3cell">POSIX only (separate ACL tooling)</td><td class="v41cell">Native richer NFSv4 ACLs (<code class="inline">nfs4_setfacl</code>)</td></tr>
+    <tr><td>Round trips</td><td class="v3cell">One RPC per operation</td><td class="v41cell">Multiple operations per COMPOUND</td></tr>
+    <tr><td>Wireshark filter</td><td class="v3cell"><code class="inline">nlm</code> for locking</td><td class="v41cell"><code class="inline">nfs</code>, inspect COMPOUND contents</td></tr>
+    <tr><td>Mount flag</td><td class="v3cell"><code class="inline">vers=3</code></td><td class="v41cell"><code class="inline">vers=4.1</code></td></tr>
+  </table>
+</section>
+
+<footer>
+  Built from a live capture session against one storage server (192.168.0.131) exporting <code class="inline">/vol_nfs/nfs</code> over both protocol versions simultaneously. Replace IPs and mount points with your own before running.
+</footer>
+
+</body>
+</html>
