@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetApp Data Migrator — Complete Guide</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,600;0,700;1,300&display=swap');
+
+  :root {
+    --bg:           #0b0f1a;
+    --surface:      #111827;
+    --surface2:     #1a2235;
+    --border:       #1e2d45;
+    --accent:       #00b4d8;
+    --accent2:      #0077b6;
+    --accent-glow:  rgba(0,180,216,0.12);
+    --green:        #22d3a5;
+    --amber:        #f59e0b;
+    --red:          #ef4444;
+    --text:         #e2e8f0;
+    --muted:        #64748b;
+    --tag-bg:       rgba(0,180,216,0.1);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  /* ── SIDEBAR NAV ── */
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    width: 240px;
+    height: 100vh;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 28px 0 40px;
+    z-index: 100;
+  }
+  .sidebar-logo {
+    padding: 0 20px 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .sidebar-logo .brand {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .sidebar-logo .title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-top: 4px;
+    line-height: 1.3;
+  }
+  .nav-section {
+    padding: 6px 20px 2px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 12px;
+  }
+  .sidebar a {
+    display: block;
+    padding: 7px 20px;
+    font-size: 13px;
+    color: var(--muted);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .sidebar a:hover, .sidebar a.active {
+    color: var(--accent);
+    border-left-color: var(--accent);
+    background: var(--accent-glow);
+  }
+
+  /* ── MAIN CONTENT ── */
+  .main {
+    margin-left: 240px;
+    min-height: 100vh;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    background: linear-gradient(135deg, #0b0f1a 0%, #0d1b2e 50%, #091624 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 72px 64px 56px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -80px; right: -80px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(0,180,216,0.07) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .hero h1 {
+    font-size: 42px;
+    font-weight: 700;
+    line-height: 1.15;
+    color: #fff;
+    max-width: 680px;
+    margin-bottom: 20px;
+  }
+  .hero h1 span { color: var(--accent); }
+  .hero-sub {
+    font-size: 16px;
+    color: #94a3b8;
+    font-weight: 300;
+    max-width: 560px;
+    line-height: 1.6;
+    margin-bottom: 32px;
+  }
+  .hero-tags { display: flex; gap: 10px; flex-wrap: wrap; }
+  .tag {
+    background: var(--tag-bg);
+    border: 1px solid rgba(0,180,216,0.25);
+    color: var(--accent);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 3px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+  .tag.green { background: rgba(34,211,165,0.08); border-color: rgba(34,211,165,0.25); color: var(--green); }
+  .tag.amber { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.25); color: var(--amber); }
+
+  /* ── CONTENT SECTIONS ── */
+  .content { padding: 0 64px 80px; }
+
+  section {
+    padding-top: 56px;
+    border-top: 1px solid var(--border);
+    margin-top: 56px;
+  }
+  section:first-child { border-top: none; margin-top: 0; }
+
+  .section-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+  h2 {
+    font-size: 26px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 16px;
+    line-height: 1.25;
+  }
+  h3 {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 28px 0 10px;
+  }
+  p { color: #94a3b8; margin-bottom: 14px; }
+  p strong { color: var(--text); font-weight: 600; }
+
+  /* ── CARDS ── */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+    margin: 24px 0;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 22px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .card:hover {
+    border-color: rgba(0,180,216,0.4);
+    box-shadow: 0 0 24px rgba(0,180,216,0.05);
+  }
+  .card-icon {
+    font-size: 22px;
+    margin-bottom: 12px;
+  }
+  .card h4 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .card p {
+    font-size: 13px;
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  /* ── ARCH DIAGRAM ── */
+  .arch-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 32px;
+    margin: 24px 0;
+    overflow-x: auto;
+  }
+  .arch-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 10px 0;
+    flex-wrap: wrap;
+  }
+  .arch-node {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 16px;
+    font-size: 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--text);
+    white-space: nowrap;
+  }
+  .arch-node.accent { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+  .arch-node.green  { border-color: var(--green); color: var(--green); background: rgba(34,211,165,0.06); }
+  .arch-node.amber  { border-color: var(--amber); color: var(--amber); background: rgba(245,158,11,0.06); }
+  .arch-arrow { color: var(--muted); font-size: 16px; }
+  .arch-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 20px 0 8px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  /* ── TABLE ── */
+  .tbl-wrap { overflow-x: auto; margin: 20px 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th {
+    background: var(--surface2);
+    color: var(--accent);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--border);
+    color: #94a3b8;
+    vertical-align: top;
+  }
+  td strong { color: var(--text); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* ── CODE BLOCK ── */
+  .code-block {
+    background: #060c14;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 18px 20px;
+    margin: 16px 0;
+    overflow-x: auto;
+  }
+  .code-block pre {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    color: #7dd3fc;
+    line-height: 1.7;
+    white-space: pre;
+  }
+  .code-block .cm { color: var(--muted); }
+  .code-block .kw { color: var(--accent); }
+  .code-block .st { color: var(--green); }
+  .code-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* ── STEP LIST ── */
+  .steps { margin: 20px 0; }
+  .step {
+    display: flex;
+    gap: 18px;
+    margin-bottom: 20px;
+    align-items: flex-start;
+  }
+  .step-num {
+    flex-shrink: 0;
+    width: 30px; height: 30px;
+    background: var(--accent2);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    margin-top: 2px;
+  }
+  .step-body h4 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .step-body p { font-size: 13px; margin: 0; }
+
+  /* ── CALLOUT ── */
+  .callout {
+    border-radius: 7px;
+    padding: 16px 18px;
+    margin: 18px 0;
+    display: flex;
+    gap: 12px;
+    font-size: 13px;
+  }
+  .callout.info { background: rgba(0,180,216,0.07); border: 1px solid rgba(0,180,216,0.2); color: #7dd3fc; }
+  .callout.warn { background: rgba(245,158,11,0.07); border: 1px solid rgba(245,158,11,0.2); color: #fcd34d; }
+  .callout.tip  { background: rgba(34,211,165,0.07); border: 1px solid rgba(34,211,165,0.2); color: #6ee7b7; }
+  .callout-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .callout p { color: inherit; margin: 0; }
+
+  /* ── PHASE LIFECYCLE ── */
+  .lifecycle {
+    display: flex;
+    gap: 0;
+    margin: 24px 0;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .phase {
+    flex: 1;
+    padding: 18px 14px;
+    text-align: center;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    position: relative;
+  }
+  .phase:last-child { border-right: none; }
+  .phase-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .phase-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .phase-desc { font-size: 11px; color: var(--muted); line-height: 1.4; }
+  .phase.active { background: var(--accent-glow); }
+  .phase.active .phase-name { color: var(--accent); }
+
+  /* ── PODS GRID ── */
+  .pods-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+    margin: 20px 0;
+  }
+  .pod-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .pod-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    flex-shrink: 0;
+    margin-top: 6px;
+    box-shadow: 0 0 6px var(--green);
+  }
+  .pod-dot.blue { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  .pod-dot.amber { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+  .pod-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text);
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .pod-ns {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* ── FOOTER ── */
+  .footer {
+    border-top: 1px solid var(--border);
+    padding: 24px 64px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .footer a { color: var(--accent); text-decoration: none; }
+
+  @media (max-width: 900px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; }
+    .hero, .content { padding-left: 24px; padding-right: 24px; }
+    .hero h1 { font-size: 28px; }
+    .lifecycle { flex-direction: column; }
+    .phase { border-right: none; border-bottom: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════
+     SIDEBAR
+══════════════════════════════════════════════════ -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="brand">NetApp</div>
+    <div class="title">Data Migrator<br>Complete Guide</div>
+  </div>
+
+  <div class="nav-section">Concepts</div>
+  <a href="#what-is-ndm">What is NDM?</a>
+  <a href="#why-ndm">Why NDM?</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#under-the-hood">Under the Hood</a>
+  <a href="#pods">K8s Pods Explained</a>
+
+  <div class="nav-section">Setup</div>
+  <a href="#deployment">Deployment Options</a>
+  <a href="#lab-env">Lab Environment</a>
+  <a href="#roles">Roles & Personas</a>
+  <a href="#workers">Add Workers</a>
+  <a href="#file-servers">Add File Servers</a>
+
+  <div class="nav-section">Migration</div>
+  <a href="#lifecycle">Migration Lifecycle</a>
+  <a href="#bulk-nfs">Bulk NFS Migration</a>
+  <a href="#dir-smb">Directory SMB Migration</a>
+  <a href="#reports">Review Reports</a>
+
+  <div class="nav-section">Reference</div>
+  <a href="#tools-compare">Tool Comparison</a>
+  <a href="#summary">Summary</a>
+</nav>
+
+<!-- ══════════════════════════════════════════════════
+     MAIN
+══════════════════════════════════════════════════ -->
+<div class="main">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-eyebrow">NetApp · Complete Field Guide · v1.0 · June 2026</div>
+    <h1>NetApp Data Migrator<br><span>From Zero to Migration</span></h1>
+    <p class="hero-sub">Everything you need to understand how NDM works — architecture, Kubernetes internals, worker setup, and step-by-step migration procedures from the official lab guide.</p>
+    <div class="hero-tags">
+      <span class="tag">NFS</span>
+      <span class="tag">SMB</span>
+      <span class="tag green">FREE TOOL</span>
+      <span class="tag">MicroK8s</span>
+      <span class="tag amber">Ubuntu 24.04</span>
+      <span class="tag">Multi-Cloud</span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ══ WHAT IS NDM ══ -->
+    <section id="what-is-ndm">
+      <div class="section-label">01 — Introduction</div>
+      <h2>What is NetApp Data Migrator?</h2>
+      <p>NetApp Data Migrator (NDM) is an enterprise-grade, multicloud data migration software application designed to simplify the migration of <strong>unstructured file data</strong> from on-premises or third-party storage systems to public cloud storage services powered by NetApp.</p>
+      <p>It is purpose-built for large and complex migration projects with a defined start, end goal, and cutover window — unlike general-purpose copy tools like rsync or robocopy which require substantial DIY effort.</p>
+
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-icon">🎯</div>
+          <h4>Multi-Protocol</h4>
+          <p>Supports both NFS and SMB/CIFS migrations in a single platform. No need for separate tools per protocol.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">☁️</div>
+          <h4>Multi-Cloud</h4>
+          <p>Migrates to Azure NetApp Files (ANF), Google Cloud NetApp Volumes (GCNV), Amazon FSx for ONTAP (FSxN), and Cloud Volumes ONTAP (CVO).</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">💰</div>
+          <h4>Completely Free</h4>
+          <p>Available at no additional cost to NetApp customers. Traditional tools can cost over $150K per PiB migrated.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🔒</div>
+          <h4>Chain of Custody</h4>
+          <p>Checksum-based validation after every migration proves 100% file integrity from source to destination.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">📊</div>
+          <h4>Discovery First</h4>
+          <p>Scans and inventories source data before any movement occurs — understand what you're migrating before you start.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">⚡</div>
+          <h4>Minimal Downtime</h4>
+          <p>Incremental sync runs before cutover, keeping source live. Final cutover window is short and controlled.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ WHY NDM ══ -->
+    <section id="why-ndm">
+      <div class="section-label">02 — Problem Statement</div>
+      <h2>Why NDM Exists</h2>
+      <p>Traditional migration approaches have serious problems. NDM was built to address all of them:</p>
+      <div class="tbl-wrap">
+        <table>
+          <tr><th>Customer Pain</th><th>How NDM Solves It</th></tr>
+          <tr><td><strong>No visibility into data estate</strong></td><td>Bulk Discover scans source and produces detailed PDF inventory reports before any data moves</td></tr>
+          <tr><td><strong>Cost — tools can exceed $150K/PiB</strong></td><td>NDM is completely free, fully supported by NetApp</td></tr>
+          <tr><td><strong>Slow migrations</strong></td><td>Parallel worker plane — multiple concurrent data transfers across NFS and SMB simultaneously</td></tr>
+          <tr><td><strong>Long downtime during cutover</strong></td><td>Baseline + incremental sync keeps source live; final cutover window is minutes not hours</td></tr>
+          <tr><td><strong>No proof data arrived intact</strong></td><td>Chain of Custody (CoC) reports with checksums verify every file before and after migration</td></tr>
+          <tr><td><strong>Requires multiple disjointed tools</strong></td><td>Single UI handles NFS + SMB + multi-cloud from one interface with role-based access</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ══ ARCHITECTURE ══ -->
+    <section id="architecture">
+      <div class="section-label">03 — Architecture</div>
+      <h2>How NDM is Architected</h2>
+      <p>NDM uses a <strong>two-plane architecture</strong> — a Control Plane that manages everything, and a Worker Plane that does the actual data movement.</p>
+
+      <div class="arch-box">
+        <div class="arch-label">Your Browser</div>
+        <div class="arch-row">
+          <div class="arch-node accent">Web Browser (any machine)</div>
+          <div class="arch-arrow">↓ HTTPS</div>
+        </div>
+
+        <div class="arch-label">Control Plane VM — Ubuntu 24.04 LTS — MicroK8s + ~50 Pods</div>
+        <div class="arch-row">
+          <div class="arch-node accent">nginx-ingress</div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-node accent">istio service mesh</div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-node accent">datamigrator-ui</div>
+        </div>
+        <div class="arch-row" style="margin-top:8px">
+          <div class="arch-node">admin-service</div>
+          <div class="arch-node">config-service</div>
+          <div class="arch-node">jobs-service</div>
+          <div class="arch-node">reports-service</div>
+          <div class="arch-node">support-service</div>
+        </div>
+        <div class="arch-row" style="margin-top:8px">
+          <div class="arch-node">Temporal (workflow engine)</div>
+          <div class="arch-node">PostgreSQL (database)</div>
+          <div class="arch-node">Redis (cache)</div>
+          <div class="arch-node">Keycloak (auth)</div>
+          <div class="arch-node">OpenBao (secrets vault)</div>
+        </div>
+        <div class="arch-row" style="margin-top:8px">
+          <div class="arch-node">Prometheus</div>
+          <div class="arch-node">Grafana + Loki</div>
+          <div class="arch-node">Fluentd</div>
+          <div class="arch-node">OpenTelemetry</div>
+          <div class="arch-node">MetalLB</div>
+        </div>
+
+        <div class="arch-label" style="margin-top:24px">Worker Plane — Separate VMs (installed via script)</div>
+        <div class="arch-row">
+          <div class="arch-node green">Linux Worker VM (NFS)</div>
+          <div class="arch-arrow">←→</div>
+          <div class="arch-node amber">Windows Worker VM (SMB)</div>
+        </div>
+        <div class="arch-row" style="margin-top:8px">
+          <div class="arch-node">Source NFS/SMB Storage</div>
+          <div class="arch-arrow">→ data flows →</div>
+          <div class="arch-node">Destination NetApp Cloud</div>
+        </div>
+      </div>
+
+      <div class="callout info">
+        <div class="callout-icon">ℹ️</div>
+        <p>The Control Plane and Workers are <strong>separate VMs</strong>. The Control Plane runs ~50 Kubernetes pods. Workers are installed on plain Linux or Windows VMs via a one-line install script from the NDM UI.</p>
+      </div>
+    </section>
+
+    <!-- ══ UNDER THE HOOD ══ -->
+    <section id="under-the-hood">
+      <div class="section-label">04 — Internals</div>
+      <h2>Under the Hood — What Actually Moves Data</h2>
+
+      <h3>The Worker VM is a NAS client</h3>
+      <p>The Worker VM (Linux or Windows) mounts the source storage via NFS or SMB, mounts the destination the same way, then reads and writes files across — but in <strong>parallel streams</strong> rather than one file at a time like rsync.</p>
+
+      <div class="arch-box">
+        <div class="arch-label">Data Flow Inside a Worker VM</div>
+        <div class="arch-row">
+          <div class="arch-node">Source NFS Share<br><span style="font-size:10px;color:var(--muted)">192.168.0.101</span></div>
+          <div class="arch-arrow">← mount via NFS →</div>
+          <div class="arch-node green">Linux Worker VM<br><span style="font-size:10px;color:var(--muted)">parallel async I/O engine</span></div>
+          <div class="arch-arrow">← mount via NFS →</div>
+          <div class="arch-node accent">Destination Cloud<br><span style="font-size:10px;color:var(--muted)">ANF / GCNV / FSxN</span></div>
+        </div>
+        <div style="margin-top:16px;font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace;">
+          READ files (parallel threads) → checksum → WRITE files → report stats to control plane
+        </div>
+      </div>
+
+      <h3>Temporal — The Real Migration Engine</h3>
+      <p>The most important discovery from exploring the pods: NDM uses <strong>Temporal</strong>, a workflow orchestration platform, as its core engine. This is what makes NDM enterprise-grade:</p>
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-icon">🔄</div>
+          <h4>temporal-frontend</h4>
+          <p>API gateway — accepts migration job requests from the jobs-service</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">📜</div>
+          <h4>temporal-history</h4>
+          <p>Tracks the complete state of every workflow step — scan, copy, sync, verify</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🎯</div>
+          <h4>temporal-matching</h4>
+          <p>Assigns tasks to available workers — enables parallel processing</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">⚙️</div>
+          <h4>temporal-worker</h4>
+          <p>Executes workflow logic — retries failed steps automatically without losing progress</p>
+        </div>
+      </div>
+
+      <h3>Why Linux VM, not Windows?</h3>
+      <div class="tbl-wrap">
+        <table>
+          <tr><th>Reason</th><th>Detail</th></tr>
+          <tr><td><strong>Native NFS kernel client</strong></td><td>Linux has NFS support built into the kernel — fast, zero overhead</td></tr>
+          <tr><td><strong>Both protocols in one OS</strong></td><td>Linux supports both NFS (kernel) and CIFS/SMB (cifs.ko module) natively</td></tr>
+          <tr><td><strong>Lightweight</strong></td><td>More CPU/RAM goes to data movement, not OS overhead</td></tr>
+          <tr><td><strong>Runs well as VM appliance</strong></td><td>Ideal for OVA/AMI/VHD deployment on any hypervisor</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ══ PODS ══ -->
+    <section id="pods">
+      <div class="section-label">05 — Kubernetes Internals</div>
+      <h2>The ~50 Pods — What Each One Does</h2>
+
+      <div class="callout tip">
+        <div class="callout-icon">💡</div>
+        <p>Pods are <strong>NOT virtual machines</strong>. They are lightweight processes running inside one single Linux VM. Think of the VM as an apartment building, and each pod as a separate apartment — sharing the same building (OS kernel) but isolated from each other.</p>
+      </div>
+
+      <div class="code-label">Verify with:</div>
+      <div class="code-block"><pre><span class="kw">sudo</span> microk8s kubectl get pods -A</pre></div>
+
+      <h3>NDM Core — datamigrator namespace</h3>
+      <div class="pods-grid">
+        <div class="pod-item"><div class="pod-dot accent"></div><div><div class="pod-name">datamigrator-ui</div><div class="pod-ns">Web interface you use in browser</div></div></div>
+        <div class="pod-item"><div class="pod-dot accent"></div><div><div class="pod-name">admin-service</div><div class="pod-ns">Users, roles, RBAC management</div></div></div>
+        <div class="pod-item"><div class="pod-dot accent"></div><div><div class="pod-name">config-service</div><div class="pod-ns">Job configuration storage</div></div></div>
+        <div class="pod-item"><div class="pod-dot accent"></div><div><div class="pod-name">jobs-service</div><div class="pod-ns">Schedules & monitors migration jobs</div></div></div>
+        <div class="pod-item"><div class="pod-dot accent"></div><div><div class="pod-name">db-writer</div><div class="pod-ns">Writes stats and logs to PostgreSQL</div></div></div>
+        <div class="pod-item"><div class="pod-dot accent"></div><div><div class="pod-name">reports-service</div><div class="pod-ns">Generates CoC and discovery reports</div></div></div>
+        <div class="pod-item"><div class="pod-dot accent"></div><div><div class="pod-name">support-service</div><div class="pod-ns">Diagnostics and support log collection</div></div></div>
+      </div>
+
+      <h3>Infrastructure — Supporting Services</h3>
+      <div class="pods-grid">
+        <div class="pod-item"><div class="pod-dot"></div><div><div class="pod-name">postgresql-0</div><div class="pod-ns">Main database — jobs, configs, logs</div></div></div>
+        <div class="pod-item"><div class="pod-dot"></div><div><div class="pod-name">redis-master-0</div><div class="pod-ns">In-memory cache for job state</div></div></div>
+        <div class="pod-item"><div class="pod-dot"></div><div><div class="pod-name">keycloak-0</div><div class="pod-ns">Authentication & SSO (login system)</div></div></div>
+        <div class="pod-item"><div class="pod-dot"></div><div><div class="pod-name">openbao-0/1/2</div><div class="pod-ns">Secrets vault — stores credentials securely</div></div></div>
+        <div class="pod-item"><div class="pod-dot"></div><div><div class="pod-name">nginx-ingress</div><div class="pod-ns">Reverse proxy — routes browser to UI</div></div></div>
+        <div class="pod-item"><div class="pod-dot"></div><div><div class="pod-name">istiod / istio-gateway</div><div class="pod-ns">Service mesh — encrypts pod-to-pod traffic</div></div></div>
+        <div class="pod-item"><div class="pod-dot"></div><div><div class="pod-name">metallb controller/speaker</div><div class="pod-ns">Load balancer — external IP for UI</div></div></div>
+      </div>
+
+      <h3>Temporal — Workflow Engine</h3>
+      <div class="pods-grid">
+        <div class="pod-item"><div class="pod-dot amber"></div><div><div class="pod-name">temporal-frontend</div><div class="pod-ns">API gateway for workflow requests</div></div></div>
+        <div class="pod-item"><div class="pod-dot amber"></div><div><div class="pod-name">temporal-history</div><div class="pod-ns">Tracks state of every workflow step</div></div></div>
+        <div class="pod-item"><div class="pod-dot amber"></div><div><div class="pod-name">temporal-matching</div><div class="pod-ns">Assigns tasks to workers in parallel</div></div></div>
+        <div class="pod-item"><div class="pod-dot amber"></div><div><div class="pod-name">temporal-worker</div><div class="pod-ns">Executes workflow logic with auto-retry</div></div></div>
+        <div class="pod-item"><div class="pod-dot amber"></div><div><div class="pod-name">temporal-web</div><div class="pod-ns">Temporal's own internal dashboard</div></div></div>
+      </div>
+
+      <h3>Observability Stack</h3>
+      <div class="pods-grid">
+        <div class="pod-item"><div class="pod-dot"></div><div><div class="pod-name">grafana</div><div class="pod-ns">Dashboards for metrics visualization</div></div></div>
+        <div class="pod-item"><div class="pod-dot"></div><div><div class="pod-name">loki</div><div class="pod-ns">Log aggregation and search</div></div></div>
+        <div class="pod-item"><div class="pod-dot"></div><div><div class="pod-name">prometheus</div><div class="pod-ns">Metrics collection from all pods</div></div></div>
+        <div class="pod-item"><div class="pod-dot"></div><div><div class="pod-name">fluentd</div><div class="pod-ns">Collects and ships logs from all pods</div></div></div>
+        <div class="pod-item"><div class="pod-dot"></div><div><div class="pod-name">otel-collector</div><div class="pod-ns">Distributed tracing (OpenTelemetry)</div></div></div>
+      </div>
+    </section>
+
+    <!-- ══ DEPLOYMENT ══ -->
+    <section id="deployment">
+      <div class="section-label">06 — Deployment</div>
+      <h2>Deployment Options</h2>
+      <p>NDM images are pre-built appliances downloaded from the NetApp Support Site. You never install NDM on a blank OS — the image IS the VM.</p>
+      <div class="tbl-wrap">
+        <table>
+          <tr><th>Platform</th><th>Image Format</th><th>How to Deploy</th></tr>
+          <tr><td><strong>AWS</strong></td><td>AMI (Amazon Machine Image)</td><td>Copy AMI to your account → launch EC2 instance</td></tr>
+          <tr><td><strong>Azure</strong></td><td>VHD file</td><td>Copy VHD to Blob Storage → create VM from image</td></tr>
+          <tr><td><strong>Google Cloud</strong></td><td>.tar.gz archive</td><td>Upload to GCS bucket → import via VM Migration Service</td></tr>
+          <tr><td><strong>On-Premises / VMware</strong></td><td>.OVA file</td><td>Download OVA → deploy directly into vSphere / KVM</td></tr>
+        </table>
+      </div>
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <p>The Control Plane and Linux Worker use <strong>separate images</strong>. The Windows Worker uses a <strong>Windows Worker Installer (.exe)</strong> run on an existing Windows VM — not an image file.</p>
+      </div>
+    </section>
+
+    <!-- ══ LAB ENV ══ -->
+    <section id="lab-env">
+      <div class="section-label">07 — Lab Environment</div>
+      <h2>Lab Environment Layout</h2>
+      <p>This is the environment used in the official NDM lab guide (June 2026). All devices are virtual, on an isolated network.</p>
+      <div class="tbl-wrap">
+        <table>
+          <tr><th>Hostname</th><th>Role</th><th>IP Address</th><th>Username</th></tr>
+          <tr><td><strong>NetApp Data Migrator</strong></td><td>Control Plane (Ubuntu 24.04 + MicroK8s)</td><td>192.168.0.20</td><td>admin@datamigrator.local</td></tr>
+          <tr><td><strong>ndmlx</strong></td><td>Linux NFS Worker VM</td><td>192.168.0.10</td><td>user</td></tr>
+          <tr><td><strong>jumphost</strong></td><td>Windows Jumphost + SMB Worker</td><td>192.168.0.5</td><td>demo\administrator</td></tr>
+          <tr><td><strong>source_svm1_nfs</strong></td><td>Source SVM — NFS</td><td>192.168.0.101</td><td>datamig</td></tr>
+          <tr><td><strong>source_svm1_smb</strong></td><td>Source SVM — SMB</td><td>192.168.0.102</td><td>datamig</td></tr>
+          <tr><td><strong>destination_svm2_nfs</strong></td><td>Destination SVM — NFS</td><td>192.168.0.111</td><td>datamig</td></tr>
+          <tr><td><strong>destination_svm2_smb</strong></td><td>Destination SVM — SMB</td><td>192.168.0.112</td><td>datamig</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ══ ROLES ══ -->
+    <section id="roles">
+      <div class="section-label">08 — Roles & Personas</div>
+      <h2>Three Roles in NDM</h2>
+      <p>NDM uses role-based access control with three distinct personas — each has a different level of access and responsibility.</p>
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-icon">🛡️</div>
+          <h4>Application Admin</h4>
+          <p>Sets up the environment. Creates users, assigns roles, manages workers, initializes projects. First login configures the whole system.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🔧</div>
+          <h4>Project Admin</h4>
+          <p>Manages file servers, runs discovery jobs, performs migrations (Bulk Discover → Bulk Migrate → Bulk Cutover), oversees job progress.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">👁️</div>
+          <h4>Project Viewer</h4>
+          <p>Read-only access. Reviews discovery reports, downloads Chain of Custody reports, approves cutovers. Supports audit and compliance.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ WORKERS ══ -->
+    <section id="workers">
+      <div class="section-label">09 — Setup</div>
+      <h2>Adding Workers</h2>
+      <p>Workers are the VMs that actually move data. Each protocol needs its own worker type. Workers are installed via a one-line script from the NDM UI — you don't download a separate image.</p>
+
+      <h3>NFS Worker (Linux)</h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><h4>Log in as Project Admin</h4><p>Open NDM in browser → login with projectadmin@demonetapp.com</p></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><h4>Navigate to Workers</h4><p>From navigation menu, select <strong>Workers</strong></p></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><h4>View Installation Instructions</h4><p>Click <strong>View Instruction to Setup Worker</strong> → the NFS tab shows a one-line install command</p></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><h4>Copy the install command</h4><p>Click the copy icon. Each worker gets a unique WORKER_ID — always close and reopen instructions for each new worker.</p></div></div>
+        <div class="step"><div class="step-num">5</div><div class="step-body"><h4>SSH into the Linux Worker VM</h4><p>Open PuTTY → connect to <code>ndmlx</code> (192.168.0.10) → enter password → run <code>sudo su</code></p></div></div>
+        <div class="step"><div class="step-num">6</div><div class="step-body"><h4>Paste and run the install command</h4><p>Paste the copied command → press ENTER. Installation completes in a few seconds.</p></div></div>
+        <div class="step"><div class="step-num">7</div><div class="step-body"><h4>Verify in NDM UI</h4><p>Worker appears in list as <strong>nfs-worker-1</strong> with status Online.</p></div></div>
+      </div>
+
+      <h3>SMB Worker (Windows)</h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><h4>View Instructions → select SMB</h4><p>In NDM Workers section → click View Instruction → select <strong>SMB</strong> radio button</p></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><h4>On the Windows Jumphost</h4><p>Open File Explorer → navigate to <code>C:\temp\</code> → double-click <code>windows-worker-installer-*.exe</code></p></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><h4>Install to default location</h4><p>Keep default <code>C:\datamigrator</code> → click Next</p></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><h4>Copy values from NDM instructions</h4><p>Copy each field value carefully — match by field name, not by order (order may differ)</p></div></div>
+        <div class="step"><div class="step-num">5</div><div class="step-body"><h4>Install (~5 minutes)</h4><p>Click Install → wait ~5 minutes → click OK → Finish</p></div></div>
+        <div class="step"><div class="step-num">6</div><div class="step-body"><h4>Confirm both workers Online</h4><p>In NDM UI → confirm both <strong>nfs-worker-1</strong> and SMB worker show as <strong>Online</strong></p></div></div>
+      </div>
+    </section>
+
+    <!-- ══ FILE SERVERS ══ -->
+    <section id="file-servers">
+      <div class="section-label">10 — Setup</div>
+      <h2>Adding File Servers</h2>
+      <p>File servers are the source and destination storage systems. You register all four (2 source, 2 destination) before running any migration.</p>
+
+      <h3>Add NFS Source File Server</h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><h4>Storage Servers → File Servers → +Add</h4><p>Enter name: <code>source_svm1_nfs</code> · Server Type: Other NAS → Proceed</p></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><h4>Credentials page</h4><p>Host Name: <code>svm1.demo.netapp.com</code> · Protocol: NFS · Username: <code>user</code> · Password: optional for NFSv3</p></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><h4>Associate NFS Worker → Finish</h4><p>Toggle on the NFS worker → click Finish. Status changes to <strong>Active</strong> within seconds.</p></div></div>
+      </div>
+
+      <h3>Add SMB Source File Server</h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><h4>+Add → name: source_svm1_smb</h4><p>Server Type: Other NAS → Proceed</p></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><h4>Credentials — select SMB protocol</h4><p>Host: <code>svm1.demo.netapp.com</code> · AD Server IP: <code>192.168.0.253</code> · Username: <code>datamig</code> · Password: <code>Netapp1!</code></p></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><h4>Associate SMB Worker → Finish</h4><p>Toggle on the SMB worker → Finish. Confirm Active status.</p></div></div>
+      </div>
+
+      <h3>Add NFS & SMB Destination File Servers</h3>
+      <p>Repeat the same process for destinations using:</p>
+      <div class="tbl-wrap">
+        <table>
+          <tr><th>Name</th><th>Host</th><th>Protocol</th><th>Worker to Associate</th></tr>
+          <tr><td><strong>destination_svm2_nfs</strong></td><td>svm2.demo.netapp.com</td><td>NFS</td><td>nfs-worker-1</td></tr>
+          <tr><td><strong>destination_svm2_smb</strong></td><td>svm2.demo.netapp.com</td><td>SMB (AD IP: 192.168.0.253)</td><td>SMB worker</td></tr>
+        </table>
+      </div>
+      <div class="callout tip">
+        <div class="callout-icon">✅</div>
+        <p>All four file servers should show <strong>Active</strong> status before proceeding to migration. The environment is now ready.</p>
+      </div>
+    </section>
+
+    <!-- ══ LIFECYCLE ══ -->
+    <section id="lifecycle">
+      <div class="section-label">11 — Migration</div>
+      <h2>Migration Lifecycle</h2>
+      <p>Every migration in NDM follows the same three-phase lifecycle, whether you're doing a full volume or a single directory:</p>
+
+      <div class="lifecycle">
+        <div class="phase active">
+          <div class="phase-num">PHASE 01</div>
+          <div class="phase-name">Bulk Discover</div>
+          <div class="phase-desc">Scan source, inventory files, generate PDF report. No data moves.</div>
+        </div>
+        <div class="phase active">
+          <div class="phase-num">PHASE 02</div>
+          <div class="phase-name">Bulk Migrate</div>
+          <div class="phase-desc">Baseline copy + incremental syncs. Source stays live.</div>
+        </div>
+        <div class="phase active">
+          <div class="phase-num">PHASE 03</div>
+          <div class="phase-name">Bulk Cutover</div>
+          <div class="phase-desc">Final sync → CoC report → review → approve. Migration complete.</div>
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <div class="callout-icon">⚠️</div>
+        <p><strong>Important:</strong> Do not run Migration and Cutover jobs simultaneously. Ensure only one job is active at a time.</p>
+      </div>
+    </section>
+
+    <!-- ══ BULK NFS MIGRATION ══ -->
+    <section id="bulk-nfs">
+      <div class="section-label">12 — Migration</div>
+      <h2>Bulk NFS Migration (Full Volume)</h2>
+      <p>This pattern moves entire NFS exports as a single unit — ideal for lift-and-shift of complete datasets. Performed by <strong>Project Admin</strong>.</p>
+
+      <h3>Phase 1: Bulk Discover</h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><h4>Select source_svm1_nfs</h4><p>Storage Servers → File Servers → click <code>source_svm1_nfs</code></p></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><h4>Click Bulk Discover</h4><p>Job Schedule: Start Now · Protocol: NFS</p></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><h4>Select NFS export paths</h4><p>Check both: <code>/svm1_nfs_engineering</code> and <code>/svm1_nfs_patents</code></p></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><h4>Submit → monitor in Job Run List</h4><p>Jobs → Job Run List → wait for status: <strong>Completed</strong></p></div></div>
+        <div class="step"><div class="step-num">5</div><div class="step-body"><h4>Download Discovery Report PDF</h4><p>Action menu (⋯) → Download Discovery Report as PDF. Review the inventory before proceeding.</p></div></div>
+      </div>
+
+      <h3>Phase 2: Bulk Migrate</h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><h4>Storage Servers → source_svm1_nfs → Bulk Migrate</h4><p></p></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><h4>Add first path mapping</h4><p>Source: <code>/svm1_nfs_engineering</code> → Destination: <code>destination_svm2_nfs</code> → <code>/svm2_nfs_engineering</code> → click + Add Mapping</p></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><h4>Add second path mapping</h4><p>Source: <code>/svm1_nfs_patents</code> → Destination: <code>destination_svm2_nfs</code> → <code>/svm2_nfs_patents</code> → click + Add Mapping</p></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><h4>Accept all defaults → Proceed → Submit</h4><p>Select both checkboxes → Submit</p></div></div>
+        <div class="step"><div class="step-num">5</div><div class="step-body"><h4>Monitor in Job Run List</h4><p>Wait for Status: <strong>Completed</strong> and Files/Size count > 0. Click refresh to update.</p></div></div>
+        <div class="step"><div class="step-num">6</div><div class="step-body"><h4>Verify on destination</h4><p>Open File Explorer on Jumphost → navigate to <code>\\svm2</code> → open <code>svm2_nfs_patents</code> → confirm files are present.</p></div></div>
+      </div>
+
+      <h3>Phase 3: Bulk Cutover</h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><h4>Storage Servers → source_svm1_nfs → Bulk Cutover</h4><p></p></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><h4>Select both paths + accept disclaimer → Proceed</h4><p>Read the liability waiver carefully and check the checkbox.</p></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><h4>Ensure no ongoing jobs → Submit</h4><p>Jobs should be idle before submitting cutover.</p></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><h4>Wait for Blocked state</h4><p>Jobs → Job Run List → refresh until jobs show <strong>Blocked</strong> (final sync complete, waiting for approval).</p></div></div>
+        <div class="step"><div class="step-num">5</div><div class="step-body"><h4>Review each job → Confirm</h4><p>Action (⋯) → Review → check "I have reviewed…" → click <strong>Confirm</strong>. Repeat for second job.</p></div></div>
+        <div class="step"><div class="step-num">6</div><div class="step-body"><h4>Status changes to Approved</h4><p>NFS full volume migration is now complete. Log out as Project Admin.</p></div></div>
+      </div>
+    </section>
+
+    <!-- ══ DIRECTORY SMB MIGRATION ══ -->
+    <section id="dir-smb">
+      <div class="section-label">13 — Migration</div>
+      <h2>Directory-Level SMB Migration</h2>
+      <p>This pattern targets specific subfolders within a share with custom incremental sync schedules — ideal for coordinating cutover windows per team. Also enables restructuring data during migration (e.g., splitting one group drive into multiple separate destinations). Performed by <strong>App Admin</strong>.</p>
+
+      <h3>Phase 1: Bulk Discover (SMB)</h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><h4>Log in as App Admin</h4><p>appadmin@demonetapp.com</p></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><h4>Storage Servers → source_svm1_smb → Bulk Discover</h4><p></p></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><h4>Select svm1_smb_groupdrives → Submit</h4><p>Leave all defaults. Monitor in Job Run List until <strong>Completed</strong>.</p></div></div>
+      </div>
+
+      <h3>Phase 2: Bulk Migrate with Directory Mapping</h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><h4>source_svm1_smb → Bulk Migrate</h4><p></p></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><h4>Add Finance directory mapping</h4><p>Source: <code>svm1_smb_groupdrives</code> → + Add Source Directory → select <code>Finance</code> → Confirm → Dest: <code>svm2_smb_group_finance</code> → Add Mapping</p></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><h4>Add Operations mapping</h4><p>Source dir: <code>operations</code> → Dest: <code>svm2_smb_group_operations</code> → Add Mapping</p></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><h4>Add Sales mapping</h4><p>Source dir: <code>sales</code> → Dest: <code>svm2_smb_group_sales</code> → Add Mapping → Proceed</p></div></div>
+        <div class="step"><div class="step-num">5</div><div class="step-body"><h4>Configure aggressive sync options</h4>
+          <p>
+            • Preserve a-time: <strong>Enabled</strong><br>
+            • Preserve permissions: <strong>Enabled</strong><br>
+            • Skip Files modified in last: <strong>1 minute</strong><br>
+            • Incremental Sync Schedule: Cron Expression → <code>*/2 * * * *</code> (every 2 minutes)
+          </p>
+        </div></div>
+        <div class="step"><div class="step-num">6</div><div class="step-body"><h4>Select all 3 paths → Submit</h4><p>Monitor in Job Run List. Status will switch frequently between Completed/Running/Ready due to 2-minute sync schedule.</p></div></div>
+        <div class="step"><div class="step-num">7</div><div class="step-body"><h4>Test incremental sync</h4><p>On Jumphost → navigate to <code>\\svm1\svm1_smb_groupdrives\finance</code> → create a new text file called <code>finance_update</code> → wait 2 minutes → check <code>\\svm2\svm2_smb_group_finance</code> → file should appear.</p></div></div>
+      </div>
+
+      <h3>Phase 3: Bulk Cutover (SMB)</h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><h4>source_svm1_smb → Bulk Cutover</h4><p>Select all 3 entries + check disclaimer → Proceed</p></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><h4>Ensure no active jobs → Submit</h4><p>Refresh if needed to confirm idle state before submitting.</p></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><h4>Wait for all 3 jobs → Blocked state</h4><p>Jobs → Job Run List → refresh until all 3 cutover jobs show <strong>Blocked</strong>.</p></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><h4>Review and Confirm each job</h4><p>For each of the 3 jobs: ⋯ → Review → "I have reviewed…" → <strong>Confirm</strong>. All 3 jobs change to <strong>Approved</strong>.</p></div></div>
+      </div>
+
+      <div class="callout tip">
+        <div class="callout-icon">✅</div>
+        <p>Both migrations are now complete. No more incremental updates will occur between source and destination. The source is now safe to decommission after report review.</p>
+      </div>
+    </section>
+
+    <!-- ══ REPORTS ══ -->
+    <section id="reports">
+      <div class="section-label">14 — Reports</div>
+      <h2>Reviewing Reports</h2>
+      <p>Performed by the <strong>Project Viewer</strong> — read-only role that validates and archives the migration work for audit and compliance.</p>
+
+      <h3>Review Discovery Reports</h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><h4>Log in as Project Viewer</h4><p>projectviewer@demonetapp.com</p></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><h4>Jobs → Job Config List</h4><p>Expand Filters → select <code>source_svm1_nfs</code> from Source drop-down</p></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><h4>Open Discovery job → Download PDF report</h4><p>⋯ → Details → ⋯ → Download Discovery Report as PDF. Review inventory of all discovered files, directories, sizes.</p></div></div>
+      </div>
+
+      <h3>Review Chain of Custody (CoC) Reports</h3>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-body"><h4>Jobs → Job Config List → filter by source_svm1_nfs</h4><p></p></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-body"><h4>Find Migration job → Details → Download CoC Report</h4><p>The CoC report is a ZIP archive containing the coc-report file.</p></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-body"><h4>Open the coc-report file</h4><p>It stores <strong>checksum before and after migration for every file</strong>. Matching checksums prove 100% data integrity.</p></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-body"><h4>Repeat for Cutover jobs</h4><p>Find Cutover job → ⋯ → Details → Download CoC Report. Also available: Download Report → Jobs Report for full project overview.</p></div></div>
+      </div>
+
+      <div class="callout info">
+        <div class="callout-icon">📋</div>
+        <p>For audit purposes, you can also download <strong>CSV discovery reports</strong> in addition to the PDF versions. These are suitable for importing into spreadsheets or compliance tools.</p>
+      </div>
+    </section>
+
+    <!-- ══ TOOLS COMPARE ══ -->
+    <section id="tools-compare">
+      <div class="section-label">15 — Reference</div>
+      <h2>NDM vs SnapMirror vs XCP</h2>
+      <div class="tbl-wrap">
+        <table>
+          <tr><th>Feature</th><th>NDM</th><th>SnapMirror</th><th>XCP</th></tr>
+          <tr><td><strong>Transfer method</strong></td><td>File-level (NFS/SMB)</td><td>Block-level replication</td><td>File-level parallel async</td></tr>
+          <tr><td><strong>Best for</strong></td><td>Non-NetApp → NetApp cloud</td><td>ONTAP → ONTAP</td><td>Third-party → NetApp (large file trees)</td></tr>
+          <tr><td><strong>Source requirement</strong></td><td>Any NAS (NetApp or non-NetApp)</td><td>ONTAP only</td><td>Any NFS/SMB source</td></tr>
+          <tr><td><strong>UI</strong></td><td>Full web UI + API</td><td>CLI / System Manager</td><td>CLI only</td></tr>
+          <tr><td><strong>Discovery reports</strong></td><td>✅ Yes</td><td>❌ No</td><td>Partial (scan)</td></tr>
+          <tr><td><strong>Chain of Custody</strong></td><td>✅ Yes</td><td>❌ No</td><td>Verify command only</td></tr>
+          <tr><td><strong>Incremental sync</strong></td><td>✅ Yes (cron schedule)</td><td>✅ Yes</td><td>✅ sync command</td></tr>
+          <tr><td><strong>Cost</strong></td><td>Free</td><td>Requires SnapMirror license</td><td>Free</td></tr>
+          <tr><td><strong>Runtime</strong></td><td>Kubernetes on Linux VM</td><td>ONTAP native</td><td>Linux or Windows binary</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ══ SUMMARY ══ -->
+    <section id="summary">
+      <div class="section-label">16 — Summary</div>
+      <h2>What We Learned</h2>
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-icon">🏗️</div>
+          <h4>NDM = Kubernetes Appliance</h4>
+          <p>Pre-built Ubuntu 24.04 VM image running MicroK8s with ~50 pods. Not a simple installer — a full microservices platform.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">⚙️</div>
+          <h4>Temporal Powers Workflows</h4>
+          <p>The real migration engine is Temporal — it orchestrates scan → copy → sync → verify with automatic retry and state tracking.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🖥️</div>
+          <h4>Workers = Separate VMs</h4>
+          <p>Linux VM for NFS, Windows VM for SMB. Installed via one-line script from the NDM UI. Multiple workers scale throughput.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🔄</div>
+          <h4>Three-Phase Lifecycle</h4>
+          <p>Always: Discover → Migrate (with incremental sync) → Cutover. Source stays live until the short controlled final cutover.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🛡️</div>
+          <h4>Proof of Integrity</h4>
+          <p>Chain of Custody reports with checksums verify every file. You can prove data arrived intact before decommissioning source.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">💡</div>
+          <h4>Pods ≠ VMs</h4>
+          <p>50 pods run inside 1 VM. Pods are lightweight processes sharing the OS kernel — like apartments in a building, not separate houses.</p>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /content -->
+
+  <div class="footer">
+    <span>NetApp Data Migrator Complete Guide · Built from official lab guide (June 2026) + live system exploration</span>
+    <a href="https://docs.netapp.com/us-en/data-migrator/" target="_blank">Official Docs ↗</a>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+  // Highlight active nav link on scroll
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('.sidebar a');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navLinks.forEach(link => link.classList.remove('active'));
+        const active = document.querySelector(`.sidebar a[href="#${entry.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
