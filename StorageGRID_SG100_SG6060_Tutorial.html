@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>StorageGRID Appliance Tutorial — SG100 / SG6060 (SG6000 series)</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#ffffff; --accent:#0a6cff; --accent-dark:#0851c4;
+    --text:#1c2433; --muted:#5b6472; --border:#e3e8ef; --code:#0f172a;
+    --tag:#eef4ff;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:"Segoe UI",Helvetica,Arial,sans-serif; color:var(--text);
+    background:#f4f6fa; line-height:1.55;
+  }
+  header{
+    background:linear-gradient(135deg,#0a6cff,#0b3a8a); color:#fff; padding:36px 5vw;
+  }
+  header h1{margin:0 0 6px; font-size:1.8rem;}
+  header p{margin:0; opacity:.9;}
+  nav{
+    background:#101a30; position:sticky; top:0; z-index:10; padding:0 5vw;
+    display:flex; flex-wrap:wrap; gap:2px; overflow-x:auto;
+  }
+  nav a{
+    color:#cdd9f0; text-decoration:none; padding:12px 14px; font-size:.85rem;
+    white-space:nowrap; border-bottom:3px solid transparent;
+  }
+  nav a:hover{ color:#fff; border-color:var(--accent);}
+  main{max-width:980px; margin:0 auto; padding:30px 5vw 80px;}
+  section{
+    background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:26px 28px; margin-bottom:24px;
+  }
+  h2{
+    color:#0b3a8a; border-bottom:2px solid var(--tag); padding-bottom:8px;
+    font-size:1.3rem; margin-top:0;
+  }
+  h3{color:#143b73; font-size:1.05rem; margin-top:26px;}
+  h4{color:#33415c; font-size:.95rem; margin-bottom:6px;}
+  table{width:100%; border-collapse:collapse; margin:14px 0; font-size:.9rem;}
+  th,td{border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top;}
+  th{background:#eef4ff; color:#0b3a8a;}
+  tr:nth-child(even){background:#fafbfd;}
+  code, .mono{font-family:Consolas,Menlo,monospace; background:#eef1f6; padding:2px 5px; border-radius:4px; font-size:.85em;}
+  .note{
+    background:#fff7e6; border-left:4px solid #f0ad4e; padding:10px 14px; margin:14px 0;
+    font-size:.9rem; border-radius:4px;
+  }
+  .warn{
+    background:#fdecec; border-left:4px solid #d9534f; padding:10px 14px; margin:14px 0;
+    font-size:.9rem; border-radius:4px;
+  }
+  .tag{
+    display:inline-block; background:var(--tag); color:#0b3a8a; font-size:.72rem;
+    padding:3px 9px; border-radius:20px; margin:2px 4px 2px 0; font-weight:600;
+  }
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+  @media (max-width:700px){.grid2{grid-template-columns:1fr;}}
+  .card{background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:16px;}
+  ol li, ul li{margin-bottom:6px;}
+  footer{text-align:center; color:var(--muted); font-size:.8rem; padding:30px 0;}
+  .badge-sg100{background:#eafff0;color:#0a7a3d;}
+  .badge-sg6060{background:#fff0ee;color:#b3401c;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>StorageGRID Hardware Appliance Tutorial</h1>
+  <p>SG100 services appliance &nbsp;|&nbsp; SG6060 / SG6000-series storage appliance &nbsp;|&nbsp; Architecture · Installation · Networking · OS Upgrades</p>
+</header>
+
+<nav>
+  <a href="#intro">Overview</a>
+  <a href="#sg100-arch">SG100 Architecture</a>
+  <a href="#sg6060-arch">SG6060 Architecture</a>
+  <a href="#install">Installation</a>
+  <a href="#network">Networking</a>
+  <a href="#bond-modes">Port Bond Modes</a>
+  <a href="#bmc">BMC</a>
+  <a href="#upgrade">OS / Firmware Upgrades</a>
+  <a href="#notes">Notes &amp; Sources</a>
+</nav>
+
+<main>
+
+<section id="intro">
+  <h2>1. Overview</h2>
+  <p>StorageGRID hardware appliances are purpose-built servers that run as dedicated grid nodes instead of
+  virtual machines. This tutorial covers the two appliance families you asked about:</p>
+  <div class="grid2">
+    <div class="card">
+      <span class="tag badge-sg100">Services Appliance</span>
+      <h4>SG100 (and SG1000)</h4>
+      <p>Runs as a <strong>Gateway Node</strong> and/or <strong>Admin Node</strong>. Provides S3/Swift
+      load-balancing and grid management — it has <em>no bulk object storage</em> of its own.</p>
+    </div>
+    <div class="card">
+      <span class="tag badge-sg6060">Storage Appliance</span>
+      <h4>SG6060 (SG6000 family)</h4>
+      <p>Runs as a <strong>Storage Node</strong>. Combines a compute controller with an E‑Series storage
+      shelf to provide object storage capacity (up to 180 drives with expansion shelves).</p>
+    </div>
+  </div>
+  <div class="note">
+    <strong>About "SG6112":</strong> The StorageGRID 11.5 documentation set used for this tutorial does not
+    include an "SG6112" model — that name doesn't appear in the 11.5 manuals. The closest, similarly-purposed
+    appliance in this hardware family is the <strong>SG6060</strong> (60-drive, expansion-capable) or the
+    <strong>SGF6024</strong> (24-SSD all-flash). A unit called the <strong>SGF6112</strong> (single-controller,
+    all-flash) was introduced in a later StorageGRID release, so its specifics aren't in this document set.
+    Everything below for the "6000 series" architecture (compute controller + E-Series storage shelf,
+    Fibre-Channel interconnect, SANtricity-managed controllers) is structurally how that whole family — SG6060,
+    SGF6024, and later SGF6112 — is built, even though exact drive counts/connectors differ per model.
+  </div>
+</section>
+
+<section id="sg100-arch">
+  <h2>2. SG100 Architecture</h2>
+  <p>The SG100 is a 1U services appliance. From the front it's nearly identical to the larger SG1000 (which
+  supports higher network speeds) — they differ only in badge and port speed.</p>
+
+  <h3>Internal components</h3>
+  <ul>
+    <li>Two solid-state drives (SSDs) — mirrored with RAID1 — store the StorageGRID OS and, when the node
+    acts as an Admin Node, audit logs / metrics / database tables.</li>
+    <li>A baseboard management controller (BMC) for out-of-band hardware monitoring (IPMI).</li>
+    <li>Redundant power supplies.</li>
+  </ul>
+
+  <h3>Rear connectors</h3>
+  <table>
+    <tr><th>Port</th><th>Type</th><th>Purpose</th></tr>
+    <tr><td>Network ports 1–4</td><td>10/25-GbE (SFP+/SFP28)</td><td>Grid Network and Client Network traffic</td></tr>
+    <tr><td>BMC management port</td><td>1-GbE RJ-45</td><td>Out-of-band hardware management</td></tr>
+    <tr><td>Diagnostic ports</td><td>VGA / Serial / USB</td><td>Reserved for technical support</td></tr>
+    <tr><td>Admin Network port 1</td><td>1-GbE RJ-45</td><td>Connect to the Admin Network</td></tr>
+    <tr><td>Admin Network port 2</td><td>1-GbE RJ-45</td><td>Bond with port 1 for redundancy, or leave free for temporary local access at <code>169.254.0.1</code></td></tr>
+  </table>
+  <p><em>(The SG1000 is identical except network ports 1–4 also support 40/100-GbE via QSFP+/QSFP28.)</em></p>
+
+  <h3>Deployment roles</h3>
+  <ul>
+    <li>Gateway Node (load balancing for S3/Swift client traffic)</li>
+    <li>Admin Node — primary or non-primary</li>
+    <li>Both roles simultaneously on the same unit</li>
+    <li>Two units can be paired into an <strong>HA group</strong> with a shared virtual IP for highly-available load balancing</li>
+  </ul>
+  <div class="warn">Do not mix SG100 and SG1000 appliances at the same site — unpredictable performance can result.</div>
+</section>
+
+<section id="sg6060-arch">
+  <h2>3. SG6060 Architecture (SG6000 family)</h2>
+  <p>The SG6060 is built from two physical enclosures that work together as a single Storage Node:</p>
+
+  <table>
+    <tr><th>Component</th><th>Description</th></tr>
+    <tr>
+      <td><strong>SG6000-CN compute controller</strong> (1U)</td>
+      <td>40 cores / 80 threads, 192 GB RAM, up to 4×25 Gbps aggregate Ethernet, 4×16 Gbps Fibre Channel
+      interconnect to the storage shelf, BMC, redundant power. Runs the StorageGRID Appliance Installer and,
+      once deployed, the StorageGRID node software (this is <em>not</em> preinstalled — it's pulled from the
+      Admin Node at deployment time).</td>
+    </tr>
+    <tr>
+      <td><strong>E2860 storage controller shelf</strong> (4U)</td>
+      <td>Two E‑Series E2800 controllers in duplex (active/active failover) configuration; five drive drawers
+      holding 60×3.5" drives (2 SSD metadata drives + 58 NL‑SAS data drives); redundant power/fans.</td>
+    </tr>
+    <tr>
+      <td><strong>Optional DE460C expansion shelves</strong> (4U each)</td>
+      <td>Two IOMs + five drawers of 12 drives = 60 drives per shelf. Up to two shelves can be added
+      (180 drives total per SG6060).</td>
+    </tr>
+  </table>
+
+  <p>The all-flash sibling, <strong>SGF6024</strong>, uses the same SG6000-CN compute controller but pairs it
+  with a 2U EF570 flash shelf (24 SSDs, no expansion shelf support).</p>
+
+  <h3>SG6000-CN rear connectors</h3>
+  <table>
+    <tr><th>Port</th><th>Type</th><th>Purpose</th></tr>
+    <tr><td>Interconnect ports 1–4</td><td>16-Gb/s Fibre Channel</td><td>Connect compute controller to the two E2800 storage controllers (2 links to each)</td></tr>
+    <tr><td>Network ports 1–4</td><td>10/25-GbE</td><td>Grid Network and Client Network</td></tr>
+    <tr><td>BMC management port</td><td>1-GbE RJ-45</td><td>Out-of-band management</td></tr>
+    <tr><td>Admin Network ports 1 &amp; 2</td><td>1-GbE RJ-45</td><td>Admin Network, optionally bonded</td></tr>
+  </table>
+
+  <h3>E2800 storage controller connectors (×2, one per controller)</h3>
+  <table>
+    <tr><th>Port</th><th>Type</th><th>Purpose</th></tr>
+    <tr><td>Interconnect ports 1–2</td><td>16-Gb/s FC optical</td><td>Link to the SG6000-CN compute controller</td></tr>
+    <tr><td>Management ports 1–2</td><td>1-GbE RJ-45</td><td>Port 1 → SANtricity System Manager browser access; Port 2 reserved for support</td></tr>
+    <tr><td>Drive expansion ports 1–2</td><td>12-Gb/s SAS</td><td>Link to optional expansion shelves' IOMs</td></tr>
+  </table>
+
+  <p>The storage controllers run <strong>SANtricity OS</strong> (the E-Series controller firmware) and expose
+  <strong>SANtricity System Manager</strong> for monitoring drives, configuring alerts/AutoSupport, and managing
+  the Drive Security (FIPS) feature.</p>
+</section>
+
+<section id="install">
+  <h2>4. Installation Walkthrough</h2>
+
+  <h3>4.1 Preparation (both appliance types)</h3>
+  <ol>
+    <li>Confirm site meets power, cooling, weight, and rack-depth specs (check the NetApp Hardware Universe).</li>
+    <li>Unpack and verify contents against the packing slip (appliance, rail kit, power cords).</li>
+    <li>Gather tools: Phillips/flat screwdrivers, ESD wrist strap, correct transceivers/cables for your chosen
+    link speed, a service laptop with a supported browser (Chrome 87+, Edge 87+, or Firefox 84+).</li>
+    <li>Record planned IP addressing, switch ports, and bond modes for each network <em>before</em> you start
+    cabling (see the worksheets in §5).</li>
+    <li>Register the hardware on the NetApp Support Site using the chassis serial number.</li>
+  </ol>
+
+  <h3>4.2 Hardware install steps</h3>
+  <ol>
+    <li>Install rails in the cabinet/rack, then slide the appliance onto the rails until the latches click.</li>
+    <li>Cable the BMC management port (recommended, optional) and the Admin Network port(s).</li>
+    <li>Cable the data network ports to your switches based on the bond mode you chose (Fixed vs Aggregate
+    — see §6).</li>
+    <li><strong>SG6060 only:</strong> connect the Fibre Channel interconnect ports between the SG6000-CN
+    and each E2800 controller, and SAS-cable any expansion shelves.</li>
+    <li>Connect both power cords to separate PDUs and power the unit on. Confirm the power LED turns
+    solid blue and no amber alarm LED lights up.</li>
+    <li>Re-attach the front bezel only <em>after</em> the unit powers on successfully.</li>
+  </ol>
+
+  <h3>4.3 Software/node configuration</h3>
+  <ol>
+    <li>Browse to the <strong>StorageGRID Appliance Installer</strong> (via DHCP-assigned IP, or via the
+    temporary link-local address <code>169.254.0.1</code> on the spare management port) to set link speed,
+    port bond mode, and IP addresses for each network.</li>
+    <li><strong>SG6060 only:</strong> use SANtricity System Manager (via the E2800 management port) to confirm
+    the storage controllers and drives are healthy before proceeding.</li>
+    <li>Optionally enable node encryption against an external Key Management Server (KMIP) before the node
+    joins the grid.</li>
+    <li>From the primary Admin Node's Grid Manager (or the Appliance Installer during first-time grid
+    deployment), deploy the node as a Gateway/Admin Node (SG100) or Storage Node (SG6060) and let it join
+    the grid.</li>
+  </ol>
+</section>
+
+<section id="network">
+  <h2>5. Networking Types and IP Planning</h2>
+  <p>Every appliance can connect to up to three logical StorageGRID networks, plus a separate hardware
+  management network:</p>
+  <table>
+    <tr><th>Network</th><th>Required?</th><th>Purpose</th></tr>
+    <tr><td><strong>Grid Network</strong></td><td>Required</td><td>All internal StorageGRID node-to-node traffic, across all sites/subnets.</td></tr>
+    <tr><td><strong>Admin Network</strong></td><td>Optional</td><td>Closed network for system administration/maintenance; typically not routed between sites.</td></tr>
+    <tr><td><strong>Client Network</strong></td><td>Optional</td><td>Open network for S3/Swift client traffic, letting you keep the Grid Network isolated.</td></tr>
+    <tr><td><strong>BMC management network</strong></td><td>Optional (recommended)</td><td>Out-of-band IPMI access to the hardware controller; can share the Admin Network or be fully independent.</td></tr>
+  </table>
+
+  <div class="note">For each network you plan to use, gather: DHCP vs static addressing, IPv4 address (CIDR),
+  gateway, subnet list, switch port mapping, and (Grid/Client only) MTU and VLAN tag if used. The 11.5
+  documentation provides worksheet tables for exactly this purpose for the SG100/SG1000 and SG6000 chapters.</div>
+
+  <h3>Key external service ports you'll commonly need to allow</h3>
+  <table>
+    <tr><th>Port</th><th>Proto</th><th>Service</th><th>Notes</th></tr>
+    <tr><td>22 / 2022</td><td>TCP</td><td>SSH</td><td>Service laptop console/SSH access to nodes</td></tr>
+    <tr><td>80 / 443</td><td>TCP</td><td>HTTP/HTTPS</td><td>Grid Manager, Tenant Manager, Appliance Installer</td></tr>
+    <tr><td>8443</td><td>TCP</td><td>HTTPS</td><td>StorageGRID Appliance Installer (port 80 redirects here)</td></tr>
+    <tr><td>5696</td><td>TCP</td><td>KMIP</td><td>Appliance ↔ external Key Management Server (if node encryption is enabled)</td></tr>
+    <tr><td>9022</td><td>TCP</td><td>SSH</td><td>Appliance pre-configuration mode (support use)</td></tr>
+    <tr><td>8082–8085 / 18082–18085</td><td>TCP</td><td>S3 / Swift</td><td>Gateway Node / Storage Node client data-path ports</td></tr>
+  </table>
+</section>
+
+<section id="bond-modes">
+  <h2>6. Port Bond Modes</h2>
+  <p>Both appliance families use the same two bonding concepts for the Grid/Client data ports, plus a simpler
+  scheme for the 1-GbE Admin management ports.</p>
+
+  <div class="grid2">
+    <div class="card">
+      <h4>Fixed port bond mode <span class="tag">default</span></h4>
+      <p>Ports 1 &amp; 3 bond for the Client Network; ports 2 &amp; 4 bond for the Grid Network.</p>
+      <ul>
+        <li><strong>Active-Backup</strong> (default): one port active, the other a hot standby.</li>
+        <li><strong>LACP (802.3ad)</strong>: both ports form one logical channel for higher throughput; if one fails, throughput drops but the link stays up.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>Aggregate port bond mode</h4>
+      <p>All connected ports join a single LACP bond shared by Grid + Client traffic, distinguished by a
+      <strong>unique VLAN tag per network</strong>.</p>
+      <ul>
+        <li>Requires LACP-capable switches; if multiple switches are involved, they must support MLAG (or equivalent).</li>
+        <li>Maximizes throughput and adds failover paths versus Fixed mode.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Admin/management port bonding (1-GbE ports)</h3>
+  <ul>
+    <li><strong>Independent mode</strong> (default): only the left management port connects to the Admin Network; the right port is free for a temporary local connection at <code>169.254.0.1</code>.</li>
+    <li><strong>Active-Backup mode</strong>: both ports bond into one logical, redundant connection to the Admin Network.</li>
+  </ul>
+  <div class="note">For a temporary local connection while Active-Backup is configured: unplug both
+  management ports, plug into the right-hand port, and browse to <code>169.254.0.1</code>.</div>
+</section>
+
+<section id="bmc">
+  <h2>7. BMC (Baseboard Management Controller)</h2>
+  <p>Every model in this tutorial includes a BMC for out-of-band hardware monitoring/management over IPMI,
+  reached through its own 1-GbE RJ-45 port. Through the BMC interface you can:</p>
+  <ul>
+    <li>View boot-up status codes and hardware error/alarm history</li>
+    <li>Monitor power, fan, and temperature sensors</li>
+    <li>Perform remote power actions (power cycle, reset) when the node is unresponsive</li>
+    <li>Configure SNMP for alerting (note: as of recent StorageGRID releases, BMC SNMP configuration on
+    SG6000/SG100/SG1000 requires an IP address rather than a fully-qualified domain name)</li>
+  </ul>
+</section>
+
+<section id="upgrade">
+  <h2>8. OS / Firmware Upgrade Processes</h2>
+  <p>"OS upgrade" means different things depending on which layer of the appliance you mean. There are three
+  distinct upgrade paths:</p>
+
+  <h3>8.1 StorageGRID node software upgrade (applies to SG100 and SG6060 alike)</h3>
+  <p>This is the grid-wide StorageGRID software version running on every node (including the appliance's
+  internal OS image on its SSDs). It's performed centrally from the Grid Manager as part of a planned
+  StorageGRID upgrade/hotfix and is documented separately from appliance hardware procedures — it rolls the
+  same version out across all nodes, appliance or virtual.</p>
+
+  <h3>8.2 SANtricity OS upgrade — storage controller firmware (SG6060 / SG6000 family only)</h3>
+  <p>The SG6060's E2800 controllers (and SGF6024's EF570 controllers) run SANtricity OS, which must be kept
+  at the version qualified in the NetApp Interoperability Matrix Tool. There are two supported methods,
+  chosen based on the currently-installed version:</p>
+
+  <table>
+    <tr><th>Current SANtricity OS version</th><th>Upgrade method</th></tr>
+    <tr><td>08.42.20.00 (11.42) or newer</td><td>Grid Manager (online, rolling)</td></tr>
+    <tr><td>Older than 08.42.20.00 (11.42)</td><td>Maintenance mode (offline, manual)</td></tr>
+  </table>
+
+  <h4>Grid Manager method (recommended path):</h4>
+  <ol>
+    <li>Download the correct SANtricity OS file for your controller model (E2800 for SG6060, EF570 for SGF6024) from the NetApp Support site.</li>
+    <li>In Grid Manager: <strong>Maintenance → Software Update → SANtricity OS</strong>.</li>
+    <li>Browse to and upload the file; wait for upload &amp; validation (don't rename the file — the name is part of validation).</li>
+    <li>Enter the provisioning passphrase and click <strong>Start</strong>; accept the warning that the browser session may briefly disconnect.</li>
+    <li>A health check runs first, confirming no node shows "Needs Attention."</li>
+    <li><strong>Approve</strong> each Storage Node (or Approve All) to queue it for upgrade — approved nodes upgrade one at a time, and approving stops services on that node before it reboots, so only approve nodes you're ready to take offline briefly.</li>
+    <li>Monitor the SANtricity OS Upgrade Progress table until all approved nodes show <strong>Complete</strong>.</li>
+    <li>NVSRAM is upgraded automatically alongside SANtricity OS — no separate NVSRAM file is needed.</li>
+  </ol>
+  <div class="warn">You can't run a StorageGRID software upgrade or hotfix while a SANtricity OS upgrade is
+  pending — the system redirects you back to the SANtricity OS page until it's finished. Never use generic
+  E-Series upgrade instructions outside StorageGRID's documented process — doing so can make the appliance
+  inoperable.</div>
+
+  <h4>Maintenance mode method (for older SANtricity OS versions):</h4>
+  <p>Used when the controller's current firmware is too old for the Grid Manager path. This is performed
+  directly against the storage controller (via SANtricity System Manager while the node is placed into
+  StorageGRID maintenance mode) rather than through Grid Manager's rolling upgrade flow. After this manual
+  step brings the controller to 08.42.20.00 (11.42) or newer, all future upgrades can use the Grid Manager
+  method.</p>
+
+  <h3>8.3 BMC / BIOS firmware</h3>
+  <p>Compute-controller BIOS and BMC firmware (covering the SG6000-CN, SG100, and SG1000 controllers) is
+  updated separately from SANtricity OS and is typically bundled with specific StorageGRID hotfixes/releases
+  — for example, SG6060 and SGF6024 appliances have been automatically upgraded to a specific qualified BIOS
+  version as part of certain StorageGRID releases.</p>
+</section>
+
+<section id="notes">
+  <h2>9. Notes &amp; Sources</h2>
+  <ul>
+    <li>This tutorial is built from the StorageGRID 11.5 documentation set you uploaded, specifically the
+    "SG100 &amp; SG1000 services appliances" and "SG6000 storage appliances" (SG6060/SGF6024) chapters, plus the
+    network ports reference and SANtricity OS upgrade procedures.</li>
+    <li><strong>SGF6112 / "SG6112"</strong> is not covered by 11.5 docs — if you're actually working with that
+    model, you'll want the documentation matching your installed StorageGRID release, since hardware specs
+    (single vs. dual storage controller, drive count, connectors) differ from the SG6060/SGF6024 described here.</li>
+    <li>Always cross-check exact IP/port worksheets and switch configuration against your live StorageGRID
+    version's official documentation before performing hardware changes or OS upgrades — appliance procedures
+    are version-sensitive and incorrect steps can make a node inoperable.</li>
+  </ul>
+</section>
+
+</main>
+<footer>StorageGRID Appliance Tutorial — compiled from StorageGRID 11.5 Documentation (NetApp) · For internal training/reference use</footer>
+</body>
+</html>
