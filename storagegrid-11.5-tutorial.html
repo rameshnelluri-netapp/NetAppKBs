@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetApp StorageGRID 11.5 — Conceptual Guide</title>
+<style>
+  /* ── Design tokens ──────────────────────────────────────────── */
+  :root {
+    --ink:       #0f1923;
+    --ink-soft:  #3a4a5a;
+    --rule:      #d0dce8;
+    --bg:        #f5f8fc;
+    --surface:   #ffffff;
+    --accent:    #0073c0;
+    --accent-dk: #004e88;
+    --accent-lt: #e5f1fa;
+    --teal:      #008891;
+    --amber:     #c87000;
+    --green:     #1a7a4a;
+    --red:       #c02020;
+    --mono:      'Courier New', monospace;
+    --sans:      'Segoe UI', system-ui, -apple-system, sans-serif;
+    --display:   Georgia, 'Times New Roman', serif;
+  }
+
+  /* ── Reset & base ──────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  /* ── Skip nav ───────────────────────────────────────────────── */
+  .skip { position: absolute; left: -9999px; }
+  .skip:focus { left: 1rem; top: 1rem; z-index: 999; background: var(--accent); color: #fff; padding: .4rem .8rem; border-radius: 4px; }
+
+  /* ── Top bar ────────────────────────────────────────────────── */
+  header {
+    background: linear-gradient(135deg, #00264d 0%, #004e88 60%, #0073c0 100%);
+    color: #fff;
+    padding: 3.5rem 2rem 2.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='rgba(255,255,255,.06)' stroke-width='1'%3E%3Crect x='0' y='0' width='60' height='60'/%3E%3Cline x1='0' y1='20' x2='60' y2='20'/%3E%3Cline x1='0' y1='40' x2='60' y2='40'/%3E%3Cline x1='20' y1='0' x2='20' y2='60'/%3E%3Cline x1='40' y1='0' x2='40' y2='60'/%3E%3C/g%3E%3C/svg%3E") repeat;
+    pointer-events: none;
+  }
+  .header-inner { max-width: 960px; margin: 0 auto; position: relative; }
+  .badge {
+    display: inline-block;
+    background: rgba(255,255,255,.15);
+    border: 1px solid rgba(255,255,255,.3);
+    color: #b3d9f7;
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    padding: .25rem .7rem;
+    border-radius: 20px;
+    margin-bottom: 1rem;
+  }
+  header h1 {
+    font-family: var(--display);
+    font-size: clamp(1.9rem, 5vw, 3rem);
+    font-weight: 400;
+    line-height: 1.2;
+    margin-bottom: .75rem;
+  }
+  header p {
+    font-size: 1.05rem;
+    color: rgba(255,255,255,.8);
+    max-width: 640px;
+  }
+  .header-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+  .stat-chip {
+    background: rgba(255,255,255,.1);
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 8px;
+    padding: .5rem 1rem;
+    font-size: .82rem;
+    color: #d9eeff;
+  }
+  .stat-chip strong { color: #fff; display: block; font-size: 1.1rem; }
+
+  /* ── Sticky nav ─────────────────────────────────────────────── */
+  nav.toc {
+    background: var(--surface);
+    border-bottom: 2px solid var(--accent);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+  }
+  nav.toc ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    list-style: none;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 1rem;
+    overflow-x: auto;
+  }
+  nav.toc a {
+    display: block;
+    padding: .7rem .9rem;
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-size: .78rem;
+    font-weight: 600;
+    letter-spacing: .03em;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: color .15s, border-color .15s;
+  }
+  nav.toc a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── Layout ──────────────────────────────────────────────────── */
+  main { max-width: 960px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+
+  /* ── Section headings ───────────────────────────────────────── */
+  .section {
+    margin-bottom: 3.5rem;
+    scroll-margin-top: 56px;
+  }
+  .section-label {
+    display: inline-block;
+    color: var(--accent);
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    margin-bottom: .4rem;
+  }
+  .section h2 {
+    font-family: var(--display);
+    font-size: clamp(1.4rem, 3vw, 1.9rem);
+    font-weight: 400;
+    color: var(--ink);
+    border-bottom: 2px solid var(--rule);
+    padding-bottom: .6rem;
+    margin-bottom: 1.5rem;
+  }
+  .section h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--accent-dk);
+    margin: 1.75rem 0 .5rem;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+  }
+  .section h3::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 1em;
+    background: var(--accent);
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  p { margin-bottom: .9rem; }
+  ul, ol { padding-left: 1.4rem; margin-bottom: .9rem; }
+  li { margin-bottom: .3rem; }
+  a { color: var(--accent); }
+
+  /* ── Cards grid ─────────────────────────────────────────────── */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1rem;
+    margin: 1.2rem 0;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 1.2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .card.admin::before  { background: var(--accent); }
+  .card.storage::before { background: var(--teal); }
+  .card.gateway::before { background: var(--amber); }
+  .card.archive::before { background: var(--ink-soft); }
+  .card-icon { font-size: 1.6rem; margin-bottom: .5rem; }
+  .card h4 { font-size: .92rem; font-weight: 700; margin-bottom: .4rem; }
+  .card p  { font-size: .82rem; color: var(--ink-soft); margin: 0; }
+  .card .tag {
+    display: inline-block;
+    font-size: .65rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: .15rem .5rem;
+    border-radius: 20px;
+    margin-bottom: .6rem;
+  }
+  .tag.admin   { background: #e5f1fa; color: var(--accent-dk); }
+  .tag.storage { background: #e0f5f5; color: var(--teal); }
+  .tag.gateway { background: #fff4e0; color: var(--amber); }
+  .tag.archive { background: #f0f0f0; color: var(--ink-soft); }
+
+  /* ── Services table ─────────────────────────────────────────── */
+  .svc-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .83rem;
+    margin: 1rem 0;
+    background: var(--surface);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  .svc-table th {
+    background: var(--accent);
+    color: #fff;
+    text-align: left;
+    padding: .6rem 1rem;
+    font-size: .75rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  .svc-table td {
+    padding: .55rem 1rem;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  .svc-table tr:last-child td { border-bottom: none; }
+  .svc-table tr:nth-child(even) td { background: #f8fafd; }
+  .svc-name { font-family: var(--mono); font-size: .78rem; color: var(--teal); font-weight: 700; }
+
+  /* ── Flow diagrams ──────────────────────────────────────────── */
+  .flow {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin: 1.2rem 0;
+  }
+  .flow-title {
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 1rem;
+  }
+  .flow-steps {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+  }
+  .flow-step {
+    display: flex;
+    align-items: flex-start;
+    gap: .8rem;
+  }
+  .step-num {
+    flex-shrink: 0;
+    width: 1.6rem;
+    height: 1.6rem;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 50%;
+    font-size: .72rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: .15rem;
+  }
+  .step-body { font-size: .86rem; color: var(--ink-soft); }
+  .step-body strong { color: var(--ink); }
+  .flow-arrow {
+    width: 1.6rem;
+    text-align: center;
+    color: var(--rule);
+    font-size: 1.1rem;
+    padding-left: .2rem;
+  }
+
+  /* ── ILM & policy visuals ───────────────────────────────────── */
+  .ilm-rule {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 1rem 1.2rem;
+    margin-bottom: .8rem;
+  }
+  .ilm-rule h5 {
+    font-size: .85rem;
+    font-weight: 700;
+    margin-bottom: .3rem;
+    color: var(--accent-dk);
+  }
+  .ilm-rule p { font-size: .82rem; color: var(--ink-soft); margin: 0; }
+
+  .policy-pipeline {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    margin: 1.2rem 0;
+    overflow-x: auto;
+  }
+  .pp-step {
+    flex: 1;
+    min-width: 130px;
+    border: 1px solid var(--rule);
+    border-right: none;
+    padding: .8rem 1rem;
+    background: var(--surface);
+    font-size: .8rem;
+  }
+  .pp-step:first-child { border-radius: 8px 0 0 8px; }
+  .pp-step:last-child  { border-right: 1px solid var(--rule); border-radius: 0 8px 8px 0; }
+  .pp-step .pp-label { font-size: .65rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: .3rem; }
+  .pp-step p { margin: 0; color: var(--ink-soft); }
+
+  /* ── Consistency table ──────────────────────────────────────── */
+  .consist-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .82rem;
+    margin: 1rem 0;
+    background: var(--surface);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  .consist-table th { background: var(--teal); color: #fff; text-align: left; padding: .6rem 1rem; font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
+  .consist-table td { padding: .55rem 1rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  .consist-table tr:last-child td { border-bottom: none; }
+  .consist-table tr:nth-child(even) td { background: #f7fdfd; }
+  .consist-name { font-family: var(--mono); font-size: .78rem; color: var(--teal); font-weight: 700; }
+
+  /* ── Callout boxes ──────────────────────────────────────────── */
+  .callout {
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    margin: 1.2rem 0;
+    font-size: .86rem;
+    display: flex;
+    gap: .8rem;
+    align-items: flex-start;
+  }
+  .callout-icon { font-size: 1.2rem; flex-shrink: 0; margin-top: .05rem; }
+  .callout p { margin: 0; }
+  .callout.info  { background: var(--accent-lt); border: 1px solid #b3d4f0; }
+  .callout.warn  { background: #fff8e5; border: 1px solid #f5cc6a; }
+  .callout.tip   { background: #eafaf1; border: 1px solid #7dcea0; }
+
+  /* ── Two-col prose ──────────────────────────────────────────── */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin: 1rem 0;
+  }
+  @media (max-width: 620px) {
+    .two-col { grid-template-columns: 1fr; }
+    .policy-pipeline { flex-direction: column; }
+    .pp-step { border-right: 1px solid var(--rule); border-bottom: none; border-radius: 0; }
+    .pp-step:first-child { border-radius: 8px 8px 0 0; }
+    .pp-step:last-child  { border-bottom: 1px solid var(--rule); border-radius: 0 0 8px 8px; }
+  }
+
+  /* ── Feature pill list ──────────────────────────────────────── */
+  .pill-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin: 1rem 0;
+    list-style: none;
+    padding: 0;
+  }
+  .pill-list li {
+    background: var(--accent-lt);
+    border: 1px solid #b3d4f0;
+    border-radius: 20px;
+    padding: .3rem .85rem;
+    font-size: .8rem;
+    color: var(--accent-dk);
+    font-weight: 600;
+    margin: 0;
+  }
+
+  /* ── Code-ish label ─────────────────────────────────────────── */
+  code {
+    font-family: var(--mono);
+    font-size: .82em;
+    background: #edf2f7;
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: .1em .4em;
+    color: var(--teal);
+  }
+
+  /* ── EC scheme visual ───────────────────────────────────────── */
+  .ec-scheme {
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+    margin: 1rem 0;
+    align-items: center;
+  }
+  .ec-data { background: #d0e8ff; border: 1px solid #6ab0f0; border-radius: 5px; padding: .4rem .7rem; font-size: .78rem; font-weight: 700; color: #00376e; }
+  .ec-parity { background: #f0e8ff; border: 1px solid #b090f0; border-radius: 5px; padding: .4rem .7rem; font-size: .78rem; font-weight: 700; color: #3a0080; }
+  .ec-plus { font-weight: 700; color: var(--ink-soft); }
+
+  /* ── Footer ─────────────────────────────────────────────────── */
+  footer {
+    background: var(--ink);
+    color: rgba(255,255,255,.5);
+    text-align: center;
+    padding: 2rem;
+    font-size: .78rem;
+    margin-top: 2rem;
+  }
+  footer strong { color: rgba(255,255,255,.8); }
+</style>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<!-- ═══ HEADER ══════════════════════════════════════════════════ -->
+<header>
+  <div class="header-inner">
+    <span class="badge">NetApp Documentation · Conceptual Guide</span>
+    <h1>StorageGRID 11.5</h1>
+    <p>A comprehensive conceptual reference covering architecture, services, data flows, ILM policies, tenant management, APIs, monitoring, and advanced features — all in one page.</p>
+    <div class="header-grid">
+      <div class="stat-chip"><strong>S3 + Swift</strong>Object APIs</div>
+      <div class="stat-chip"><strong>Multi-site</strong>Geodistribution</div>
+      <div class="stat-chip"><strong>ILM</strong>Policy engine</div>
+      <div class="stat-chip"><strong>Erasure Coding</strong>+ Replication</div>
+      <div class="stat-chip"><strong>Hybrid Cloud</strong>AWS · Azure</div>
+    </div>
+  </div>
+</header>
+
+<!-- ═══ STICKY NAV ══════════════════════════════════════════════ -->
+<nav class="toc" aria-label="Page sections">
+  <ul>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#services">Node Services</a></li>
+    <li><a href="#data-flows">Data Flows</a></li>
+    <li><a href="#ilm">ILM Engine</a></li>
+    <li><a href="#erasure">Erasure Coding</a></li>
+    <li><a href="#tenants">Tenants</a></li>
+    <li><a href="#s3api">S3 API</a></li>
+    <li><a href="#platform-services">Platform Services</a></li>
+    <li><a href="#consistency">Consistency</a></li>
+    <li><a href="#security">Security</a></li>
+    <li><a href="#monitoring">Monitoring</a></li>
+    <li><a href="#cloud">Hybrid Cloud</a></li>
+  </ul>
+</nav>
+
+<!-- ═══ MAIN ════════════════════════════════════════════════════ -->
+<main id="main">
+
+  <!-- ── 1. OVERVIEW ──────────────────────────────────────────── -->
+  <section class="section" id="overview">
+    <span class="section-label">Section 01</span>
+    <h2>What is StorageGRID?</h2>
+
+    <p>NetApp StorageGRID is a <strong>software-defined, object-based storage solution</strong> that supports industry-standard object APIs — principally the Amazon S3 API and the OpenStack Swift API. It provides secure, durable storage for unstructured data at scale, with integrated metadata-driven lifecycle management policies that optimize where data lives throughout its life.</p>
+
+    <p>StorageGRID is composed of <strong>geographically distributed, redundant, heterogeneous nodes</strong> that can be integrated with both existing and next-generation client applications. Nodes can run on VMware virtual machines, Docker containers on Linux hosts, or purpose-built NetApp hardware appliances.</p>
+
+    <h3>Core Capabilities</h3>
+    <ul class="pill-list">
+      <li>Amazon S3 API</li>
+      <li>OpenStack Swift API</li>
+      <li>Policy-based ILM</li>
+      <li>Replication &amp; Erasure Coding</li>
+      <li>Multi-site geodistribution</li>
+      <li>Cloud Storage Pools (AWS, Azure)</li>
+      <li>Platform Services (Mirror, SNS, Search)</li>
+      <li>FabricPool tiering</li>
+      <li>S3 Object Lock / WORM</li>
+      <li>Identity federation (LDAP / AD / SSO)</li>
+      <li>Prometheus metrics &amp; Grafana</li>
+      <li>SNMP monitoring</li>
+    </ul>
+
+    <h3>Deployment Flexibility</h3>
+    <div class="two-col">
+      <div>
+        <strong>Software-based nodes</strong>
+        <ul>
+          <li>VMware vSphere VMs</li>
+          <li>Docker containers on RHEL, CentOS, Ubuntu, Debian</li>
+        </ul>
+      </div>
+      <div>
+        <strong>Hardware appliances</strong>
+        <ul>
+          <li>SG6000 — Storage Node (NL-SAS / SSD)</li>
+          <li>SG5700 — Integrated Storage Node</li>
+          <li>SG100 / SG1000 — Admin / Gateway services</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout info">
+      <span class="callout-icon">ℹ️</span>
+      <p>StorageGRID supports <strong>non-disruptive operations</strong>: clients can continue ingesting and retrieving objects during software upgrades, expansion, decommission, and most maintenance procedures.</p>
+    </div>
+  </section>
+
+  <!-- ── 2. ARCHITECTURE ──────────────────────────────────────── -->
+  <section class="section" id="architecture">
+    <span class="section-label">Section 02</span>
+    <h2>Architecture &amp; Network Topology</h2>
+
+    <p>A StorageGRID system consists of one or more <strong>sites</strong>, each containing one or more <strong>grid nodes</strong>. All nodes communicate over the internal <em>Grid Network</em>. An optional <em>Admin Network</em> serves management traffic, and an optional <em>Client Network</em> carries S3/Swift client traffic in an isolated network plane.</p>
+
+    <h3>Four Node Types</h3>
+    <div class="card-grid">
+      <div class="card admin">
+        <div class="tag admin">Admin Node</div>
+        <div class="card-icon">🖥️</div>
+        <h4>Admin Node</h4>
+        <p>Hosts the Grid Manager UI, management API, audit logging, Prometheus metrics, and Grafana. One <em>primary</em> Admin Node per grid; additional non-primary nodes add redundancy. Also supports load balancing S3/Swift traffic.</p>
+      </div>
+      <div class="card storage">
+        <div class="tag storage">Storage Node</div>
+        <div class="card-icon">🗄️</div>
+        <h4>Storage Node</h4>
+        <p>Stores and manages object data and metadata. Hosts the LDR, Cassandra metadata store, DDS, Chunk (erasure coding), and Data Mover services. Minimum three per site.</p>
+      </div>
+      <div class="card gateway">
+        <div class="tag gateway">Gateway Node</div>
+        <div class="card-icon">⚡</div>
+        <h4>Gateway Node</h4>
+        <p>Optional. Provides Layer 7 load balancing (Load Balancer service) for S3 and Swift client connections, distributing requests to optimal Storage Nodes. Supports High Availability groups with virtual IPs.</p>
+      </div>
+      <div class="card archive">
+        <div class="tag archive">Archive Node</div>
+        <div class="card-icon">📼</div>
+        <h4>Archive Node</h4>
+        <p>Optional. Provides an interface to external archival storage such as tape (via Tivoli Storage Manager middleware) or older cloud endpoints via S3.</p>
+      </div>
+    </div>
+
+    <h3>Networks</h3>
+    <table class="svc-table">
+      <thead><tr><th>Network</th><th>Purpose</th><th>Required?</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="svc-name">Grid Network</span></td>
+          <td>All internal StorageGRID traffic — node-to-node replication, metadata propagation, ILM engine communication, heartbeats.</td>
+          <td>✅ Required</td>
+        </tr>
+        <tr>
+          <td><span class="svc-name">Admin Network</span></td>
+          <td>Closed private network for system administration, maintenance, audit log access, and management API.</td>
+          <td>Optional</td>
+        </tr>
+        <tr>
+          <td><span class="svc-name">Client Network</span></td>
+          <td>Open network for S3 and Swift client applications. Isolates client protocol access from internal grid traffic so the Grid Network remains secured.</td>
+          <td>Optional</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>High Availability Groups</h3>
+    <p>Admin Nodes and Gateway Nodes can be grouped into <strong>HA Groups</strong>. Each group exposes one or more <em>virtual IP addresses</em> (VIPs). If the active node fails, keepalived automatically migrates the VIP to a healthy node within seconds. HA Groups ensure that load-balancing endpoints remain reachable even during node failures.</p>
+  </section>
+
+  <!-- ── 3. NODE SERVICES ─────────────────────────────────────── -->
+  <section class="section" id="services">
+    <span class="section-label">Section 03</span>
+    <h2>Node Services in Depth</h2>
+
+    <p>Each StorageGRID node type runs a specific set of software services. Understanding which service does what is key to understanding how requests flow through the grid.</p>
+
+    <h3>Admin Node Services</h3>
+    <table class="svc-table">
+      <thead><tr><th>Service</th><th>Acronym</th><th>Key Function</th></tr></thead>
+      <tbody>
+        <tr><td><span class="svc-name">Audit Management System</span></td><td>AMS</td><td>Tracks and logs all audited system events and object transactions to a text log file (<code>audit.log</code>).</td></tr>
+        <tr><td><span class="svc-name">Configuration Management Node</span></td><td>CMN</td><td>Manages system-wide configuration and grid tasks. Present <em>only</em> on the primary Admin Node.</td></tr>
+        <tr><td><span class="svc-name">Management API</span></td><td>mgmt-api</td><td>Processes requests from the Grid Management API and Tenant Management API (REST/JSON).</td></tr>
+        <tr><td><span class="svc-name">Network Management System</span></td><td>NMS</td><td>Powers the Grid Manager web interface.</td></tr>
+        <tr><td><span class="svc-name">Prometheus</span></td><td>—</td><td>Collects and stores time-series metrics from all nodes for alerting and Grafana dashboards.</td></tr>
+        <tr><td><span class="svc-name">High Availability</span></td><td>keepalived</td><td>Manages virtual IP addresses for HA Groups. Also present on Gateway Nodes.</td></tr>
+        <tr><td><span class="svc-name">Load Balancer</span></td><td>—</td><td>Layer 7 load balancing of S3/Swift traffic to Storage Nodes. Also present on Gateway Nodes.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Storage Node Services</h3>
+    <table class="svc-table">
+      <thead><tr><th>Service</th><th>Acronym</th><th>Key Function</th></tr></thead>
+      <tbody>
+        <tr><td><span class="svc-name">Local Distribution Router</span></td><td>LDR</td><td>The core object service. Handles S3/Swift protocol requests, stores object data to disk, drives replication, and hosts the ILM engine.</td></tr>
+        <tr><td><span class="svc-name">Cassandra (metadata store)</span></td><td>—</td><td>Distributed NoSQL database storing all object metadata (UUID, bucket, size, timestamps, user metadata, object location). Three automatic copies maintained per site.</td></tr>
+        <tr><td><span class="svc-name">Cassandra Reaper</span></td><td>—</td><td>Runs automatic anti-entropy repairs on the Cassandra metadata cluster to prevent metadata divergence.</td></tr>
+        <tr><td><span class="svc-name">Distributed Data Store</span></td><td>DDS</td><td>Interfaces with Cassandra; monitors metadata storage health; coordinates erasure coding operations.</td></tr>
+        <tr><td><span class="svc-name">Chunk Service</span></td><td>—</td><td>Manages erasure-coded data and parity fragments at rest on the Storage Node.</td></tr>
+        <tr><td><span class="svc-name">Data Mover</span></td><td>DMV</td><td>Moves object data to external Cloud Storage Pools (AWS S3, Azure Blob).</td></tr>
+        <tr><td><span class="svc-name">Administrative Domain Controller</span></td><td>ADC</td><td>Maintains grid topology, provides authentication services for LDR and CMN. Present on first three Storage Nodes at each site.</td></tr>
+        <tr><td><span class="svc-name">Replicated State Machine</span></td><td>RSM</td><td>Ensures S3 platform service requests (CloudMirror, SNS, Elasticsearch) are reliably sent to their endpoints.</td></tr>
+        <tr><td><span class="svc-name">Identity</span></td><td>idnt</td><td>Federates user identities from LDAP and Active Directory for tenant authentication.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout tip">
+      <span class="callout-icon">💡</span>
+      <p>The <strong>LDR service</strong> is the heart of StorageGRID. It contains the ILM engine, handles all client object I/O, drives both replication and erasure coding, and communicates with the ADC for topology and the Cassandra metadata store for object location tracking.</p>
+    </div>
+  </section>
+
+  <!-- ── 4. DATA FLOWS ────────────────────────────────────────── -->
+  <section class="section" id="data-flows">
+    <span class="section-label">Section 04</span>
+    <h2>Data Flows — Ingest, Retrieve &amp; Delete</h2>
+
+    <p>Every object in StorageGRID has two independent parts: <strong>object data</strong> (the payload bytes) and <strong>object metadata</strong> (UUID, object name, bucket/container, tenant, logical size, timestamps, user metadata, tags). These are stored and managed separately — data by LDR to disk, metadata by Cassandra to three distributed copies.</p>
+
+    <h3>Ingest Flow (PUT Object)</h3>
+    <div class="flow">
+      <div class="flow-title">PUT Object → LDR → Metadata Store → Client 200 OK</div>
+      <div class="flow-steps">
+        <div class="flow-step"><span class="step-num">1</span><div class="step-body"><strong>Client HTTP PUT.</strong> An S3 or Swift client sends a PUT request through the load balancer (Gateway Node or Admin Node) to a Storage Node's LDR service.</div></div>
+        <div class="flow-step"><span class="step-num">2</span><div class="step-body"><strong>ILM Policy evaluation.</strong> The LDR evaluates the object against the active ILM policy to determine data protection instructions (replicated copies, erasure coding scheme, placement locations, ingest behavior).</div></div>
+        <div class="flow-step"><span class="step-num">3</span><div class="step-body"><strong>Object data stored.</strong> The LDR saves the object data as a replicated copy or initiates erasure coding (see below). For the <em>Balanced</em> ingest option, synchronous placement is attempted; if unavailable, interim copies are made and corrected later by background ILM.</div></div>
+        <div class="flow-step"><span class="step-num">4</span><div class="step-body"><strong>Metadata written.</strong> The LDR sends object metadata (location, UUID, user metadata) to the Cassandra metadata store on the same node.</div></div>
+        <div class="flow-step"><span class="step-num">5</span><div class="step-body"><strong>Metadata propagated.</strong> Cassandra automatically replicates the metadata to other Storage Nodes across sites (three copies total per site) for durability.</div></div>
+        <div class="flow-step"><span class="step-num">6</span><div class="step-body"><strong>Client acknowledgment.</strong> The LDR returns <code>HTTP 200 OK</code> to the client, confirming successful ingest.</div></div>
+      </div>
+    </div>
+
+    <h3>Ingest Behavior Options</h3>
+    <div class="two-col">
+      <div class="ilm-rule">
+        <h5>Balanced (recommended default)</h5>
+        <p>StorageGRID attempts to make all copies specified by the ILM rule at ingest time. If a target site is unavailable, interim copies are stored locally and ILM corrects placement as soon as the site becomes available. Best for most workloads.</p>
+      </div>
+      <div class="ilm-rule">
+        <h5>Strict</h5>
+        <p>The PUT fails unless all copies can be made exactly as specified at ingest time. Use when regulatory requirements mandate precise placement from the moment of write. More ingest errors during site outages.</p>
+      </div>
+      <div class="ilm-rule">
+        <h5>Dual Commit</h5>
+        <p>Two interim copies are immediately stored on two different Storage Nodes (even on the same site), then ILM eventually moves copies to their final locations. Reduces ingest latency but may temporarily have non-compliant copy counts.</p>
+      </div>
+    </div>
+
+    <h3>Retrieve Flow (GET Object)</h3>
+    <div class="flow">
+      <div class="flow-title">GET Object → Metadata lookup → LDR → Object returned</div>
+      <div class="flow-steps">
+        <div class="flow-step"><span class="step-num">1</span><div class="step-body"><strong>Client GET request.</strong> The client sends a GET to the load balancer, which routes it to the nearest available Storage Node LDR.</div></div>
+        <div class="flow-step"><span class="step-num">2</span><div class="step-body"><strong>Metadata query.</strong> The LDR queries the Cassandra metadata store to find the object's location(s) — which Storage Node(s), Cloud Storage Pool, or Archive Node hold copies.</div></div>
+        <div class="flow-step"><span class="step-num">3</span><div class="step-body"><strong>Data retrieval.</strong> If the data is on a local or remote Storage Node, the LDR fetches it directly. If on a Cloud Storage Pool that uses Glacier storage, the client must first restore the object via <code>POST Object restore</code>.</div></div>
+        <div class="flow-step"><span class="step-num">4</span><div class="step-body"><strong>Object returned.</strong> The LDR streams the object data back to the client in the HTTP response body.</div></div>
+      </div>
+    </div>
+
+    <h3>Delete Flow</h3>
+    <p>StorageGRID enforces a strict <strong>deletion hierarchy</strong>. The system always respects this priority order:</p>
+    <div class="policy-pipeline">
+      <div class="pp-step"><div class="pp-label">Highest priority</div><p><strong>S3 Object Lock</strong> legal hold / retain-until-date. Cannot be overridden.</p></div>
+      <div class="pp-step"><div class="pp-label">Second</div><p><strong>Client DELETE</strong> request removes all copies immediately.</p></div>
+      <div class="pp-step"><div class="pp-label">Third</div><p><strong>S3 Bucket Lifecycle</strong> Expiration action (overrides ILM).</p></div>
+      <div class="pp-step"><div class="pp-label">Lowest</div><p><strong>ILM placement</strong> expiration — last period ends with no further placements.</p></div>
+    </div>
+
+    <div class="callout warn">
+      <span class="callout-icon">⚠️</span>
+      <p>The S3 bucket lifecycle <em>Expiration</em> action <strong>always overrides ILM settings</strong>. An object can be retained on the grid after ILM placement instructions have lapsed if the bucket lifecycle has not yet triggered deletion.</p>
+    </div>
+
+    <h3>Object Lifecycle Stages Summary</h3>
+    <table class="svc-table">
+      <thead><tr><th>Stage</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Ingest</strong></td><td>Client saves object via HTTP PUT; StorageGRID begins managing it.</td></tr>
+        <tr><td><strong>Copy Management</strong></td><td>ILM engine creates and maintains specified replicated or erasure-coded copies across Storage Nodes, Cloud Storage Pools, or Archive Nodes over the object's lifetime.</td></tr>
+        <tr><td><strong>Retrieve</strong></td><td>Client reads the object; LDR locates and returns it from the best available copy.</td></tr>
+        <tr><td><strong>Delete</strong></td><td>All copies removed by client request, bucket lifecycle expiration, or ILM expiration.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ── 5. ILM ────────────────────────────────────────────────── -->
+  <section class="section" id="ilm">
+    <span class="section-label">Section 05</span>
+    <h2>Information Lifecycle Management (ILM)</h2>
+
+    <p>ILM is the policy engine at the heart of StorageGRID. It determines <em>where</em> objects are stored, <em>how many copies</em> exist, <em>what type of protection</em> is used (replication vs. erasure coding), and <em>for how long</em> — all without any application-level awareness.</p>
+
+    <h3>ILM Rules</h3>
+    <p>An <strong>ILM rule</strong> is the fundamental unit of policy. Each rule specifies:</p>
+    <ul>
+      <li><strong>Filters</strong> — which objects it applies to: by tenant account, S3 bucket/Swift container, object size, user metadata, or tags. The default rule has no filters and matches everything.</li>
+      <li><strong>Storage type</strong> — replicated copies, erasure-coded copies, Cloud Storage Pool, or Archive Node.</li>
+      <li><strong>Copy count &amp; placement</strong> — how many replicas, on which storage pools (sets of Storage Nodes defined by site or node tags), and for what duration.</li>
+      <li><strong>Time periods</strong> — placement instructions that change over time (e.g., 3 replicas for 1 year, then transition to 2+1 erasure coding forever).</li>
+      <li><strong>Ingest behavior</strong> — Balanced, Strict, or Dual Commit.</li>
+    </ul>
+
+    <h3>ILM Policy</h3>
+    <p>An <strong>ILM policy</strong> is an ordered list of ILM rules. StorageGRID evaluates each incoming object against the rules in order. The first rule whose filters match is applied; if no rule matches, the mandatory <em>default rule</em> (last in the list, no filters) applies.</p>
+
+    <div class="callout info">
+      <span class="callout-icon">ℹ️</span>
+      <p>Object <strong>metadata</strong> is <em>not</em> managed by ILM rules. Cassandra automatically maintains three copies of all object metadata at each site and distributes them evenly across all Storage Nodes at that site.</p>
+    </div>
+
+    <h3>Example ILM Policy with Three Rules</h3>
+    <div class="ilm-rule" style="border-left-color: var(--accent);">
+      <h5>Rule 1 — Tenant A: 3 replicated copies across 3 sites (forever)</h5>
+      <p>Filter: Tenant account = "Tenant A". Placement: one replicated copy at Site 1, Site 2, and Site 3 for all time. Ingest: Balanced.</p>
+    </div>
+    <div class="ilm-rule" style="border-left-color: var(--teal);">
+      <h5>Rule 2 — Large objects (&gt;1 MB) from all other tenants: 6+3 erasure coding</h5>
+      <p>Filter: object size &gt; 1 MB AND not Tenant A. Placement: 6+3 erasure coding across three sites. Objects not matched fall to Rule 3.</p>
+    </div>
+    <div class="ilm-rule" style="border-left-color: var(--amber);">
+      <h5>Rule 3 — Default: 2 replicated copies (any node, forever)</h5>
+      <p>No filter (default rule). All objects not matched by Rules 1 or 2 get two replicated copies on any available Storage Nodes.</p>
+    </div>
+
+    <h3>ILM Evaluation &amp; Background Scanning</h3>
+    <p>ILM evaluation happens at two times:</p>
+    <ul>
+      <li><strong>At ingest</strong> — the active ILM policy is evaluated immediately as each object is stored.</li>
+      <li><strong>Background scanning</strong> — the ILM engine continuously scans all stored objects to ensure they conform to the current active policy. This corrects drift caused by node failures, site outages, policy changes, or objects that have entered a new time period.</li>
+    </ul>
+
+    <h3>Storage Pools</h3>
+    <p>A <strong>storage pool</strong> is a logical grouping of Storage Nodes (or Archive Nodes), typically defined by site or node metadata tags. ILM rules reference storage pools when specifying placement. For example, "Site-1-Pool" might include all Storage Nodes at the primary data center.</p>
+
+    <h3>Erasure Coding Profiles</h3>
+    <p>An <strong>erasure coding (EC) profile</strong> binds a storage pool to an erasure-coding scheme (e.g., 4+2, 6+3, 2+1). ILM rules that use erasure coding reference an EC profile. The profile determines both where the fragments go and how many data/parity fragments are created.</p>
+  </section>
+
+  <!-- ── 6. ERASURE CODING ─────────────────────────────────────── -->
+  <section class="section" id="erasure">
+    <span class="section-label">Section 06</span>
+    <h2>Data Protection: Replication vs. Erasure Coding</h2>
+
+    <h3>Replication</h3>
+    <p>Replication creates complete copies of an object and places each on a different Storage Node (and/or site). The ILM engine in the LDR service controls replication:</p>
+    <ol>
+      <li>ILM engine queries the ADC service for the best destination LDR within the target storage pool.</li>
+      <li>The destination LDR queries ADC for the best source location and sends a replication request.</li>
+      <li>The source LDR sends the object data to the destination LDR.</li>
+      <li>Destination LDR confirms successful storage; ILM engine updates Cassandra with the new location.</li>
+    </ol>
+    <p>Replication is ideal for <strong>small objects</strong> (where erasure coding overhead is disproportionate) and for use cases where read latency is critical.</p>
+
+    <h3>Erasure Coding</h3>
+    <p>Erasure coding provides storage efficiency superior to full replication while still protecting against multiple simultaneous failures. StorageGRID slices the object into data fragments and computes parity fragments using Reed-Solomon coding. Even if some fragments are lost or corrupt, the object can be reconstructed from the remaining data and parity fragments.</p>
+
+    <h3>Example: 4+2 Erasure Coding</h3>
+    <div class="ec-scheme">
+      <span class="ec-data">D1</span>
+      <span class="ec-data">D2</span>
+      <span class="ec-data">D3</span>
+      <span class="ec-data">D4</span>
+      <span class="ec-plus">+</span>
+      <span class="ec-parity">P1</span>
+      <span class="ec-parity">P2</span>
+    </div>
+    <p>The object is divided into 4 equal data fragments (D1–D4) and 2 parity fragments (P1–P2). All 6 fragments are distributed across 6 Storage Nodes. The object can be recovered from any 4 of the 6 fragments, tolerating loss of up to 2 nodes simultaneously.</p>
+
+    <h3>Common EC Schemes</h3>
+    <table class="svc-table">
+      <thead><tr><th>Scheme</th><th>Data fragments</th><th>Parity fragments</th><th>Tolerated failures</th><th>Overhead vs. full copy</th></tr></thead>
+      <tbody>
+        <tr><td><code>2+1</code></td><td>2</td><td>1</td><td>1 node</td><td>50% vs. 3× replication</td></tr>
+        <tr><td><code>4+2</code></td><td>4</td><td>2</td><td>2 nodes</td><td>50% vs. 3× replication</td></tr>
+        <tr><td><code>6+3</code></td><td>6</td><td>3</td><td>3 nodes</td><td>50% vs. 3× replication</td></tr>
+        <tr><td><code>2+1</code> (site)</td><td>2</td><td>1</td><td>1 site</td><td>—</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Erasure Coding Data Flow</h3>
+    <div class="flow">
+      <div class="flow-title">EC ingest flow through LDR → DDS → Chunk services</div>
+      <div class="flow-steps">
+        <div class="flow-step"><span class="step-num">1</span><div class="step-body">ILM engine queries ADC to find the best DDS service for the EC operation and sends an "initiate" request.</div></div>
+        <div class="flow-step"><span class="step-num">2</span><div class="step-body">DDS service instructs an LDR to perform erasure coding on the object data.</div></div>
+        <div class="flow-step"><span class="step-num">3</span><div class="step-body">Source LDR sends a copy of the object to the selected LDR service for encoding.</div></div>
+        <div class="flow-step"><span class="step-num">4</span><div class="step-body">LDR splits the data into the specified number of data and parity fragments and distributes them to Chunk services on separate Storage Nodes.</div></div>
+        <div class="flow-step"><span class="step-num">5</span><div class="step-body">LDR notifies the ILM engine that distribution is complete.</div></div>
+        <div class="flow-step"><span class="step-num">6</span><div class="step-body">ILM engine updates the Cassandra metadata store with the fragment location map.</div></div>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <span class="callout-icon">💡</span>
+      <p>Erasure coding is recommended for <strong>objects larger than 200 KB</strong> where storage efficiency matters. For very small objects, the per-fragment overhead can exceed the savings, making replication more efficient.</p>
+    </div>
+  </section>
+
+  <!-- ── 7. TENANTS ───────────────────────────────────────────── -->
+  <section class="section" id="tenants">
+    <span class="section-label">Section 07</span>
+    <h2>Tenant Accounts &amp; Multi-tenancy</h2>
+
+    <p>A <strong>tenant account</strong> is the fundamental unit of multi-tenancy in StorageGRID. Each tenant is an isolated namespace with its own users, groups, S3 buckets (or Swift containers), and objects. Tenants are created by the grid administrator; tenant users manage their own storage using the Tenant Manager UI or the S3/Swift API.</p>
+
+    <h3>What a Tenant Account Controls</h3>
+    <ul>
+      <li><strong>Identity</strong> — local users/groups, or federated users from LDAP/Active Directory.</li>
+      <li><strong>S3 Access Keys</strong> — long-term credentials for programmatic access.</li>
+      <li><strong>Buckets</strong> — creation, versioning, CORS, consistency level, Object Lock, lifecycle policies, and last-access-time updates.</li>
+      <li><strong>Platform services</strong> — CloudMirror, event notifications, and search integration per bucket (if enabled by grid admin).</li>
+      <li><strong>Storage quota</strong> — optional maximum storage capacity set by grid admin.</li>
+    </ul>
+
+    <h3>Tenant Manager</h3>
+    <p>The <strong>Tenant Manager</strong> is a browser-based interface that tenant users access by signing in to an Admin Node. It provides a dashboard showing storage usage per bucket, access to S3 key management, bucket management, platform service endpoint configuration, and user/group access control.</p>
+
+    <h3>Bucket Management Capabilities (S3)</h3>
+    <table class="svc-table">
+      <thead><tr><th>Feature</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td>Create / delete buckets</td><td>Standard S3 bucket lifecycle. Buckets must be empty before deletion.</td></tr>
+        <tr><td>Versioning</td><td>Enable S3 versioning to retain multiple versions of each object; required for S3 Object Lock.</td></tr>
+        <tr><td>S3 Object Lock</td><td>WORM protection at the object-version level. Supports retain-until-date and legal hold per version. Requires grid-level S3 Object Lock to be enabled first.</td></tr>
+        <tr><td>Bucket lifecycle</td><td>Automatic expiration of objects or non-current versions on schedule. Expiration actions override ILM.</td></tr>
+        <tr><td>CORS</td><td>Cross-Origin Resource Sharing configuration for browser-based S3 clients.</td></tr>
+        <tr><td>Consistency level</td><td>Per-bucket override of the default read-after-new-write consistency.</td></tr>
+        <tr><td>Last access time</td><td>Toggle whether object last-access-time is updated on GET (impacts ILM time-based rules).</td></tr>
+      </tbody>
+    </table>
+
+    <h3>S3 Object Lock (WORM)</h3>
+    <p>StorageGRID 11.5 introduces S3 Object Lock, replacing the legacy Compliance feature. When enabled globally by the grid admin and then on a specific bucket, object versions can be assigned:</p>
+    <ul>
+      <li><strong>Retain-until-date</strong> — the object version cannot be deleted until this date. The date can be extended but never shortened.</li>
+      <li><strong>Legal hold</strong> — indefinite protection regardless of retain-until-date; must be explicitly lifted.</li>
+    </ul>
+    <p>Bucket versioning is automatically enabled when S3 Object Lock is activated on a bucket. ILM protects locked objects "forever" during their retention period.</p>
+  </section>
+
+  <!-- ── 8. S3 API ─────────────────────────────────────────────── -->
+  <section class="section" id="s3api">
+    <span class="section-label">Section 08</span>
+    <h2>S3 REST API Support</h2>
+
+    <p>StorageGRID implements a broad subset of the Amazon S3 REST API, making it a drop-in replacement or complement to AWS S3 for most applications. Clients connect using standard AWS SDKs and tools.</p>
+
+    <h3>Supported S3 Operations</h3>
+    <div class="two-col">
+      <div>
+        <strong>Bucket operations</strong>
+        <ul>
+          <li>PUT / GET / DELETE Bucket</li>
+          <li>GET Bucket location</li>
+          <li>PUT / GET / DELETE Bucket versioning</li>
+          <li>PUT / GET / DELETE Bucket lifecycle</li>
+          <li>PUT / GET / DELETE Bucket policy</li>
+          <li>PUT / GET / DELETE Bucket CORS</li>
+          <li>PUT / GET Bucket Object Lock configuration</li>
+          <li>GET Bucket Object versions</li>
+          <li>List Objects (v1 and v2)</li>
+        </ul>
+      </div>
+      <div>
+        <strong>Object operations</strong>
+        <ul>
+          <li>PUT Object (single-part)</li>
+          <li>Multipart Upload (Initiate, Upload Part, Complete, Abort, List)</li>
+          <li>GET / HEAD / DELETE Object</li>
+          <li>Copy Object (server-side copy)</li>
+          <li>PUT / GET Object ACL</li>
+          <li>PUT / GET / DELETE Object tagging</li>
+          <li>PUT / GET Object retention &amp; legal hold (Object Lock)</li>
+          <li>POST Object restore (for Glacier-class Cloud Storage Pools)</li>
+          <li>SELECT Object content (S3 Select)</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Authentication</h3>
+    <p>StorageGRID supports <strong>AWS Signature Version 2</strong> and <strong>AWS Signature Version 4</strong> for request authentication. Tenant users create S3 access key pairs via the Tenant Manager; root access keys provide full access to all of a tenant's buckets and objects unless a bucket policy restricts them.</p>
+
+    <h3>Endpoint Configuration</h3>
+    <p>The grid admin configures <strong>Load Balancer Endpoints</strong> — specific ports and protocols (HTTP or HTTPS) on Admin Nodes or Gateway Nodes where S3 clients connect. Each endpoint can be bound to a specific network (Grid, Admin, or Client) and supports custom TLS certificates. Multiple endpoints can serve different tenants or protocols simultaneously.</p>
+
+    <h3>OpenStack Swift API</h3>
+    <p>In addition to S3, StorageGRID supports the OpenStack Swift REST API (v1). Swift clients use containers (analogous to S3 buckets) and objects. The same Storage Nodes serve both S3 and Swift requests; the protocol is selected by the endpoint port and path format. ILM policies apply uniformly to objects regardless of the protocol used to store them.</p>
+  </section>
+
+  <!-- ── 9. PLATFORM SERVICES ─────────────────────────────────── -->
+  <section class="section" id="platform-services">
+    <span class="section-label">Section 09</span>
+    <h2>Platform Services</h2>
+
+    <p>S3 platform services enable individual tenant buckets to integrate with external cloud services. Platform services operate <strong>independently of ILM rules</strong> and are configured per bucket by tenant users with appropriate permissions — but they must first be enabled for the tenant by the grid admin.</p>
+
+    <div class="card-grid">
+      <div class="card admin" style="">
+        <div class="card-icon">🪞</div>
+        <h4>CloudMirror Replication</h4>
+        <p>Automatically mirrors specified objects to a target S3 bucket. The target can be on Amazon S3, Microsoft Azure Blob Storage, or a second StorageGRID system. Mirrors happen asynchronously as objects are written. Used for cross-cloud redundancy, analytics offload, or hybrid workflows.</p>
+      </div>
+      <div class="card storage">
+        <div class="card-icon">📡</div>
+        <h4>Event Notifications</h4>
+        <p>Sends SNS-compatible messages about bucket events (object created, deleted, etc.) to an external endpoint that supports Amazon SNS. Enables event-driven architectures — for example, triggering an AWS Lambda function when a file is uploaded to StorageGRID.</p>
+      </div>
+      <div class="card gateway">
+        <div class="card-icon">🔍</div>
+        <h4>Search Integration</h4>
+        <p>Sends object metadata to an external Elasticsearch service whenever an object is created, deleted, or its metadata/tags are updated. Enables full-text and faceted search across StorageGRID object metadata using Kibana or other Elasticsearch-compatible tools.</p>
+      </div>
+    </div>
+
+    <div class="callout info">
+      <span class="callout-icon">ℹ️</span>
+      <p>The <strong>RSM (Replicated State Machine)</strong> service on Storage Nodes ensures platform service requests are durably tracked and retried until the external endpoint confirms receipt, preventing event loss during transient failures.</p>
+    </div>
+  </section>
+
+  <!-- ── 10. CONSISTENCY ──────────────────────────────────────── -->
+  <section class="section" id="consistency">
+    <span class="section-label">Section 10</span>
+    <h2>Consistency Controls</h2>
+
+    <p>Consistency controls provide a trade-off between <strong>object availability</strong> and <strong>read-after-write consistency</strong> across different Storage Nodes and sites. The default behavior (<em>read-after-new-write</em>) guarantees read-after-write consistency for newly created objects and matches Amazon S3 consistency semantics.</p>
+
+    <p>Consistency can be configured at the <strong>bucket level</strong> (persisted for all operations on that bucket) or overridden on a <strong>per-operation basis</strong> via the <code>Consistency-Control</code> request header.</p>
+
+    <table class="consist-table">
+      <thead><tr><th>Consistency Level</th><th>Behavior</th><th>Use When</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="consist-name">all</span></td>
+          <td>All Storage Nodes must acknowledge immediately, or the request fails. Highest consistency, lowest availability.</td>
+          <td>Critical writes where split-brain is unacceptable.</td>
+        </tr>
+        <tr>
+          <td><span class="consist-name">strong-global</span></td>
+          <td>Guarantees read-after-write consistency for <em>all clients across all sites</em>.</td>
+          <td>Multi-site workloads requiring cross-site consistency.</td>
+        </tr>
+        <tr>
+          <td><span class="consist-name">strong-site</span></td>
+          <td>Guarantees read-after-write consistency for <em>all clients within a single site</em>.</td>
+          <td>Single-site apps that need strong local consistency.</td>
+        </tr>
+        <tr>
+          <td><span class="consist-name">read-after-new-write</span></td>
+          <td><strong>Default.</strong> New objects are immediately readable. Overwrites, metadata updates, and deletes are eventually consistent. Matches Amazon S3 guarantees.</td>
+          <td>Most S3 workloads. Best balance of consistency and availability.</td>
+        </tr>
+        <tr>
+          <td><span class="consist-name">available</span></td>
+          <td>Same as read-after-new-write except HEAD operations use eventual consistency only. Higher availability for HEAD requests when Storage Nodes are down.</td>
+          <td>Apps that frequently HEAD non-existent objects. Avoids 500 errors when nodes are temporarily unavailable.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout warn">
+      <span class="callout-icon">⚠️</span>
+      <p>If your application issues many <strong>HEAD requests for non-existent objects</strong> and one or more Storage Nodes is unavailable, use <code>available</code> rather than <code>read-after-new-write</code> to avoid 500 Internal Server Errors caused by the escalating consistency lookup.</p>
+    </div>
+
+    <h3>Conflicting Client Requests</h3>
+    <p>When two clients write to the same key simultaneously, StorageGRID resolves the conflict on a <strong>"latest-wins"</strong> basis. The timing is based on when StorageGRID completes the request internally, not when the client initiates the operation.</p>
+  </section>
+
+  <!-- ── 11. SECURITY ──────────────────────────────────────────── -->
+  <section class="section" id="security">
+    <span class="section-label">Section 11</span>
+    <h2>Security Architecture</h2>
+
+    <h3>Identity Federation &amp; SSO</h3>
+    <p>StorageGRID integrates with enterprise identity systems for both grid administrators and tenant users:</p>
+    <ul>
+      <li><strong>LDAP-based federation</strong> — Active Directory, OpenLDAP, or Oracle Directory Service. Users authenticate with their corporate credentials.</li>
+      <li><strong>Single Sign-On (SSO)</strong> — SAML 2.0 integration with Active Directory Federation Services (AD FS). Administrators and tenant users use SSO tokens; direct password login to the Grid Manager is disabled when SSO is active.</li>
+    </ul>
+
+    <h3>Node Encryption (KMS)</h3>
+    <p>StorageGRID appliance nodes support <strong>KMS-managed disk encryption</strong>. When node encryption is enabled, every disk volume on the appliance is encrypted using AES-256. Encryption keys are managed by an external Key Management Server (KMS) configured per site in the Grid Manager. Without the KMS key, data on an encrypted appliance is irretrievable, protecting against physical theft or removal.</p>
+
+    <h3>TLS Everywhere</h3>
+    <ul>
+      <li>All client S3/Swift connections use HTTPS with configurable TLS certificates per Load Balancer Endpoint.</li>
+      <li>Internal grid-to-grid communications are encrypted in transit.</li>
+      <li>The Grid Manager and Tenant Manager UIs are HTTPS-only.</li>
+    </ul>
+
+    <h3>Compliance Certifications</h3>
+    <p>StorageGRID is designed to help customers meet storage requirements under:</p>
+    <ul>
+      <li>SEC Rule 17a-4(f) — broker/dealer electronic storage requirements.</li>
+      <li>FINRA Rule 4511(c) — financial industry record-keeping.</li>
+      <li>CFTC Regulation 17 CFR §1.31(c)-(d) — commodity futures trading records.</li>
+    </ul>
+
+    <h3>Audit Logging</h3>
+    <p>The <strong>AMS (Audit Management System)</strong> service on Admin Nodes logs all audited system events, object storage operations, client read/write requests, and management API calls to structured text files (<code>audit.log</code>). Audit logs can be accessed via NFS or CIFS shares on Admin Nodes. Log entries include timestamps, operation type, object identifiers, tenant, and result codes.</p>
+  </section>
+
+  <!-- ── 12. MONITORING ────────────────────────────────────────── -->
+  <section class="section" id="monitoring">
+    <span class="section-label">Section 12</span>
+    <h2>Monitoring &amp; Observability</h2>
+
+    <h3>Grid Manager Dashboard</h3>
+    <p>The Grid Manager is the primary operational interface. Its dashboard provides at-a-glance panels for system health, storage utilization, ILM queue depth and scan progress, and S3/Swift ingest/retrieve rates. Detailed per-node views are available from the <strong>Nodes page</strong>, with tabs for Hardware, Network, Storage, Events, Objects, ILM, Load Balancer, and Platform Services.</p>
+
+    <h3>Alert System</h3>
+    <p>The alert system is the primary tool for detecting operational issues:</p>
+    <ul>
+      <li>Alerts have three severities: <strong>Critical</strong> (service disruption), <strong>Major</strong> (approaching critical), and <strong>Minor</strong> (monitor but not urgent).</li>
+      <li>Multiple instances of the same alert type are grouped in both the UI and email notifications.</li>
+      <li>Each alert notification includes the affected node/site, current metric values, and recommended remediation steps with documentation links.</li>
+      <li>Admins can <strong>silence</strong> alerts for a duration, edit default alert rules, and create custom alert rules using Prometheus metric expressions.</li>
+    </ul>
+
+    <h3>Prometheus &amp; Grafana</h3>
+    <p>The <strong>Prometheus</strong> service on Admin Nodes scrapes time-series metrics from all grid nodes every few seconds. Over 1,000 metrics are available, covering storage utilization, object counts, ILM queue length, replication throughput, erasure coding fragment counts, and more. <strong>Grafana</strong> is embedded in the Grid Manager to visualize these metrics in pre-built and custom dashboards. Prometheus data is also accessible via the Grid Management API for integration with external monitoring stacks.</p>
+
+    <h3>SNMP Monitoring</h3>
+    <p>StorageGRID runs an SNMP agent (daemon) on every grid node, supporting SNMPv1, v2c, and v3. The MIB includes table definitions for alerts and alarms. The SNMP agent provides read-only MIB access and can send <strong>Traps</strong> (v1/v2c/v3) or <strong>Informs</strong> (v2c/v3) to external SNMP management systems when alerts fire.</p>
+
+    <h3>Node Connection States</h3>
+    <table class="svc-table">
+      <thead><tr><th>State</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>🟢 Normal</td><td>Node connected to grid, no active alerts.</td></tr>
+        <tr><td>🟡 Minor</td><td>Node connected; abnormal condition that could worsen if not addressed.</td></tr>
+        <tr><td>🟠 Major</td><td>Node connected; condition affecting operations or approaching critical threshold.</td></tr>
+        <tr><td>🔴 Critical</td><td>Node connected; normal operations stopped. Immediate action required; data loss risk.</td></tr>
+        <tr><td>🔵 Not Connected – Unknown</td><td>Node disconnected for unknown reason (network loss, power down). Requires immediate investigation.</td></tr>
+        <tr><td>⚫ Administratively Down</td><td>Node intentionally disconnected (graceful shutdown, maintenance, upgrade).</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ── 13. HYBRID CLOUD ──────────────────────────────────────── -->
+  <section class="section" id="cloud">
+    <span class="section-label">Section 13</span>
+    <h2>Hybrid Cloud Integration</h2>
+
+    <h3>Cloud Storage Pools</h3>
+    <p>Cloud Storage Pools allow ILM rules to direct object copies to external cloud storage — <strong>Amazon S3</strong> (including S3 Glacier and S3 Glacier Deep Archive) or <strong>Microsoft Azure Blob Storage</strong> (including the Archive access tier). This enables seamless hot-to-cold tiering driven entirely by ILM policy.</p>
+
+    <p>Key behaviors:</p>
+    <ul>
+      <li>Objects are moved to the Cloud Storage Pool by the <strong>Data Mover (DMV)</strong> service on Storage Nodes.</li>
+      <li>Cloud Storage Pool objects remain tracked in the Cassandra metadata store; retrieval is transparent to clients.</li>
+      <li>For Glacier-class storage, clients must issue a <code>POST Object restore</code> request and wait before reading.</li>
+      <li><strong>Note:</strong> Cloud Storage Pools cannot be used as FabricPool capacity tiers because of the added retrieval latency.</li>
+    </ul>
+
+    <h3>FabricPool Integration</h3>
+    <p>NetApp ONTAP can use StorageGRID as a <strong>FabricPool</strong> capacity tier. FabricPool automatically tiers cold (infrequently accessed) ONTAP data blocks to StorageGRID object storage, dramatically reducing primary storage costs. Cold data is presented to ONTAP users transparently as if it were still local. ILM policies on StorageGRID protect tiered data exactly like any other object.</p>
+
+    <h3>Multi-Site Disaster Recovery</h3>
+    <p>StorageGRID natively supports <strong>geographically distributed deployments</strong> across failure domains (different earthquake fault lines, flood zones, or data centers). ILM rules automatically distribute copies across sites. If an entire site fails:</p>
+    <ul>
+      <li>Remaining sites continue serving client requests if sufficient copies exist elsewhere.</li>
+      <li>Background ILM scanning detects missing copies and creates replacements on surviving nodes.</li>
+      <li>Grid Manager's expansion and recovery procedures guide site restoration.</li>
+    </ul>
+
+    <h3>Architecture: Single Site vs. Multi-Site</h3>
+    <div class="two-col">
+      <div class="flow" style="margin:0;">
+        <div class="flow-title">Single Site</div>
+        <p style="font-size:.85rem;color:var(--ink-soft);margin:0;">All infrastructure centralized. Erasure coding within a single site provides node-level fault tolerance. Simpler operations, no WAN bandwidth requirements.</p>
+      </div>
+      <div class="flow" style="margin:0;">
+        <div class="flow-title">Multiple Sites</div>
+        <p style="font-size:.85rem;color:var(--ink-soft);margin:0;">Sites in different geographic locations across separate failure domains. Data sharing and disaster recovery achieved by automated ILM-driven distribution. Each site can have different node counts and storage capacity.</p>
+      </div>
+    </div>
+
+    <h3>Grid Expansion</h3>
+    <p>StorageGRID supports <strong>non-disruptive expansion</strong> — adding Storage Nodes, Gateway Nodes, Admin Nodes, or entire new sites without interrupting client access. The ILM engine automatically rebalances object placement to use the new capacity over time. Expansion can be driven by the Grid Manager or automated via the Installation REST API and Python scripts.</p>
+  </section>
+
+  <!-- ── Summary reference ─────────────────────────────────────── -->
+  <section class="section" id="reference">
+    <span class="section-label">Quick Reference</span>
+    <h2>Key Concepts at a Glance</h2>
+    <table class="svc-table">
+      <thead><tr><th>Concept</th><th>One-line definition</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Grid</strong></td><td>The complete StorageGRID system comprising all sites and nodes.</td></tr>
+        <tr><td><strong>Site</strong></td><td>A logical grouping of grid nodes, typically one data center location.</td></tr>
+        <tr><td><strong>Admin Node</strong></td><td>Hosts management UI, APIs, audit logging, and Prometheus metrics.</td></tr>
+        <tr><td><strong>Storage Node</strong></td><td>Stores object data and metadata; runs LDR, Cassandra, EC Chunk.</td></tr>
+        <tr><td><strong>Gateway Node</strong></td><td>Provides Layer 7 S3/Swift load balancing; supports HA Groups.</td></tr>
+        <tr><td><strong>LDR</strong></td><td>Local Distribution Router — the core object I/O and ILM engine service on Storage Nodes.</td></tr>
+        <tr><td><strong>ILM Rule</strong></td><td>A policy unit defining object filters, copy type, placement, and time periods.</td></tr>
+        <tr><td><strong>ILM Policy</strong></td><td>Ordered list of ILM rules evaluated in sequence against each object.</td></tr>
+        <tr><td><strong>Storage Pool</strong></td><td>Named group of Storage Nodes referenced by ILM rules for placement.</td></tr>
+        <tr><td><strong>EC Profile</strong></td><td>Binds a storage pool to an erasure-coding scheme (e.g., 4+2).</td></tr>
+        <tr><td><strong>Cloud Storage Pool</strong></td><td>External S3 or Azure Blob storage target managed by ILM rules via DMV service.</td></tr>
+        <tr><td><strong>Tenant Account</strong></td><td>Isolated namespace with its own users, buckets, and objects.</td></tr>
+        <tr><td><strong>Consistency Control</strong></td><td>Per-bucket or per-operation setting controlling metadata distribution tradeoffs.</td></tr>
+        <tr><td><strong>Platform Services</strong></td><td>Per-bucket CloudMirror, SNS notifications, or Elasticsearch integration.</td></tr>
+        <tr><td><strong>S3 Object Lock</strong></td><td>Object-version WORM protection with retain-until-date and legal hold.</td></tr>
+        <tr><td><strong>HA Group</strong></td><td>Cluster of Admin/Gateway Nodes sharing a virtual IP for failover.</td></tr>
+        <tr><td><strong>Audit Log</strong></td><td>Text-based record of all system events, object I/O, and API calls on Admin Nodes.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+</main>
+
+<!-- ═══ FOOTER ══════════════════════════════════════════════════ -->
+<footer>
+  <strong>NetApp StorageGRID 11.5 — Conceptual Tutorial</strong><br>
+  Compiled from the official StorageGRID 11.5 documentation (docs.netapp.com). For the latest information, always refer to the official NetApp documentation site. Hardware installation sections omitted from this guide.
+</footer>
+
+</body>
+</html>
