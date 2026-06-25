@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DevOps Networking Tutorial</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #21262d;
+    --border: #30363d;
+    --accent-blue: #58a6ff;
+    --accent-green: #3fb950;
+    --accent-orange: #f0883e;
+    --accent-purple: #bc8cff;
+    --accent-red: #ff7b72;
+    --accent-teal: #39d353;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --text-dim: #484f58;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Inter', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0d1117 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 3rem 2rem 2.5rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(88,166,255,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .header-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(88,166,255,0.1);
+    border: 1px solid rgba(88,166,255,0.3);
+    border-radius: 2rem;
+    padding: 0.3rem 1rem;
+    font-size: 0.75rem;
+    color: var(--accent-blue);
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 1.25rem;
+  }
+  header h1 {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 600;
+    font-family: var(--sans);
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin-bottom: 0.75rem;
+  }
+  header h1 span { color: var(--accent-blue); }
+  header p {
+    color: var(--text-muted);
+    font-size: 1.05rem;
+    max-width: 560px;
+    margin: 0 auto 2rem;
+  }
+  .header-pills {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .pill {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 0.4rem;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-family: var(--mono);
+  }
+
+  /* ── NAV ── */
+  nav {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  nav::-webkit-scrollbar { display: none; }
+  nav a {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 1rem 1.25rem;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  nav a:hover { color: var(--text); }
+  nav a.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
+  nav a .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.6;
+  }
+
+  /* ── LAYOUT ── */
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 4rem;
+  }
+
+  /* ── SECTION HEADERS ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+  }
+  .section-number {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    padding: 0.2rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 0.25rem;
+  }
+  .section-header h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .section-header h2 span { color: var(--accent-blue); }
+  .section-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── INTRO CARD ── */
+  .intro-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    overflow: hidden;
+  }
+  .intro-card {
+    background: var(--surface);
+    padding: 1.5rem;
+  }
+  .intro-card .icon { font-size: 1.5rem; margin-bottom: 0.75rem; }
+  .intro-card h3 { font-size: 0.875rem; font-weight: 600; color: var(--text); margin-bottom: 0.4rem; }
+  .intro-card p { font-size: 0.825rem; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── PORTS TABLE ── */
+  .ports-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    overflow: hidden;
+  }
+  .ports-table thead th {
+    background: var(--surface2);
+    padding: 0.875rem 1.25rem;
+    text-align: left;
+    font-size: 0.75rem;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+  }
+  .ports-table tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+  .ports-table tbody tr:last-child { border-bottom: none; }
+  .ports-table tbody tr:hover { background: rgba(88,166,255,0.04); }
+  .ports-table td {
+    padding: 0.875rem 1.25rem;
+    vertical-align: middle;
+  }
+  .service-name {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 500;
+  }
+  .service-icon { font-size: 1.1rem; }
+  .port-badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.2rem 0.6rem;
+    border-radius: 0.35rem;
+  }
+  .port-web    { background: rgba(88,166,255,0.12); color: var(--accent-blue); }
+  .port-sec    { background: rgba(63,185,80,0.12);  color: var(--accent-green); }
+  .port-db     { background: rgba(240,136,62,0.12); color: var(--accent-orange); }
+  .port-devops { background: rgba(188,140,255,0.12);color: var(--accent-purple); }
+  .port-mon    { background: rgba(255,123,114,0.12);color: var(--accent-red); }
+  .port-msg    { background: rgba(57,211,83,0.12);  color: var(--accent-teal); }
+  .port-desc {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+  }
+  .port-warning {
+    font-size: 0.7rem;
+    color: var(--accent-orange);
+    font-family: var(--mono);
+  }
+
+  /* ── FILTERS SECTION ── */
+  .filter-cats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .filter-cat-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 0.35rem;
+    padding: 0.3rem 0.8rem;
+    font-size: 0.8rem;
+    font-family: var(--mono);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .filter-cat-btn:hover,
+  .filter-cat-btn.active {
+    background: rgba(88,166,255,0.1);
+    border-color: rgba(88,166,255,0.4);
+    color: var(--accent-blue);
+  }
+
+  .filter-group {
+    margin-bottom: 1.75rem;
+  }
+  .filter-group-label {
+    font-size: 0.7rem;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    margin-bottom: 0.75rem;
+    padding-left: 0.25rem;
+  }
+  .filter-rows {
+    border: 1px solid var(--border);
+    border-radius: 0.65rem;
+    overflow: hidden;
+  }
+  .filter-row {
+    display: grid;
+    grid-template-columns: minmax(260px,1fr) 1fr;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+  .filter-row:last-child { border-bottom: none; }
+  .filter-row:hover { background: rgba(88,166,255,0.04); }
+  .filter-code {
+    padding: 0.7rem 1rem;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--accent-blue);
+    border-right: 1px solid var(--border);
+    background: rgba(13,17,23,0.5);
+    word-break: break-all;
+  }
+  .filter-desc {
+    padding: 0.7rem 1rem;
+    font-size: 0.825rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+  }
+
+  /* colour coding by protocol */
+  .filter-tcp .filter-code { color: var(--accent-blue); }
+  .filter-udp .filter-code { color: var(--accent-green); }
+  .filter-http .filter-code { color: var(--accent-orange); }
+  .filter-tls  .filter-code { color: var(--accent-purple); }
+  .filter-ssl  .filter-code { color: var(--accent-red); }
+  .filter-dhcp .filter-code { color: var(--accent-teal); }
+  .filter-icmp .filter-code { color: #e3b341; }
+  .filter-ipsec .filter-code { color: #f78166; }
+
+  /* ── ANSIBLE ── */
+  .ansible-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+  }
+  .ansible-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 1.25rem 1.5rem;
+  }
+  .ansible-card h3 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .ansible-card p { font-size: 0.825rem; color: var(--text-muted); line-height: 1.55; }
+  .ansible-card .tag {
+    font-size: 0.65rem;
+    font-family: var(--mono);
+    padding: 0.1rem 0.45rem;
+    border-radius: 0.25rem;
+    background: rgba(88,166,255,0.12);
+    color: var(--accent-blue);
+    text-transform: uppercase;
+  }
+
+  .code-block {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 0.65rem;
+    overflow: hidden;
+    margin-top: 0.5rem;
+  }
+  .code-header {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    padding: 0.6rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .code-header span {
+    font-size: 0.75rem;
+    font-family: var(--mono);
+    color: var(--text-muted);
+  }
+  .code-dots { display: flex; gap: 5px; }
+  .code-dots i {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    display: block;
+  }
+  .code-dots i:nth-child(1) { background: #ff5f57; }
+  .code-dots i:nth-child(2) { background: #ffbd2e; }
+  .code-dots i:nth-child(3) { background: #28c840; }
+  pre {
+    padding: 1.25rem 1.25rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    line-height: 1.7;
+    color: var(--text);
+  }
+  .k { color: var(--accent-red); }    /* keyword/key */
+  .v { color: var(--accent-green); }  /* value */
+  .s { color: var(--accent-orange); } /* string */
+  .c { color: var(--text-dim); font-style: italic; } /* comment */
+  .cmd { color: var(--accent-blue); } /* command */
+
+  .modules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+  .module-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.6rem;
+    padding: 1rem;
+  }
+  .module-card .m-name {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--accent-blue);
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+  }
+  .module-card .m-desc {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 2rem;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    font-family: var(--mono);
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 640px) {
+    .filter-row { grid-template-columns: 1fr; }
+    .filter-code { border-right: none; border-bottom: 1px solid var(--border); }
+    .ports-table { font-size: 0.8rem; }
+    .ports-table td { padding: 0.7rem 0.75rem; }
+  }
+
+  /* ── STICKY TOC ── */
+  .toc-inline {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.5rem;
+  }
+  .toc-inline a {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-family: var(--mono);
+    transition: color 0.15s;
+  }
+  .toc-inline a:hover { color: var(--accent-blue); }
+  .toc-inline a::before { content: '# '; color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-badge">⚙️ DevOps Reference</div>
+  <h1>Networking &amp; Automation<br><span>Tutorial Guide</span></h1>
+  <p>Everything you need: Wireshark filters, essential service ports, and Ansible automation — in one place.</p>
+  <div class="header-pills">
+    <span class="pill">Wireshark</span>
+    <span class="pill">Network Ports</span>
+    <span class="pill">Ansible</span>
+    <span class="pill">TCP/IP</span>
+    <span class="pill">TLS/SSL</span>
+  </div>
+</header>
+
+<nav>
+  <a href="#ports" class="active"><span class="dot"></span>Network Ports</a>
+  <a href="#filters"><span class="dot"></span>Wireshark Filters</a>
+  <a href="#ansible"><span class="dot"></span>Ansible</a>
+</nav>
+
+<main>
+
+  <!-- INTRO -->
+  <section>
+    <div class="toc-inline">
+      <a href="#ports">ports</a>
+      <a href="#filters">wireshark</a>
+      <a href="#ansible">ansible</a>
+    </div>
+    <div class="intro-grid">
+      <div class="intro-card">
+        <div class="icon">🔌</div>
+        <h3>Network Ports</h3>
+        <p>Every service communicates on a numbered port. DevOps engineers must know which port belongs to which service instantly.</p>
+      </div>
+      <div class="intro-card">
+        <div class="icon">🦈</div>
+        <h3>Wireshark Filters</h3>
+        <p>Display filters let you isolate exactly the traffic you care about — from a single IP to TLS handshake messages.</p>
+      </div>
+      <div class="intro-card">
+        <div class="icon">⚙️</div>
+        <h3>Ansible</h3>
+        <p>Agentless automation using YAML playbooks. SSH into managed nodes, run modules, and ensure idempotent infrastructure.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- PORTS -->
+  <section id="ports">
+    <div class="section-header">
+      <span class="section-number">01</span>
+      <h2>Essential <span>Network Ports</span></h2>
+      <div class="section-line"></div>
+    </div>
+
+    <table class="ports-table">
+      <thead>
+        <tr>
+          <th>Service</th>
+          <th>Port</th>
+          <th>Category</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><div class="service-name"><span class="service-icon">🌐</span>HTTP</div></td>
+          <td><span class="port-badge port-web">80</span></td>
+          <td><span class="port-desc">Web</span></td>
+          <td><span class="port-desc">Unencrypted web traffic</span></td>
+        </tr>
+        <tr>
+          <td><div class="service-name"><span class="service-icon">🔒</span>HTTPS</div></td>
+          <td><span class="port-badge port-sec">443</span></td>
+          <td><span class="port-desc">Web / TLS</span></td>
+          <td><span class="port-desc">Encrypted — always prefer over HTTP</span></td>
+        </tr>
+        <tr>
+          <td><div class="service-name"><span class="service-icon">💻</span>SSH</div></td>
+          <td><span class="port-badge port-sec">22</span></td>
+          <td><span class="port-desc">Remote Access</span></td>
+          <td><span class="port-desc">Secure shell; used by Ansible</span></td>
+        </tr>
+        <tr>
+          <td><div class="service-name"><span class="service-icon">📁</span>FTP</div></td>
+          <td><span class="port-badge port-web">21</span></td>
+          <td><span class="port-desc">File Transfer</span></td>
+          <td><span class="port-warning">⚠ Cleartext — avoid in production</span></td>
+        </tr>
+        <tr>
+          <td><div class="service-name"><span class="service-icon">🐬</span>MySQL</div></td>
+          <td><span class="port-badge port-db">3306</span></td>
+          <td><span class="port-desc">Database</span></td>
+          <td><span class="port-desc">Bind to localhost; never expose to internet</span></td>
+        </tr>
+        <tr>
+          <td><div class="service-name"><span class="service-icon">☸️</span>Kubernetes API</div></td>
+          <td><span class="port-badge port-devops">6443</span></td>
+          <td><span class="port-desc">Orchestration</span></td>
+          <td><span class="port-desc">kubectl talks here; secured with TLS</span></td>
+        </tr>
+        <tr>
+          <td><div class="service-name"><span class="service-icon">🐳</span>Docker Daemon API</div></td>
+          <td><span class="port-badge port-devops">2375 / 2376</span></td>
+          <td><span class="port-desc">Container</span></td>
+          <td><span class="port-desc">2376 = TLS; never expose 2375 publicly</span></td>
+        </tr>
+        <tr>
+          <td><div class="service-name"><span class="service-icon">🍃</span>MongoDB</div></td>
+          <td><span class="port-badge port-db">27017</span></td>
+          <td><span class="port-desc">Database</span></td>
+          <td><span class="port-desc">NoSQL document store</span></td>
+        </tr>
+        <tr>
+          <td><div class="service-name"><span class="service-icon">🟩</span>NGINX</div></td>
+          <td><span class="port-badge port-web">80 / 443</span></td>
+          <td><span class="port-desc">Web Server</span></td>
+          <td><span class="port-desc">Reverse proxy / load balancer</span></td>
+        </tr>
+        <tr>
+          <td><div class="service-name"><span class="service-icon">📊</span>Grafana</div></td>
+          <td><span class="port-badge port-mon">3000</span></td>
+          <td><span class="port-desc">Monitoring</span></td>
+          <td><span class="port-desc">Dashboard UI for metrics</span></td>
+        </tr>
+        <tr>
+          <td><div class="service-name"><span class="service-icon">🔥</span>Prometheus</div></td>
+          <td><span class="port-badge port-mon">9090</span></td>
+          <td><span class="port-desc">Monitoring</span></td>
+          <td><span class="port-desc">Metrics scraping &amp; alerting</span></td>
+        </tr>
+        <tr>
+          <td><div class="service-name"><span class="service-icon">🐱</span>Tomcat</div></td>
+          <td><span class="port-badge port-web">8080</span></td>
+          <td><span class="port-desc">App Server</span></td>
+          <td><span class="port-desc">Java servlet container</span></td>
+        </tr>
+        <tr>
+          <td><div class="service-name"><span class="service-icon">📨</span>Apache Kafka</div></td>
+          <td><span class="port-badge port-msg">9092</span></td>
+          <td><span class="port-desc">Messaging</span></td>
+          <td><span class="port-desc">High-throughput event streaming</span></td>
+        </tr>
+        <tr>
+          <td><div class="service-name"><span class="service-icon">🔴</span>Redis</div></td>
+          <td><span class="port-badge port-db">6379</span></td>
+          <td><span class="port-desc">Cache / DB</span></td>
+          <td><span class="port-desc">In-memory key-value store</span></td>
+        </tr>
+        <tr>
+          <td><div class="service-name"><span class="service-icon">🖥️</span>RDP</div></td>
+          <td><span class="port-badge port-devops">3389</span></td>
+          <td><span class="port-desc">Remote Desktop</span></td>
+          <td><span class="port-desc">Windows remote access; firewall strictly</span></td>
+        </tr>
+        <tr>
+          <td><div class="service-name"><span class="service-icon">🔍</span>ElasticSearch</div></td>
+          <td><span class="port-badge port-db">9200</span></td>
+          <td><span class="port-desc">Search</span></td>
+          <td><span class="port-desc">REST API for full-text search</span></td>
+        </tr>
+        <tr>
+          <td><div class="service-name"><span class="service-icon">⚙️</span>Jenkins</div></td>
+          <td><span class="port-badge port-devops">8080</span></td>
+          <td><span class="port-desc">CI/CD</span></td>
+          <td><span class="port-desc">Default web UI port</span></td>
+        </tr>
+        <tr>
+          <td><div class="service-name"><span class="service-icon">✉️</span>SMTP</div></td>
+          <td><span class="port-badge port-web">25</span></td>
+          <td><span class="port-desc">Email</span></td>
+          <td><span class="port-desc">Server-to-server mail relay</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- WIRESHARK FILTERS -->
+  <section id="filters">
+    <div class="section-header">
+      <span class="section-number">02</span>
+      <h2>Wireshark <span>Display Filters</span></h2>
+      <div class="section-line"></div>
+    </div>
+
+    <!-- IP Filters -->
+    <div class="filter-group">
+      <div class="filter-group-label">IP Address Filters</div>
+      <div class="filter-rows">
+        <div class="filter-row filter-tcp">
+          <div class="filter-code">ip.addr == 1.1.1.1</div>
+          <div class="filter-desc">IP traffic to or from 1.1.1.1</div>
+        </div>
+        <div class="filter-row filter-tcp">
+          <div class="filter-code">ip.src == 1.1.1.1</div>
+          <div class="filter-desc">IP traffic from 1.1.1.1</div>
+        </div>
+        <div class="filter-row filter-tcp">
+          <div class="filter-code">ip.dst == 1.1.1.1</div>
+          <div class="filter-desc">IP traffic to 1.1.1.1</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TCP Filters -->
+    <div class="filter-group">
+      <div class="filter-group-label">TCP Filters</div>
+      <div class="filter-rows">
+        <div class="filter-row filter-tcp">
+          <div class="filter-code">tcp.port == 80 or 443 or 22</div>
+          <div class="filter-desc">TCP port 80 (HTTP), 443 (HTTPS), or 22 (SSH)</div>
+        </div>
+        <div class="filter-row filter-tcp">
+          <div class="filter-code">tcp.srcport == 12345</div>
+          <div class="filter-desc">TCP source port 12345</div>
+        </div>
+        <div class="filter-row filter-tcp">
+          <div class="filter-code">tcp.dstport == 80</div>
+          <div class="filter-desc">TCP destination port 80</div>
+        </div>
+        <div class="filter-row filter-tcp">
+          <div class="filter-code">tcp.flags.syn == 1</div>
+          <div class="filter-desc">SYN packets</div>
+        </div>
+        <div class="filter-row filter-tcp">
+          <div class="filter-code">tcp.flags.ack == 1</div>
+          <div class="filter-desc">ACK packets</div>
+        </div>
+        <div class="filter-row filter-tcp">
+          <div class="filter-code">tcp.flags.syn == 1 and tcp.flags.ack == 0</div>
+          <div class="filter-desc">SYN packets (no ACK) — new connection attempts</div>
+        </div>
+        <div class="filter-row filter-tcp">
+          <div class="filter-code">tcp.flags.fin == 1</div>
+          <div class="filter-desc">FIN packets — connection teardown</div>
+        </div>
+        <div class="filter-row filter-tcp">
+          <div class="filter-code">tcp.analysis.retransmission</div>
+          <div class="filter-desc">TCP retransmissions</div>
+        </div>
+        <div class="filter-row filter-tcp">
+          <div class="filter-code">tcp.analysis.duplicate_ack</div>
+          <div class="filter-desc">TCP duplicate ACKs</div>
+        </div>
+        <div class="filter-row filter-tcp">
+          <div class="filter-code">tcp.stream eq "stream number"</div>
+          <div class="filter-desc">Show only a specific TCP stream</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- UDP Filters -->
+    <div class="filter-group">
+      <div class="filter-group-label">UDP Filters</div>
+      <div class="filter-rows">
+        <div class="filter-row filter-udp">
+          <div class="filter-code">udp.port == 53</div>
+          <div class="filter-desc">UDP port 53 (DNS)</div>
+        </div>
+        <div class="filter-row filter-udp">
+          <div class="filter-code">udp.port == 67 or udp.port == 68</div>
+          <div class="filter-desc">DHCP traffic</div>
+        </div>
+        <div class="filter-row filter-udp">
+          <div class="filter-code">udp.port == 123</div>
+          <div class="filter-desc">NTP traffic</div>
+        </div>
+        <div class="filter-row filter-udp">
+          <div class="filter-code">udp.srcport == 12345</div>
+          <div class="filter-desc">UDP source port 12345</div>
+        </div>
+        <div class="filter-row filter-udp">
+          <div class="filter-code">udp.dstport == 53</div>
+          <div class="filter-desc">UDP destination port 53</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ICMP -->
+    <div class="filter-group">
+      <div class="filter-group-label">ICMP Filters</div>
+      <div class="filter-rows">
+        <div class="filter-row filter-icmp">
+          <div class="filter-code">icmp.type == 8</div>
+          <div class="filter-desc">ICMP Echo Request (ping)</div>
+        </div>
+        <div class="filter-row filter-icmp">
+          <div class="filter-code">icmp.type == 0</div>
+          <div class="filter-desc">ICMP Echo Reply (pong)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HTTP -->
+    <div class="filter-group">
+      <div class="filter-group-label">HTTP Filters</div>
+      <div class="filter-rows">
+        <div class="filter-row filter-http">
+          <div class="filter-code">http.request</div>
+          <div class="filter-desc">HTTP requests</div>
+        </div>
+        <div class="filter-row filter-http">
+          <div class="filter-code">http.response</div>
+          <div class="filter-desc">HTTP responses</div>
+        </div>
+        <div class="filter-row filter-http">
+          <div class="filter-code">http.host contains "example.com"</div>
+          <div class="filter-desc">HTTP traffic for example.com</div>
+        </div>
+        <div class="filter-row filter-http">
+          <div class="filter-code">http.request.method == "GET"</div>
+          <div class="filter-desc">HTTP GET requests</div>
+        </div>
+        <div class="filter-row filter-http">
+          <div class="filter-code">http.response.code == 200</div>
+          <div class="filter-desc">HTTP 200 OK responses</div>
+        </div>
+        <div class="filter-row filter-http">
+          <div class="filter-code">http contains "error"</div>
+          <div class="filter-desc">HTTP packets containing 'error'</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DHCP -->
+    <div class="filter-group">
+      <div class="filter-group-label">DHCP Filters</div>
+      <div class="filter-rows">
+        <div class="filter-row filter-dhcp">
+          <div class="filter-code">bootp.option.type == 53</div>
+          <div class="filter-desc">DHCP Message Type</div>
+        </div>
+        <div class="filter-row filter-dhcp">
+          <div class="filter-code">bootp.option.value == 1</div>
+          <div class="filter-desc">DHCP Discover</div>
+        </div>
+        <div class="filter-row filter-dhcp">
+          <div class="filter-code">bootp.option.value == 2</div>
+          <div class="filter-desc">DHCP Offer</div>
+        </div>
+        <div class="filter-row filter-dhcp">
+          <div class="filter-code">bootp.option.value == 3</div>
+          <div class="filter-desc">DHCP Request</div>
+        </div>
+        <div class="filter-row filter-dhcp">
+          <div class="filter-code">bootp.option.value == 5</div>
+          <div class="filter-desc">DHCP ACK</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TLS -->
+    <div class="filter-group">
+      <div class="filter-group-label">TLS Filters</div>
+      <div class="filter-rows">
+        <div class="filter-row filter-tls">
+          <div class="filter-code">tls.handshake.type == 1</div>
+          <div class="filter-desc">TLS Handshake – Client Hello</div>
+        </div>
+        <div class="filter-row filter-tls">
+          <div class="filter-code">tls.handshake.type == 2</div>
+          <div class="filter-desc">TLS Handshake – Server Hello</div>
+        </div>
+        <div class="filter-row filter-tls">
+          <div class="filter-code">tls.handshake.type == 11</div>
+          <div class="filter-desc">TLS Handshake – Certificate</div>
+        </div>
+        <div class="filter-row filter-tls">
+          <div class="filter-code">tls.handshake.type == 16</div>
+          <div class="filter-desc">TLS Handshake – Client Key Exchange</div>
+        </div>
+        <div class="filter-row filter-tls">
+          <div class="filter-code">tls.alert_message</div>
+          <div class="filter-desc">TLS Alert messages</div>
+        </div>
+        <div class="filter-row filter-tls">
+          <div class="filter-code">tls.record.content.type == 22</div>
+          <div class="filter-desc">TLS Handshake messages</div>
+        </div>
+        <div class="filter-row filter-tls">
+          <div class="filter-code">tls.record.content.type == 23</div>
+          <div class="filter-desc">TLS Application Data</div>
+        </div>
+        <div class="filter-row filter-tls">
+          <div class="filter-code">tls.record.content.type == 21</div>
+          <div class="filter-desc">TLS Alert messages</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- IPsec / SSL -->
+    <div class="filter-group">
+      <div class="filter-group-label">IPsec &amp; SSL Filters</div>
+      <div class="filter-rows">
+        <div class="filter-row filter-ipsec">
+          <div class="filter-code">esp</div>
+          <div class="filter-desc">IPsec ESP packets</div>
+        </div>
+        <div class="filter-row filter-ipsec">
+          <div class="filter-code">udp.port == 500</div>
+          <div class="filter-desc">ISAKMP / IKE (UDP 500)</div>
+        </div>
+        <div class="filter-row filter-ipsec">
+          <div class="filter-code">udp.port == 4500</div>
+          <div class="filter-desc">IPsec NAT-T (UDP 4500)</div>
+        </div>
+        <div class="filter-row filter-ssl">
+          <div class="filter-code">ssl</div>
+          <div class="filter-desc">All SSL traffic</div>
+        </div>
+        <div class="filter-row filter-ssl">
+          <div class="filter-code">ssl.handshake.type == 1</div>
+          <div class="filter-desc">SSL Handshake – Client Hello</div>
+        </div>
+        <div class="filter-row filter-ssl">
+          <div class="filter-code">ssl.handshake.type == 2</div>
+          <div class="filter-desc">SSL Handshake – Server Hello</div>
+        </div>
+        <div class="filter-row filter-ssl">
+          <div class="filter-code">ssl.handshake.type == 11</div>
+          <div class="filter-desc">SSL Handshake – Certificate</div>
+        </div>
+        <div class="filter-row filter-ssl">
+          <div class="filter-code">ssl.alert_message</div>
+          <div class="filter-desc">SSL Alert messages</div>
+        </div>
+        <div class="filter-row filter-ssl">
+          <div class="filter-code">ssl.record.content.type == 22</div>
+          <div class="filter-desc">SSL Handshake messages</div>
+        </div>
+        <div class="filter-row filter-ssl">
+          <div class="filter-code">ssl.record.content.type == 23</div>
+          <div class="filter-desc">SSL Application Data</div>
+        </div>
+        <div class="filter-row filter-ssl">
+          <div class="filter-code">ssl.record.content.type == 21</div>
+          <div class="filter-desc">SSL Alert messages</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ANSIBLE -->
+  <section id="ansible">
+    <div class="section-header">
+      <span class="section-number">03</span>
+      <h2>Ansible <span>Automation</span></h2>
+      <div class="section-line"></div>
+    </div>
+
+    <div class="ansible-grid">
+      <div class="ansible-card">
+        <h3><span class="tag">Core</span>&nbsp;What is Ansible?</h3>
+        <p>An open-source automation tool for configuration management, application deployment, and task automation. Written in Python; playbooks use YAML.</p>
+      </div>
+      <div class="ansible-card">
+        <h3>🚫 Agentless</h3>
+        <p>No software needs to be installed on managed nodes. Uses SSH (Linux) or WinRM (Windows) to connect.</p>
+      </div>
+      <div class="ansible-card">
+        <h3>♻️ Idempotent</h3>
+        <p>Running a playbook multiple times produces the same result as running it once — safe to re-run.</p>
+      </div>
+      <div class="ansible-card">
+        <h3>📐 Architecture</h3>
+        <p>Control Node runs playbooks via SSH to Managed Nodes. Inventory lists hosts; modules perform the actual tasks.</p>
+      </div>
+    </div>
+
+    <!-- Playbook Structure -->
+    <div class="filter-group-label" style="margin-bottom:0.75rem">Playbook Structure (YAML)</div>
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><i></i><i></i><i></i></div>
+        <span>site.yml</span>
+      </div>
+      <pre><span class="c">---</span>
+<span class="k">- hosts:</span> <span class="v">webservers</span>
+  <span class="k">become:</span> <span class="v">yes</span>          <span class="c"># run as sudo</span>
+  <span class="k">tasks:</span>
+
+    <span class="c"># Task 1: Install Nginx</span>
+    <span class="k">- name:</span> <span class="s">Install Nginx</span>
+      <span class="k">apt:</span>
+        <span class="k">name:</span>          <span class="v">nginx</span>
+        <span class="k">state:</span>         <span class="v">present</span>
+        <span class="k">update_cache:</span>  <span class="v">yes</span>
+
+    <span class="c"># Task 2: Start Nginx service</span>
+    <span class="k">- name:</span> <span class="s">Start Nginx Service</span>
+      <span class="k">service:</span>
+        <span class="k">name:</span>     <span class="v">nginx</span>
+        <span class="k">state:</span>    <span class="v">started</span>
+        <span class="k">enabled:</span>  <span class="v">yes</span>
+
+    <span class="c"># Task 3: Copy index page</span>
+    <span class="k">- name:</span> <span class="s">Copy Index Page</span>
+      <span class="k">copy:</span>
+        <span class="k">src:</span>  <span class="v">index.html</span>
+        <span class="k">dest:</span> <span class="v">/var/www/html/index.html</span></pre>
+    </div>
+
+    <!-- Inventory Example -->
+    <div class="filter-group-label" style="margin: 1.5rem 0 0.75rem">Inventory File</div>
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><i></i><i></i><i></i></div>
+        <span>inventory.ini</span>
+      </div>
+      <pre><span class="c">[webservers]</span>
+<span class="v">web1.example.com</span>
+<span class="v">web2.example.com</span>
+
+<span class="c">[dbservers]</span>
+<span class="v">db1.example.com</span></pre>
+    </div>
+
+    <!-- Run command -->
+    <div class="filter-group-label" style="margin: 1.5rem 0 0.75rem">Running a Playbook</div>
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><i></i><i></i><i></i></div>
+        <span>terminal</span>
+      </div>
+      <pre><span class="cmd">ansible-playbook</span> <span class="k">-i</span> <span class="v">inventory.ini</span> <span class="s">site.yml</span>
+
+<span class="c"># -i  = inventory file path</span>
+<span class="c"># The final argument is your playbook file</span></pre>
+    </div>
+
+    <!-- Key Components -->
+    <div class="filter-group-label" style="margin: 1.75rem 0 0.75rem">Key Playbook Components</div>
+    <div class="filter-rows">
+      <div class="filter-row filter-tls">
+        <div class="filter-code">hosts:</div>
+        <div class="filter-desc">Defines the target hosts or group from inventory</div>
+      </div>
+      <div class="filter-row filter-tls">
+        <div class="filter-code">become:</div>
+        <div class="filter-desc">Execute tasks with sudo / root privileges</div>
+      </div>
+      <div class="filter-row filter-tls">
+        <div class="filter-code">tasks:</div>
+        <div class="filter-desc">List of tasks to be executed in order</div>
+      </div>
+      <div class="filter-row filter-tls">
+        <div class="filter-code">module:</div>
+        <div class="filter-desc">Specific action to perform (apt, service, copy, etc.)</div>
+      </div>
+      <div class="filter-row filter-tls">
+        <div class="filter-code">name:</div>
+        <div class="filter-desc">A human-readable description shown in playbook output</div>
+      </div>
+    </div>
+
+    <!-- Common Modules -->
+    <div class="filter-group-label" style="margin: 1.75rem 0 0.75rem">Common Ansible Modules</div>
+    <div class="modules-grid">
+      <div class="module-card">
+        <div class="m-name">apt / yum</div>
+        <div class="m-desc">Package management (Debian / RHEL)</div>
+      </div>
+      <div class="module-card">
+        <div class="m-name">service</div>
+        <div class="m-desc">Start, stop, restart, enable services</div>
+      </div>
+      <div class="module-card">
+        <div class="m-name">copy</div>
+        <div class="m-desc">Copy files to managed nodes</div>
+      </div>
+      <div class="module-card">
+        <div class="m-name">file</div>
+        <div class="m-desc">Manage files and directories</div>
+      </div>
+      <div class="module-card">
+        <div class="m-name">user</div>
+        <div class="m-desc">Manage OS user accounts</div>
+      </div>
+      <div class="module-card">
+        <div class="m-name">template</div>
+        <div class="m-desc">Render Jinja2 templates to nodes</div>
+      </div>
+      <div class="module-card">
+        <div class="m-name">command</div>
+        <div class="m-desc">Run arbitrary shell commands</div>
+      </div>
+      <div class="module-card">
+        <div class="m-name">git</div>
+        <div class="m-desc">Clone / manage Git repositories</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  DevOps Networking &amp; Automation Tutorial &nbsp;·&nbsp; Wireshark · Ports · Ansible
+</footer>
+
+</body>
+</html>
