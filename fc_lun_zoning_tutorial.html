@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fibre Channel Path: NetApp LUNs &amp; SAN Zoning</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --bg: #080b13;
+  --bg-panel: #0f1522;
+  --bg-panel-raised: #131b2c;
+  --border: #1e293f;
+  --border-bright: #2a3a5c;
+  --text: #d7e1f0;
+  --text-dim: #7c8aa8;
+  --text-faint: #4a5878;
+  --cyan: #3ee8ff;
+  --cyan-dim: #1a8fa3;
+  --amber: #ffb454;
+  --green: #4ade9a;
+  --violet: #b39dff;
+  --red: #ff6b6b;
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+*{ box-sizing: border-box; margin:0; padding:0; }
+html{ scroll-behavior: smooth; }
+body{
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  line-height: 1.65;
+  font-size: 16px;
+}
+body::before{
+  content:"";
+  position: fixed; inset:0;
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 64px 64px;
+  opacity: 0.12;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.wrap{ position: relative; z-index: 1; max-width: 1180px; margin: 0 auto; padding: 0 32px; }
+
+/* ===== NAV ===== */
+.topnav{
+  position: sticky; top:0; z-index: 50;
+  background: rgba(8,11,19,0.88);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+.topnav .wrap{ display:flex; align-items:center; justify-content:space-between; padding: 16px 32px; max-width: 1180px; }
+.brand{ display:flex; align-items:center; gap:10px; font-family: var(--font-display); font-weight:700; letter-spacing:0.02em; font-size: 17px; }
+.brand-dot{ width:9px; height:9px; border-radius:50%; background: var(--cyan); box-shadow: 0 0 10px var(--cyan), 0 0 20px var(--cyan-dim); animation: pulse 2.2s ease-in-out infinite; }
+@keyframes pulse{ 0%,100%{ opacity:1; } 50%{ opacity:0.35; } }
+.navlinks{ display:flex; gap:22px; flex-wrap:wrap; }
+.navlinks a{ color: var(--text-dim); text-decoration:none; font-size: 13px; font-family: var(--font-mono); letter-spacing: 0.01em; transition: color 0.15s; }
+.navlinks a:hover{ color: var(--cyan); }
+@media (max-width: 900px){ .navlinks{ display:none; } }
+
+/* ===== HERO ===== */
+.hero{ padding: 96px 0 72px; position: relative; overflow: hidden; }
+.eyebrow{
+  font-family: var(--font-mono); font-size: 12.5px; color: var(--amber);
+  letter-spacing: 0.14em; text-transform: uppercase; display:flex; align-items:center; gap:10px; margin-bottom: 22px;
+}
+.eyebrow::before{ content:""; width: 28px; height:1px; background: var(--amber); display:inline-block; }
+h1.hero-title{
+  font-family: var(--font-display); font-weight: 700; letter-spacing: -0.02em;
+  font-size: clamp(2.2rem, 4.6vw, 3.6rem); line-height: 1.06; max-width: 900px; color: #f2f6fc;
+}
+h1.hero-title em{ font-style: normal; color: var(--cyan); }
+.hero-sub{ margin-top: 22px; max-width: 640px; color: var(--text-dim); font-size: 16.5px; }
+.hero-sub b{ color: var(--text); font-weight: 600; }
+
+/* Signature diagram */
+.fabric-diagram{ margin-top: 60px; padding: 34px 28px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 10px; }
+.fabric-diagram svg{ width: 100%; height: auto; display:block; }
+.fabric-caption{ margin-top: 14px; font-family: var(--font-mono); font-size: 12px; color: var(--text-faint); text-align:center; }
+
+/* ===== SECTION SCAFFOLDING ===== */
+section{ padding: 68px 0; border-top: 1px solid var(--border); }
+.sec-head{ display:flex; align-items: baseline; gap: 16px; margin-bottom: 8px; }
+.sec-num{ font-family: var(--font-mono); color: var(--cyan-dim); font-size: 14px; }
+h2{ font-family: var(--font-display); font-size: clamp(1.5rem, 2.6vw, 2.1rem); font-weight: 600; color: #f2f6fc; letter-spacing: -0.01em; }
+.sec-desc{ color: var(--text-dim); max-width: 720px; margin: 18px 0 36px; font-size: 15.5px; }
+h3{ font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; color: var(--text); margin: 30px 0 12px; }
+p{ color: var(--text-dim); max-width: 760px; margin-bottom: 14px; font-size: 15.2px; }
+p b, li b{ color: var(--text); font-weight: 600; }
+ul, ol{ color: var(--text-dim); max-width: 760px; margin: 0 0 16px 22px; font-size: 15.2px; }
+li{ margin-bottom: 7px; }
+a.inline-link{ color: var(--cyan); }
+
+/* ===== TERMINAL / CODE BLOCK ===== */
+.term{
+  background: #0a0f1a; border: 1px solid var(--border-bright); border-radius: 8px;
+  margin: 16px 0 26px; overflow: hidden; max-width: 800px;
+}
+.term-head{
+  display:flex; align-items:center; justify-content: space-between;
+  padding: 9px 16px; background: var(--bg-panel-raised); border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--text-faint); letter-spacing: 0.04em; text-transform: uppercase;
+}
+.term-head .src{ display:flex; align-items:center; gap:8px; }
+.term-head .src-dot{ width:7px; height:7px; border-radius:50%; }
+.term pre{ margin:0; padding: 16px 18px; overflow-x: auto; }
+.term code{ font-family: var(--font-mono); font-size: 13.2px; color: #cde3ea; line-height: 1.7; white-space: pre; }
+.term code .cmt{ color: var(--text-faint); }
+.term code .out{ color: var(--text-dim); }
+.term code .hl{ color: var(--amber); }
+.term code .green{ color: var(--green); }
+
+/* Device-tinted terminal headers */
+.term.netapp .term-head .src-dot{ background: var(--cyan); box-shadow: 0 0 6px var(--cyan); }
+.term.mds .term-head .src-dot{ background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+.term.brocade .term-head .src-dot{ background: var(--violet); box-shadow: 0 0 6px var(--violet); }
+.term.host .term-head .src-dot{ background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+/* ===== NUMBERED PROCESS ===== */
+.steps{ counter-reset: stepnum; max-width: 800px; }
+.step{ position: relative; padding: 4px 0 4px 52px; margin-bottom: 22px; }
+.step::before{
+  counter-increment: stepnum; content: counter(stepnum, decimal-leading-zero);
+  position: absolute; left:0; top: 2px;
+  font-family: var(--font-mono); font-size: 13px; color: var(--cyan);
+  width: 36px; height: 36px; border: 1px solid var(--border-bright); border-radius: 7px;
+  display:flex; align-items:center; justify-content:center; background: var(--bg-panel);
+}
+.step h4{ font-family: var(--font-display); font-size: 15.5px; color: var(--text); margin-bottom: 6px; font-weight: 600; }
+.step p{ margin-bottom: 6px; }
+
+/* ===== TABS (MDS / Brocade) ===== */
+.tabbar{ display:flex; gap: 4px; margin: 20px 0 0; max-width: 800px; border-bottom: 1px solid var(--border); }
+.tabbtn{
+  font-family: var(--font-mono); font-size: 12.5px; letter-spacing: 0.03em; color: var(--text-faint);
+  background: none; border: none; padding: 10px 18px; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s;
+}
+.tabbtn.active{ color: var(--cyan); border-bottom-color: var(--cyan); }
+.tabbtn:hover:not(.active){ color: var(--text-dim); }
+.tabpanel{ display:none; }
+.tabpanel.active{ display:block; }
+
+/* ===== CALLOUTS ===== */
+.callout{ max-width: 760px; border-left: 3px solid var(--amber); background: rgba(255,180,84,0.06); padding: 14px 18px; border-radius: 0 6px 6px 0; margin: 20px 0; }
+.callout.warn{ border-color: var(--red); background: rgba(255,107,107,0.06); }
+.callout.tip{ border-color: var(--green); background: rgba(74,222,154,0.06); }
+.callout-label{ font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; display:block; }
+.callout .callout-label{ color: var(--amber); }
+.callout.warn .callout-label{ color: var(--red); }
+.callout.tip .callout-label{ color: var(--green); }
+.callout p{ margin-bottom: 0; font-size: 14.5px; }
+
+/* ===== TABLE ===== */
+table{ width: 100%; max-width: 800px; border-collapse: collapse; margin: 18px 0 28px; font-size: 14px; }
+th{ text-align:left; font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-faint); padding: 10px 14px; border-bottom: 1px solid var(--border-bright); }
+td{ padding: 11px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); }
+td b{ color: var(--text); }
+tr:last-child td{ border-bottom: none; }
+td code, li code{ font-family: var(--font-mono); background: var(--bg-panel-raised); padding: 2px 6px; border-radius: 4px; color: var(--cyan); font-size: 13px; }
+
+/* ===== CHECKLIST ===== */
+.checklist{ max-width: 760px; }
+.check-item{ display:flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.check-item:last-child{ border-bottom: none; }
+.check-box{ flex-shrink:0; width: 18px; height: 18px; border: 1px solid var(--border-bright); border-radius: 4px; margin-top: 2px; }
+.check-item.bad .check-box{ border-color: var(--red); }
+.check-item p{ margin: 0; }
+.check-item .ci-title{ color: var(--text); font-weight: 600; font-size: 14.5px; margin-bottom: 3px; }
+
+/* ===== CHEATSHEET GRID ===== */
+.cheat-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap: 14px; margin-top: 20px; }
+.cheat-card{ background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
+.cheat-card h5{ font-family: var(--font-mono); font-size: 12px; color: var(--cyan); letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 10px; }
+.cheat-card code{ display:block; font-family: var(--font-mono); font-size: 12.5px; color: var(--text-dim); margin-bottom: 6px; }
+
+footer{ padding: 46px 0 70px; border-top: 1px solid var(--border); }
+footer p{ font-family: var(--font-mono); font-size: 12px; color: var(--text-faint); }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="wrap">
+    <div class="brand"><span class="brand-dot"></span>FC PATH GUIDE</div>
+    <div class="navlinks">
+      <a href="#concepts">Concepts</a>
+      <a href="#netapp-lun">Create LUN</a>
+      <a href="#checking-wwpns">Find WWPNs</a>
+      <a href="#switch-basics">Switch Databases</a>
+      <a href="#creating-zone">Zoning</a>
+      <a href="#host-config">Host Setup</a>
+      <a href="#troubleshooting">Troubleshoot</a>
+      <a href="#cheatsheet">Cheatsheet</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">End-to-end SAN walkthrough</div>
+    <h1 class="hero-title">A LUN is only as good as the <em>path</em> that reaches it.</h1>
+    <p class="hero-sub">This is the full chain a Fibre Channel I/O actually travels: from a <b>NetApp LUN</b>, through a <b>host bus adapter</b>, across a <b>switched fabric</b>, into a <b>zone</b>, and back. Break any one link — a missing WWPN, an inactive zoneset, an unmapped igroup — and the disk simply never appears. We'll trace every link in order.</p>
+
+    <div class="fabric-diagram">
+      <svg viewBox="0 0 1000 220" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="beam" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#3ee8ff" stop-opacity="0"/>
+            <stop offset="50%" stop-color="#3ee8ff" stop-opacity="1"/>
+            <stop offset="100%" stop-color="#3ee8ff" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <!-- host box -->
+        <rect x="20" y="70" width="150" height="80" rx="8" fill="#0f1522" stroke="#2a3a5c"/>
+        <text x="95" y="100" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="14" font-weight="600" fill="#d7e1f0">HOST</text>
+        <text x="95" y="120" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#4ade9a">Initiator WWPN</text>
+        <text x="95" y="134" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#7c8aa8">21:00:00:24:ff:...</text>
+
+        <!-- switch box -->
+        <rect x="425" y="40" width="150" height="140" rx="8" fill="#0f1522" stroke="#2a3a5c"/>
+        <text x="500" y="65" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="14" font-weight="600" fill="#d7e1f0">FC SWITCH</text>
+        <rect x="445" y="80" width="110" height="26" rx="4" fill="#131b2c" stroke="#ffb454"/>
+        <text x="500" y="97" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#ffb454">ZONE: active</text>
+        <text x="500" y="130" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#7c8aa8">fcns database</text>
+        <text x="500" y="146" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#7c8aa8">flogi database</text>
+
+        <!-- target box -->
+        <rect x="830" y="70" width="150" height="80" rx="8" fill="#0f1522" stroke="#2a3a5c"/>
+        <text x="905" y="100" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="14" font-weight="600" fill="#d7e1f0">NETAPP</text>
+        <text x="905" y="120" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#3ee8ff">Target WWPN</text>
+        <text x="905" y="134" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#7c8aa8">50:0a:09:8...</text>
+
+        <!-- beams -->
+        <line x1="170" y1="110" x2="425" y2="110" stroke="url(#beam)" stroke-width="3"/>
+        <line x1="575" y1="110" x2="830" y2="110" stroke="url(#beam)" stroke-width="3"/>
+        <circle cx="170" cy="110" r="3.5" fill="#3ee8ff">
+          <animate attributeName="cx" values="170;425" dur="1.6s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="1;1;0" dur="1.6s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="575" cy="110" r="3.5" fill="#3ee8ff">
+          <animate attributeName="cx" values="575;830" dur="1.6s" begin="0.15s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="1;1;0" dur="1.6s" begin="0.15s" repeatCount="indefinite"/>
+        </circle>
+      </svg>
+    </div>
+    <div class="fabric-caption">Simplified single-initiator, single-target FC path — a real fabric mirrors this twice for redundant multipathing.</div>
+  </div>
+</header>
+
+<!-- ===================== CONCEPTS ===================== -->
+<section id="concepts">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">01</span><h2>The addressing model</h2></div>
+    <p class="sec-desc">Before touching a CLI, it's worth being precise about what identifies what — this vocabulary is what every later command is built on.</p>
+
+    <table>
+      <tr><th>Term</th><th>What it identifies</th><th>Scope</th></tr>
+      <tr><td><b>WWNN</b> — World Wide Node Name</td><td>The physical device as a whole (a controller, an HBA card)</td><td>One per node</td></tr>
+      <tr><td><b>WWPN</b> — World Wide Port Name</td><td>A single physical port on that device</td><td>One per port — this is what gets zoned</td></tr>
+      <tr><td><b>FCID</b></td><td>A temporary 24-bit address the switch assigns a port after login, similar in spirit to how DHCP hands out an IP</td><td>Reassigned on every fabric login</td></tr>
+      <tr><td><b>Igroup</b> (NetApp-side)</td><td>A named group of host initiator WWPNs allowed to see specific LUNs</td><td>Per SVM</td></tr>
+    </table>
+
+    <p>A <b>zone</b> is created from WWPNs, never from IP-style addresses. Two ports must be in the same active zone before they can even attempt SCSI communication — zoning happens at the fabric layer, independently of whether the NetApp side has mapped anything yet.</p>
+
+    <h3>The three logins that happen before any data moves</h3>
+    <ol>
+      <li><b>FLOGI</b> (Fabric Login) — a port logs into the switch itself and receives an FCID. This is what populates the switch's <code>flogi database</code>.</li>
+      <li><b>PLOGI</b> (Port Login) — one N-port logs into another N-port directly, establishing a session. Only possible if both ports are in the same active zone.</li>
+      <li><b>PRLI</b> (Process Login) — negotiates the actual upper-layer protocol (SCSI-FCP) parameters between initiator and target.</li>
+    </ol>
+    <div class="callout tip">
+      <span class="callout-label">Why this order matters</span>
+      <p>If FLOGI never happens, the switch has no record of the port and zoning is irrelevant. If FLOGI succeeds but zoning is missing or inactive, PLOGI is refused — the host sees the switch but never sees the array. This is the single most common point of failure in new LUN presentations.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== NETAPP LUN CREATION ===================== -->
+<section id="netapp-lun">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">02</span><h2>Creating the FC LUN on NetApp</h2></div>
+    <p class="sec-desc">Everything here happens before you ever touch the switch — the array side must exist first so you know which target WWPNs you're about to zone.</p>
+
+    <div class="steps">
+      <div class="step">
+        <h4>Confirm FCP is licensed and running on the SVM</h4>
+        <div class="term netapp">
+          <div class="term-head"><div class="src"><span class="src-dot"></span>cluster1 :: netapp cli</div><span>advanced not required</span></div>
+          <pre><code><span class="cmt">::&gt;</span> vserver fcp show -vserver svm_prod
+<span class="cmt">::&gt;</span> vserver fcp create -vserver svm_prod -status-admin up   <span class="cmt"># if not yet enabled</span></code></pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <h4>Identify the SVM's target WWPNs</h4>
+        <p>You need these before building the zone later.</p>
+        <div class="term netapp">
+          <div class="term-head"><div class="src"><span class="src-dot"></span>cluster1</div></div>
+          <pre><code><span class="cmt">::&gt;</span> network interface show -vserver svm_prod -data-protocol fcp -fields wwpn,home-node,home-port
+
+<span class="out">vserver    lif       wwpn                    home-node   home-port
+svm_prod   svm_lif01 <span class="hl">50:0a:09:81:00:aa:bb:01</span>  node-01     0c
+svm_prod   svm_lif02 <span class="hl">50:0a:09:82:00:aa:bb:02</span>  node-02     0c</span></code></pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <h4>Create the volume and the LUN</h4>
+        <div class="term netapp">
+          <div class="term-head"><div class="src"><span class="src-dot"></span>cluster1</div></div>
+          <pre><code><span class="cmt">::&gt;</span> volume create -vserver svm_prod -volume vol_sql01 -aggregate aggr01 -size 500GB -space-guarantee none
+
+<span class="cmt">::&gt;</span> lun create -vserver svm_prod -path /vol/vol_sql01/lun_sql01 \
+             -size 450GB -ostype windows -space-reserve enabled</code></pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <h4>Create an igroup with the host's initiator WWPN</h4>
+        <p>The igroup is the access-control object on the NetApp side — think of it as the array's own private allow-list, independent of fabric zoning.</p>
+        <div class="term netapp">
+          <div class="term-head"><div class="src"><span class="src-dot"></span>cluster1</div></div>
+          <pre><code><span class="cmt">::&gt;</span> igroup create -vserver svm_prod -igroup ig_winsql01 \
+              -protocol fcp -ostype windows \
+              -initiator 21:00:00:24:ff:5a:1b:01,21:00:00:24:ff:5a:1b:02</code></pre>
+        </div>
+      </div>
+
+      <div class="step">
+        <h4>Map the LUN to the igroup</h4>
+        <div class="term netapp">
+          <div class="term-head"><div class="src"><span class="src-dot"></span>cluster1</div></div>
+          <pre><code><span class="cmt">::&gt;</span> lun mapping create -vserver svm_prod -path /vol/vol_sql01/lun_sql01 \
+                     -igroup ig_winsql01 -lun-id 0</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <span class="callout-label">Where zoning fits</span>
+      <p>At this point the LUN exists and is mapped, but the host still can't see it — the igroup only controls who's <i>allowed</i> to talk to the LUN once they can reach the target port at all. Reachability itself is the fabric's job, and that's what zoning grants.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== CHECKING WWPNs ===================== -->
+<section id="checking-wwpns">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">03</span><h2>Finding initiator &amp; target WWPNs</h2></div>
+    <p class="sec-desc">You'll need both ends of the conversation in hand before building a zone. Here's where to look on each side.</p>
+
+    <h3>Target WWPN — from NetApp</h3>
+    <div class="term netapp">
+      <div class="term-head"><div class="src"><span class="src-dot"></span>cluster1</div></div>
+      <pre><code><span class="cmt">::&gt;</span> network fcp adapter show -fields wwpn,state
+
+<span class="cmt">::&gt;</span> network interface show -data-protocol fcp -fields wwpn</code></pre>
+    </div>
+
+    <h3>Initiator WWPN — from the switch's own login table (fastest way)</h3>
+    <p>Rather than logging into the host at all, the switch already recorded every port that has completed FLOGI:</p>
+    <div class="term mds">
+      <div class="term-head"><div class="src"><span class="src-dot"></span>Cisco MDS</div></div>
+      <pre><code>switch# <span class="hl">show flogi database</span>
+
+<span class="out">INTERFACE  VSAN  FCID       PORT NAME                NODE NAME
+fc1/4      10    0x650001   21:00:00:24:ff:5a:1b:01  20:00:00:24:ff:5a:1b:01
+fc1/5      10    0x650002   50:0a:09:81:00:aa:bb:01  50:0a:09:80:00:aa:bb:01</span></code></pre>
+    </div>
+
+    <h3>Initiator WWPN — directly from the host, if you don't have switch access</h3>
+    <div class="tabbar">
+      <button class="tabbtn active" data-tab="host-win">Windows</button>
+      <button class="tabbtn" data-tab="host-lin">Linux</button>
+      <button class="tabbtn" data-tab="host-esx">VMware ESXi</button>
+    </div>
+    <div class="tabpanel active" id="host-win">
+      <div class="term host">
+        <div class="term-head"><div class="src"><span class="src-dot"></span>Windows PowerShell</div></div>
+        <pre><code>PS&gt; Get-InitiatorPort | Select PortAddress, ConnectionType
+
+<span class="out">PortAddress          ConnectionType
+-----------          --------------
+2100002...4ff5a1b01   Fibre Channel</span></code></pre>
+      </div>
+    </div>
+    <div class="tabpanel" id="host-lin">
+      <div class="term host">
+        <div class="term-head"><div class="src"><span class="src-dot"></span>Linux</div></div>
+        <pre><code>$ cat /sys/class/fc_host/host*/port_name
+
+<span class="out">0x21000024ff5a1b01</span></code></pre>
+      </div>
+    </div>
+    <div class="tabpanel" id="host-esx">
+      <div class="term host">
+        <div class="term-head"><div class="src"><span class="src-dot"></span>ESXi</div></div>
+        <pre><code>[root@esxi:~] esxcli storage san fc list
+
+<span class="out">Adapter: vmhba2
+  World Wide Port Name: 21:00:00:24:ff:5a:1b:01
+  World Wide Node Name: 20:00:00:24:ff:5a:1b:01
+  Port State: ONLINE</span></code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== SWITCH DATABASES ===================== -->
+<section id="switch-basics">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">04</span><h2>Reading the switch's own view of the fabric</h2></div>
+    <p class="sec-desc">Two tables answer almost every "why can't the host see the array" question, before you even open zoning config.</p>
+
+    <table>
+      <tr><th>Database</th><th>Answers</th></tr>
+      <tr><td><code>flogi database</code></td><td>"Is this port even logged into the switch at all?" — the most basic reachability check</td></tr>
+      <tr><td><code>fcns database</code> (Name Server)</td><td>"What FC-4 type is this port advertising (e.g. SCSI-FCP), and what symbolic name/WWNN does it carry?" — the fuller registration record</td></tr>
+      <tr><td><code>zoneset active</code></td><td>"Which pairs of WWPNs are actually allowed to talk to each other right now?"</td></tr>
+    </table>
+
+    <div class="tabbar">
+      <button class="tabbtn active" data-tab="sw-mds">Cisco MDS (NX-OS)</button>
+      <button class="tabbtn" data-tab="sw-bro">Brocade (FOS)</button>
+    </div>
+
+    <div class="tabpanel active" id="sw-mds">
+      <div class="term mds">
+        <div class="term-head"><div class="src"><span class="src-dot"></span>Cisco MDS</div></div>
+        <pre><code><span class="cmt"># Everyone logged in, per VSAN</span>
+switch# show flogi database
+
+<span class="cmt"># Fuller name-server record — vendor, symbolic name, FC-4 type</span>
+switch# show fcns database vsan 10
+
+<span class="cmt"># What's actually active right now</span>
+switch# show zoneset active vsan 10
+
+<span class="cmt"># All configured zonesets, including inactive drafts</span>
+switch# show zone vsan 10</code></pre>
+      </div>
+    </div>
+
+    <div class="tabpanel" id="sw-bro">
+      <div class="term brocade">
+        <div class="term-head"><div class="src"><span class="src-dot"></span>Brocade</div></div>
+        <pre><code><span class="cmt"># Port + WWN overview for the whole switch</span>
+switch:admin&gt; switchshow
+
+<span class="cmt"># Name server database — equivalent to fcns on MDS</span>
+switch:admin&gt; nsshow
+
+<span class="cmt"># Currently active (enabled) zone configuration</span>
+switch:admin&gt; cfgactvshow
+
+<span class="cmt"># All defined zones, aliases, and configs — active or not</span>
+switch:admin&gt; cfgshow</code></pre>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <span class="callout-label">A common trap</span>
+      <p>A WWPN can appear in <code>flogi</code>/<code>nsshow</code> and still fail to communicate with its target — that table only proves the port reached the switch. It says nothing about whether a zone permits it to reach any specific other port.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== CREATING A ZONE ===================== -->
+<section id="creating-zone">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">05</span><h2>Creating and activating a zone</h2></div>
+    <p class="sec-desc">Standard practice is <b>single-initiator, single-target zoning</b> — one host port and one array port per zone, never grouping multiple initiators together. This keeps RSCN (fabric change) traffic from one host affecting unrelated hosts.</p>
+
+    <div class="tabbar">
+      <button class="tabbtn active" data-tab="z-mds">Cisco MDS (NX-OS)</button>
+      <button class="tabbtn" data-tab="z-bro">Brocade (FOS)</button>
+    </div>
+
+    <div class="tabpanel active" id="z-mds">
+      <div class="steps">
+        <div class="step">
+          <h4>Enter configuration mode for the right VSAN</h4>
+          <div class="term mds">
+            <div class="term-head"><div class="src"><span class="src-dot"></span>Cisco MDS</div></div>
+            <pre><code>switch# configure terminal
+switch(config)# zone name Z_HOST01_NETAPP01_A vsan 10</code></pre>
+          </div>
+        </div>
+        <div class="step">
+          <h4>Add the two members by WWPN</h4>
+          <div class="term mds">
+            <div class="term-head"><div class="src"><span class="src-dot"></span>Cisco MDS</div></div>
+            <pre><code>switch(config-zone)# member pwwn 21:00:00:24:ff:5a:1b:01
+switch(config-zone)# member pwwn 50:0a:09:81:00:aa:bb:01</code></pre>
+          </div>
+        </div>
+        <div class="step">
+          <h4>Add the zone to a zoneset</h4>
+          <div class="term mds">
+            <div class="term-head"><div class="src"><span class="src-dot"></span>Cisco MDS</div></div>
+            <pre><code>switch(config)# zoneset name ZS_FABRIC_A vsan 10
+switch(config-zoneset)# member Z_HOST01_NETAPP01_A</code></pre>
+          </div>
+        </div>
+        <div class="step">
+          <h4>Activate the zoneset</h4>
+          <p>This is the step that's easy to forget — a configured zone does nothing until its zoneset is active.</p>
+          <div class="term mds">
+            <div class="term-head"><div class="src"><span class="src-dot"></span>Cisco MDS</div></div>
+            <pre><code>switch(config)# zoneset activate name ZS_FABRIC_A vsan 10
+switch(config)# copy running-config startup-config</code></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tabpanel" id="z-bro">
+      <div class="steps">
+        <div class="step">
+          <h4>Create aliases for readability (optional but recommended)</h4>
+          <div class="term brocade">
+            <div class="term-head"><div class="src"><span class="src-dot"></span>Brocade</div></div>
+            <pre><code>switch:admin&gt; alicreate "HOST01_HBA0", "21:00:00:24:ff:5a:1b:01"
+switch:admin&gt; alicreate "NETAPP01_0c", "50:0a:09:81:00:aa:bb:01"</code></pre>
+          </div>
+        </div>
+        <div class="step">
+          <h4>Create the zone from those aliases</h4>
+          <div class="term brocade">
+            <div class="term-head"><div class="src"><span class="src-dot"></span>Brocade</div></div>
+            <pre><code>switch:admin&gt; zonecreate "Z_HOST01_NETAPP01_A", "HOST01_HBA0;NETAPP01_0c"</code></pre>
+          </div>
+        </div>
+        <div class="step">
+          <h4>Add the zone into the active configuration</h4>
+          <div class="term brocade">
+            <div class="term-head"><div class="src"><span class="src-dot"></span>Brocade</div></div>
+            <pre><code>switch:admin&gt; cfgadd "PROD_CFG", "Z_HOST01_NETAPP01_A"</code></pre>
+          </div>
+        </div>
+        <div class="step">
+          <h4>Save and enable</h4>
+          <p><code>cfgsave</code> writes the definition to flash; <code>cfgenable</code> is what actually makes it live on the fabric.</p>
+          <div class="term brocade">
+            <div class="term-head"><div class="src"><span class="src-dot"></span>Brocade</div></div>
+            <pre><code>switch:admin&gt; cfgsave
+switch:admin&gt; cfgenable "PROD_CFG"</code></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <span class="callout-label">Redundant fabric reminder</span>
+      <p>A resilient design has two independent physical fabrics (Fabric A / Fabric B). Repeat this whole zoning process once per fabric, pairing the host's second HBA port with the array's second target port. Never cross-connect A-fabric zoning with B-fabric WWPNs.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== HOST CONFIG ===================== -->
+<section id="host-config">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">06</span><h2>Verifying and configuring the host end</h2></div>
+    <p class="sec-desc">Once the zone is active and the NetApp mapping exists, the host still needs to rescan and confirm it sees a consistent, multipathed device — not four separate disks.</p>
+
+    <div class="tabbar">
+      <button class="tabbtn active" data-tab="hc-win">Windows</button>
+      <button class="tabbtn" data-tab="hc-lin">Linux</button>
+      <button class="tabbtn" data-tab="hc-esx">ESXi</button>
+    </div>
+
+    <div class="tabpanel active" id="hc-win">
+      <div class="term host">
+        <div class="term-head"><div class="src"><span class="src-dot"></span>Windows PowerShell</div></div>
+        <pre><code><span class="cmt"># Trigger a rescan for new storage</span>
+PS&gt; Update-HostStorageCache
+PS&gt; Get-Disk
+
+<span class="cmt"># Confirm MPIO sees multiple paths to the same LUN</span>
+PS&gt; mpclaim -s -d
+PS&gt; Get-MPIOAvailableHw
+
+<span class="cmt"># NetApp Host Utilities equivalent of sanlun</span>
+PS&gt; sanlun lun show -p</code></pre>
+      </div>
+    </div>
+
+    <div class="tabpanel" id="hc-lin">
+      <div class="term host">
+        <div class="term-head"><div class="src"><span class="src-dot"></span>Linux</div></div>
+        <pre><code><span class="cmt"># Ask the HBA driver to rescan the fabric</span>
+$ echo "1" &gt; /sys/class/fc_host/host0/issue_lip
+$ for h in /sys/class/scsi_host/host*/scan; do echo "- - -" &gt; $h; done
+
+<span class="cmt"># Confirm the multipath device and how many paths it has</span>
+$ multipath -ll
+$ sanlun lun show -p</code></pre>
+      </div>
+    </div>
+
+    <div class="tabpanel" id="hc-esx">
+      <div class="term host">
+        <div class="term-head"><div class="src"><span class="src-dot"></span>ESXi</div></div>
+        <pre><code>[root@esxi:~] esxcli storage core adapter rescan --all
+[root@esxi:~] esxcli storage nmp path list
+[root@esxi:~] esxcli storage nmp device list</code></pre>
+      </div>
+    </div>
+
+    <div class="callout">
+      <span class="callout-label">What "correct" looks like</span>
+      <p>With a dual-fabric, dual-HBA, dual-target-port design, a healthy LUN shows <b>4 active paths</b> (2 HBAs × 2 target ports across 2 fabrics) collapsing into <b>one</b> multipath device — not four separate disks. If you see the LUN four times as distinct disks, MPIO/DM-Multipath isn't claiming it correctly, not a zoning problem.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== TROUBLESHOOTING ===================== -->
+<section id="troubleshooting">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">07</span><h2>Troubleshooting checklist</h2></div>
+    <p class="sec-desc">Work top to bottom — each layer assumes the one above it is already confirmed working.</p>
+
+    <div class="checklist">
+      <div class="check-item"><div class="check-box"></div><div><p class="ci-title">HBA port is logged into the switch</p><p>Confirm the initiator WWPN appears in <code>show flogi database</code> / <code>nsshow</code>. If absent: check cabling, SFP, and that the HBA port isn't administratively down.</p></div></div>
+      <div class="check-item"><div class="check-box"></div><div><p class="ci-title">Target WWPN is also logged in</p><p>Confirm on the NetApp side with <code>network fcp adapter show</code>, and on the switch with the same flogi/nsshow query.</p></div></div>
+      <div class="check-item"><div class="check-box"></div><div><p class="ci-title">Zone contains both WWPNs, correctly spelled</p><p>A single mistyped colon-separated octet is the most common zoning error — copy WWPNs directly from CLI output, never retype them.</p></div></div>
+      <div class="check-item"><div class="check-box"></div><div><p class="ci-title">Zoneset/config is <i>active</i>, not just defined</p><p><code>show zoneset active</code> (MDS) or <code>cfgactvshow</code> (Brocade) — a saved-but-inactive zone has no effect.</p></div></div>
+      <div class="check-item"><div class="check-box"></div><div><p class="ci-title">Igroup on NetApp contains the correct initiator</p><p><code>igroup show -instance</code> — confirm the WWPN matches exactly and the ostype is correct for the host.</p></div></div>
+      <div class="check-item"><div class="check-box"></div><div><p class="ci-title">LUN mapping exists and LUN ID isn't already used</p><p><code>lun mapping show</code> — a duplicate LUN ID within the same igroup will block presentation.</p></div></div>
+      <div class="check-item bad"><div class="check-box"></div><div><p class="ci-title">Host has rescanned since the mapping was created</p><p>Host OSes generally don't detect new LUNs automatically — a rescan or reboot is required after every change above.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== CHEATSHEET ===================== -->
+<section id="cheatsheet">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">08</span><h2>Command cheatsheet</h2></div>
+    <p class="sec-desc">The commands from this guide, grouped by which device you're sitting on.</p>
+
+    <div class="cheat-grid">
+      <div class="cheat-card">
+        <h5>NetApp</h5>
+        <code>network fcp adapter show</code>
+        <code>network interface show -data-protocol fcp</code>
+        <code>lun create / lun mapping create</code>
+        <code>igroup create / igroup show -instance</code>
+      </div>
+      <div class="cheat-card">
+        <h5>Cisco MDS</h5>
+        <code>show flogi database</code>
+        <code>show fcns database vsan &lt;id&gt;</code>
+        <code>zone name ... / member pwwn ...</code>
+        <code>zoneset activate name ... vsan &lt;id&gt;</code>
+      </div>
+      <div class="cheat-card">
+        <h5>Brocade</h5>
+        <code>switchshow / nsshow</code>
+        <code>zonecreate / alicreate</code>
+        <code>cfgadd / cfgsave</code>
+        <code>cfgenable "&lt;config&gt;"</code>
+      </div>
+      <div class="cheat-card">
+        <h5>Host</h5>
+        <code>sanlun lun show -p</code>
+        <code>multipath -ll (Linux)</code>
+        <code>mpclaim -s -d (Windows)</code>
+        <code>esxcli storage nmp device list (ESXi)</code>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>FC PATH GUIDE — initiator to target, one link at a time.</p>
+  </div>
+</footer>
+
+<script>
+document.querySelectorAll('.tabbar').forEach(function(bar){
+  var panels = bar.parentElement.querySelectorAll('.tabpanel');
+  bar.querySelectorAll('.tabbtn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      bar.querySelectorAll('.tabbtn').forEach(function(b){ b.classList.remove('active'); });
+      panels.forEach(function(p){ p.classList.remove('active'); });
+      btn.classList.add('active');
+      var target = bar.parentElement.querySelector('#' + btn.dataset.tab);
+      if(target){ target.classList.add('active'); }
+    });
+  });
+});
+</script>
+
+</body>
+</html>
