@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brocade Fabric OS &amp; NetApp SAN Reference</title>
+<link rel="preconnect" href="https://cdnjs.cloudflare.com">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --bg:#0e1620;
+  --bg-alt:#0a1119;
+  --surface:#151f2b;
+  --surface-2:#1b2733;
+  --line:#263344;
+  --line-soft:#1d2836;
+  --text:#dfe6ee;
+  --text-dim:#8b9aad;
+  --text-faint:#5b6b80;
+  --amber:#f0a93a;
+  --amber-dim:#8a6420;
+  --cyan:#49d3c7;
+  --cyan-dim:#1f5852;
+  --red:#e0654f;
+  --radius:3px;
+}
+
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:'IBM Plex Sans',sans-serif;
+  font-size:16px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+
+::selection{background:var(--cyan-dim);color:#fff;}
+
+a{color:var(--cyan);text-decoration:none;}
+a:hover{text-decoration:underline;}
+
+:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;}
+
+code, .mono{font-family:'IBM Plex Mono',monospace;}
+
+/* ---------- background fibre texture ---------- */
+.fibre-bg{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(var(--line-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+  background-size:64px 64px;
+  opacity:0.35;
+  mask-image:radial-gradient(ellipse 90% 60% at 50% 0%, black 0%, transparent 75%);
+}
+
+/* ---------- layout shell ---------- */
+.shell{position:relative;z-index:1;display:flex;max-width:1320px;margin:0 auto;}
+
+/* ---------- sidebar nav ---------- */
+.sidenav{
+  position:sticky;top:0;
+  height:100vh;
+  width:248px;
+  flex-shrink:0;
+  padding:32px 20px 32px 28px;
+  border-right:1px solid var(--line);
+  overflow-y:auto;
+  display:flex;flex-direction:column;
+  gap:28px;
+}
+.sidenav .brand{display:flex;align-items:center;gap:10px;}
+.led{width:8px;height:8px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan);flex-shrink:0;}
+.led.amber{background:var(--amber);box-shadow:0 0 8px var(--amber);}
+.brand-text{font-family:'IBM Plex Sans Condensed',sans-serif;font-weight:700;font-size:14px;letter-spacing:0.06em;text-transform:uppercase;color:var(--text);}
+.brand-sub{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--text-faint);margin-top:2px;letter-spacing:0.02em;}
+
+.nav-group{display:flex;flex-direction:column;gap:2px;}
+.nav-group-label{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-faint);margin-bottom:8px;padding-left:2px;}
+.nav-link{
+  display:flex;align-items:baseline;gap:8px;
+  font-size:13.5px;color:var(--text-dim);
+  padding:6px 8px;border-radius:var(--radius);
+  border-left:2px solid transparent;
+  transition:color .15s ease, border-color .15s ease, background .15s ease;
+}
+.nav-link:hover{color:var(--text);text-decoration:none;background:var(--surface);}
+.nav-link.active{color:var(--cyan);border-left-color:var(--cyan);background:var(--surface);}
+.nav-link .idx{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--text-faint);}
+
+.sidenav-foot{margin-top:auto;padding-top:16px;border-top:1px solid var(--line);font-size:11px;color:var(--text-faint);font-family:'IBM Plex Mono',monospace;line-height:1.5;}
+
+/* ---------- main content ---------- */
+main{flex:1;min-width:0;padding:0 56px 120px 56px;}
+
+/* ---------- hero ---------- */
+.hero{
+  padding:88px 0 56px 0;
+  border-bottom:1px solid var(--line);
+  position:relative;
+}
+.hero-eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:0.1em;text-transform:uppercase;
+  color:var(--amber);
+  padding:5px 10px;border:1px solid var(--amber-dim);border-radius:var(--radius);
+  margin-bottom:28px;
+}
+.hero h1{
+  font-family:'IBM Plex Sans Condensed',sans-serif;
+  font-weight:700;
+  font-size:clamp(38px,4.6vw,58px);
+  line-height:1.04;
+  letter-spacing:-0.01em;
+  margin:0 0 20px 0;
+  max-width:16ch;
+}
+.hero h1 .hl{color:var(--cyan);}
+.hero p.lede{
+  font-size:17px;color:var(--text-dim);max-width:56ch;margin:0 0 32px 0;
+}
+.hero-meta{
+  display:flex;flex-wrap:wrap;gap:28px;
+  font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-faint);
+}
+.hero-meta strong{color:var(--text-dim);font-weight:500;}
+
+/* ---------- generic section ---------- */
+section.block{padding:72px 0;border-bottom:1px solid var(--line);}
+section.block:last-of-type{border-bottom:none;}
+
+.block-head{margin-bottom:36px;}
+.block-tag{
+  font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;
+  color:var(--text-faint);margin-bottom:10px;display:block;
+}
+.block-head h2{
+  font-family:'IBM Plex Sans Condensed',sans-serif;font-weight:700;
+  font-size:clamp(26px,3vw,34px);margin:0 0 10px 0;letter-spacing:-0.005em;
+}
+.block-head p{color:var(--text-dim);max-width:64ch;margin:0;font-size:15px;}
+
+/* ---------- model cards ---------- */
+.model-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;}
+.model-card{background:var(--surface);padding:24px 22px;}
+.model-card .gen-tag{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:var(--amber);margin-bottom:12px;display:inline-block;}
+.model-card h3{font-family:'IBM Plex Sans Condensed',sans-serif;font-size:24px;font-weight:700;margin:0 0 4px 0;}
+.model-card .speed{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--cyan);margin-bottom:16px;}
+.model-card dl{margin:0;display:flex;flex-direction:column;gap:9px;}
+.model-card dt{font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.06em;font-family:'IBM Plex Mono',monospace;}
+.model-card dd{margin:1px 0 0 0;font-size:13.5px;color:var(--text-dim);}
+
+/* director diagram row */
+.director-row{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;}
+.director-card{background:var(--surface);padding:26px 24px;}
+.director-card .gen-tag{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:var(--cyan);margin-bottom:10px;display:inline-block;}
+.director-card h3{font-family:'IBM Plex Sans Condensed',sans-serif;font-size:22px;font-weight:700;margin:0 0 14px 0;}
+.chassis-viz{display:flex;gap:3px;margin-bottom:16px;}
+.slot{flex:1;height:34px;background:var(--surface-2);border:1px solid var(--line);border-radius:2px;position:relative;}
+.slot.cp::after{content:"CP";}
+.slot.core::after{content:"CR";}
+.slot::after{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text-faint);
+}
+.director-card table{width:100%;border-collapse:collapse;font-size:13px;}
+.director-card td{padding:6px 0;border-top:1px solid var(--line-soft);color:var(--text-dim);}
+.director-card td:first-child{color:var(--text-faint);width:44%;font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;}
+
+/* ---------- callout / note ---------- */
+.callout{
+  display:flex;gap:14px;
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-left:3px solid var(--amber);
+  border-radius:var(--radius);
+  padding:18px 20px;
+  margin-top:28px;
+}
+.callout.cyan{border-left-color:var(--cyan);}
+.callout .icon{font-family:'IBM Plex Mono',monospace;color:var(--amber);font-size:13px;flex-shrink:0;margin-top:1px;}
+.callout.cyan .icon{color:var(--cyan);}
+.callout p{margin:0;font-size:13.5px;color:var(--text-dim);}
+.callout strong{color:var(--text);}
+
+/* ---------- compatibility grid ---------- */
+.compat-table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:8px;}
+.compat-table th{
+  text-align:left;font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;
+  color:var(--text-faint);padding:0 16px 10px 0;border-bottom:1px solid var(--line);font-weight:500;
+}
+.compat-table td{padding:13px 16px 13px 0;border-bottom:1px solid var(--line-soft);color:var(--text-dim);vertical-align:top;}
+.compat-table td:first-child{color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:12.5px;white-space:nowrap;}
+.status-dot{display:inline-flex;align-items:center;gap:6px;}
+.status-dot::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--cyan);flex-shrink:0;}
+.status-dot.warn::before{background:var(--amber);}
+
+/* ---------- process steps (zoning / upgrade) ---------- */
+.process{position:relative;padding-left:38px;}
+.process::before{
+  content:"";position:absolute;left:11px;top:6px;bottom:6px;width:1px;
+  background:linear-gradient(var(--cyan-dim), var(--line) 90%);
+}
+.step{position:relative;margin-bottom:36px;}
+.step:last-child{margin-bottom:0;}
+.step-num{
+  position:absolute;left:-38px;top:0;
+  width:24px;height:24px;border-radius:50%;
+  background:var(--bg);border:1px solid var(--cyan-dim);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--cyan);
+  z-index:1;
+}
+.step h4{
+  font-family:'IBM Plex Sans Condensed',sans-serif;font-weight:600;font-size:17px;
+  margin:0 0 8px 0;color:var(--text);
+}
+.step p{margin:0 0 12px 0;color:var(--text-dim);font-size:14px;max-width:70ch;}
+.step p:last-child{margin-bottom:0;}
+.step p code.inline{
+  background:var(--surface-2);border:1px solid var(--line);padding:1px 6px;border-radius:2px;
+  font-size:12.5px;color:var(--amber);white-space:nowrap;
+}
+
+.term{
+  background:var(--bg-alt);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  overflow:hidden;
+  margin:10px 0 4px 0;
+}
+.term-bar{
+  display:flex;align-items:center;gap:6px;
+  padding:8px 12px;background:var(--surface-2);border-bottom:1px solid var(--line);
+}
+.term-bar .dot{width:8px;height:8px;border-radius:50%;background:var(--line);}
+.term-bar .dot:nth-child(1){background:#e0654f;}
+.term-bar .dot:nth-child(2){background:var(--amber);}
+.term-bar .dot:nth-child(3){background:var(--cyan);}
+.term-label{margin-left:8px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--text-faint);}
+.term pre{
+  margin:0;padding:14px 16px;overflow-x:auto;
+  font-family:'IBM Plex Mono',monospace;font-size:13px;line-height:1.65;color:var(--cyan);
+}
+.term pre .comment{color:var(--text-faint);}
+.term pre .prompt{color:var(--text-faint);}
+
+.step-tags{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+.step-tag{
+  font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--text-faint);
+  border:1px solid var(--line);border-radius:20px;padding:3px 10px;
+}
+.step-tag.critical{color:var(--amber);border-color:var(--amber-dim);}
+
+/* fabric split note used in upgrade section */
+.split-note{
+  display:flex;gap:16px;margin-top:8px;
+  border:1px dashed var(--line);border-radius:var(--radius);padding:16px 18px;
+}
+.split-note .fab{flex:1;text-align:center;}
+.split-note .fab-label{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.06em;}
+.split-note .fab-state{font-family:'IBM Plex Sans Condensed',sans-serif;font-weight:600;font-size:15px;margin-top:4px;}
+.split-note .fab-state.done{color:var(--cyan);}
+.split-note .fab-state.pending{color:var(--text-faint);}
+.split-note .arrow{color:var(--text-faint);align-self:center;font-family:'IBM Plex Mono',monospace;}
+
+/* ---------- footer ---------- */
+footer{
+  padding:40px 0 20px 0;
+  font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--text-faint);
+  display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;
+}
+
+/* ---------- responsive ---------- */
+@media (max-width:960px){
+  .sidenav{display:none;}
+  main{padding:0 24px 100px 24px;}
+  .hero{padding:56px 0 40px 0;}
+  .director-row{grid-template-columns:1fr;}
+}
+
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto;}
+}
+</style>
+</head>
+<body>
+
+<div class="fibre-bg"></div>
+
+<div class="shell">
+  <nav class="sidenav">
+    <div class="brand">
+      <span class="led amber"></span>
+      <div>
+        <div class="brand-text">FOS / SAN Reference</div>
+        <div class="brand-sub">fabric ops &middot; netapp attach</div>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-label">Contents</div>
+      <a class="nav-link" href="#models"><span class="idx">01</span> Switch &amp; director models</a>
+      <a class="nav-link" href="#compat"><span class="idx">02</span> FOS / ONTAP compatibility</a>
+      <a class="nav-link" href="#zoning"><span class="idx">03</span> Zoning after LUN allocation</a>
+      <a class="nav-link" href="#upgrade"><span class="idx">04</span> FOS upgrade procedure</a>
+    </div>
+
+    <div class="sidenav-foot">
+      Command syntax verified against<br>FOS 9.2.x / 10.0.x CLI.<br>Confirm against your release notes<br>before running in production.
+    </div>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <span class="hero-eyebrow"><span class="led amber" style="box-shadow:none;"></span> Reference &middot; Brocade + NetApp</span>
+      <h1>Fibre Channel fabric operations, <span class="hl">end to end.</span></h1>
+      <p class="lede">Hardware selection, ONTAP compatibility, post-allocation zoning, and non-disruptive Fabric OS upgrades — the four things you touch before a NetApp LUN is actually reachable from a host.</p>
+      <div class="hero-meta">
+        <span><strong>Platforms</strong> G620 &middot; G630 &middot; G720 &middot; G730 &middot; X6 &middot; X7</span>
+        <span><strong>FOS</strong> 8.2.x – 10.0.x</span>
+        <span><strong>Storage</strong> NetApp ONTAP</span>
+      </div>
+    </header>
+
+    <!-- ================= 01 MODELS ================= -->
+    <section class="block" id="models">
+      <div class="block-head">
+        <span class="block-tag">01 &mdash; Hardware</span>
+        <h2>Switch and director models</h2>
+        <p>Fixed-port switches (G-series) for edge and core-edge fabrics; chassis-based directors (X-series) for backbone consolidation. Match the generation to your NVMe and latency requirements before you match the vendor SKU to your budget.</p>
+      </div>
+
+      <div class="model-grid">
+        <div class="model-card">
+          <span class="gen-tag">Gen 6 &middot; Condor4</span>
+          <h3>G620</h3>
+          <div class="speed">32 Gb/s &middot; &lt;700ns latency</div>
+          <dl>
+            <dt>Ports</dt><dd>Up to 48 SFP+ + 4 QSFP</dd>
+            <dt>Form factor</dt><dd>1U fixed</dd>
+            <dt>Fit</dt><dd>Mid-size enterprise SAN, virtualization &amp; backup fabrics</dd>
+          </dl>
+        </div>
+        <div class="model-card">
+          <span class="gen-tag">Gen 6 &middot; Condor4</span>
+          <h3>G630</h3>
+          <div class="speed">32 Gb/s</div>
+          <dl>
+            <dt>Ports</dt><dd>Up to 96 SFP+ + 8 QSFP</dd>
+            <dt>Form factor</dt><dd>High-density fixed</dd>
+            <dt>Fit</dt><dd>Large-scale fabrics, thousands of active nodes</dd>
+          </dl>
+        </div>
+        <div class="model-card">
+          <span class="gen-tag">Gen 7 &middot; Condor5</span>
+          <h3>G720</h3>
+          <div class="speed">64 Gb/s &middot; ~4.2&ndash;4.7&micro;s</div>
+          <dl>
+            <dt>Ports</dt><dd>Up to 64, ~8.2 Tb/s throughput</dd>
+            <dt>Form factor</dt><dd>1U fixed</dd>
+            <dt>Fit</dt><dd>Flash / FC-NVMe primary data-center core</dd>
+          </dl>
+        </div>
+        <div class="model-card">
+          <span class="gen-tag">Gen 7 &middot; GoldenEye5</span>
+          <h3>G730</h3>
+          <div class="speed">64 Gb/s</div>
+          <dl>
+            <dt>Ports</dt><dd>Up to 128 SFP-DD, ~8.19 Tb/s aggregate</dd>
+            <dt>Form factor</dt><dd>High-density fixed</dd>
+            <dt>Fit</dt><dd>Large NVMe fabrics, high port-count core</dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="director-row">
+        <div class="director-card">
+          <span class="gen-tag">Gen 6 director &middot; 32G</span>
+          <h3>X6-4 / X6-8</h3>
+          <div class="chassis-viz">
+            <div class="slot cp"></div><div class="slot core"></div>
+            <div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div>
+            <div class="slot core"></div><div class="slot cp"></div>
+          </div>
+          <table>
+            <tr><td>Slots</td><td>4 (X6-4) or 8 (X6-8)</td></tr>
+            <tr><td>Max ports</td><td>Up to 192 / 384 &times; 32G</td></tr>
+            <tr><td>Bandwidth</td><td>8 Tbps (X6-4)</td></tr>
+            <tr><td>ICL</td><td>UltraScale, 128 Gbps/port</td></tr>
+          </table>
+        </div>
+        <div class="director-card">
+          <span class="gen-tag">Gen 7 director &middot; 64G</span>
+          <h3>X7-4 / X7-8</h3>
+          <div class="chassis-viz">
+            <div class="slot cp"></div><div class="slot core"></div>
+            <div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div><div class="slot"></div>
+            <div class="slot core"></div><div class="slot cp"></div>
+          </div>
+          <table>
+            <tr><td>Slots</td><td>8 (X7-4) or 12 (X7-8)</td></tr>
+            <tr><td>Max ports</td><td>Up to 256 / 384 &times; 64G</td></tr>
+            <tr><td>Bandwidth</td><td>Up to 39.6 Tb/s (X7-8)</td></tr>
+            <tr><td>ICL</td><td>UltraScale, interop with X6</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="callout cyan">
+        <span class="icon">&#9432;</span>
+        <p><strong>Gen 8 is current as of mid-2026:</strong> the X8 Director and G820 switch (128 Gb/s, Condor6 ASIC) are Broadcom's newest platform, with quantum-safe 256-bit encryption and AI-driven congestion detection. Gen 6/7 remain the dominant installed base for NetApp attach today.</p>
+      </div>
+    </section>
+
+    <!-- ================= 02 COMPATIBILITY ================= -->
+    <section class="block" id="compat">
+      <div class="block-head">
+        <span class="block-tag">02 &mdash; Interoperability</span>
+        <h2>FOS / ONTAP compatibility</h2>
+        <p>Broadcom's compatibility matrix and NetApp's qualification of a given FOS patch level don't always move in lockstep. Check both before you touch firmware.</p>
+      </div>
+
+      <table class="compat-table">
+        <thead>
+          <tr><th>FOS branch</th><th>Status</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>10.0.x</td>
+            <td><span class="status-dot">Current target path</span></td>
+            <td>Latest release 10.0.0a (patch 10.0.0a1), GA December 2025. Newest Gen 7/Gen 8 platforms.</td>
+          </tr>
+          <tr>
+            <td>9.2.x</td>
+            <td><span class="status-dot">Supported</span></td>
+            <td>9.2.0a confirmed compatible with ONTAP 9 for both Fabric MetroCluster and standard SAN.</td>
+          </tr>
+          <tr>
+            <td>9.0.x</td>
+            <td><span class="status-dot warn">Check IMT</span></td>
+            <td>NetApp IMT qualification can lag Broadcom's release &mdash; e.g. a switch shipped with 9.0.1d while an ONTAP release was only qualified to 9.0.0b.</td>
+          </tr>
+          <tr>
+            <td>8.2.x</td>
+            <td><span class="status-dot warn">Legacy / retiring</span></td>
+            <td>Still posted for select platforms; confirm target-path status before deploying new.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout">
+        <span class="icon">&#9888;</span>
+        <p><strong>Always confirm against the source of truth:</strong> use the <a href="https://mysupport.netapp.com/matrix" target="_blank" rel="noopener">NetApp Interoperability Matrix Tool</a> filtered to your exact ONTAP version and switch model, and Broadcom's <em>Fabric OS Release Support and Posting Matrix</em> for target-path status. Don't infer compatibility from a prior ONTAP release.</p>
+      </div>
+    </section>
+
+    <!-- ================= 03 ZONING ================= -->
+    <section class="block" id="zoning">
+      <div class="block-head">
+        <span class="block-tag">03 &mdash; Post-allocation</span>
+        <h2>Zoning after LUN allocation</h2>
+        <p>Single-initiator, single-target zoning &mdash; one zone per host-HBA-to-NetApp-LIF pair, repeated per fabric for multipathing.</p>
+      </div>
+
+      <div class="process">
+
+        <div class="step">
+          <div class="step-num">1</div>
+          <h4>Gather WWPNs</h4>
+          <p>Pull target WWPNs from ONTAP and initiator WWPNs from the host before touching the switch.</p>
+          <div class="term">
+            <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="term-label">ontap &middot; ssh</span></div>
+            <pre>network fcp adapter show -fields wwpn
+network interface show -vserver &lt;svm&gt; -data-protocol fcp</pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">2</div>
+          <h4>Confirm physical connectivity</h4>
+          <p>Verify both the host HBA and NetApp target port are logged in and note their switch ports.</p>
+          <div class="term">
+            <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="term-label">switch &middot; cli</span></div>
+            <pre>switchshow</pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">3</div>
+          <h4>Create aliases <span style="color:var(--text-faint);font-weight:400;">(recommended)</span></h4>
+          <p>Aliases keep zone definitions readable instead of working in raw WWPNs.</p>
+          <div class="term">
+            <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="term-label">switch &middot; cli</span></div>
+            <pre>alicreate "host01_hba0", "10:00:00:00:c9:xx:xx:xx"
+alicreate "netapp_svm1_lif01", "20:00:00:a0:98:xx:xx:xx"</pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">4</div>
+          <h4>Create the zone</h4>
+          <p>One initiator, one target &mdash; keeps RSCN traffic and blast radius contained during fabric changes.</p>
+          <div class="term">
+            <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="term-label">switch &middot; cli</span></div>
+            <pre>zonecreate "host01_hba0_netapp_lif01", "host01_hba0; netapp_svm1_lif01"</pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">5</div>
+          <h4>Add the zone to the configuration</h4>
+          <p>Adds the new zone to a defined config &mdash; doesn't activate it yet.</p>
+          <div class="term">
+            <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="term-label">switch &middot; cli</span></div>
+            <pre>cfgadd "PRODUCTION_CFG", "host01_hba0_netapp_lif01"</pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">6</div>
+          <h4>Save the configuration</h4>
+          <p>Writes the config to the switch's defined configuration.</p>
+          <div class="term">
+            <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="term-label">switch &middot; cli</span></div>
+            <pre>cfgsave</pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">7</div>
+          <h4>Enable the configuration</h4>
+          <p>This is the step that actually pushes zoning live to the fabric.</p>
+          <div class="term">
+            <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="term-label">switch &middot; cli</span></div>
+            <pre>cfgenable "PRODUCTION_CFG"</pre>
+          </div>
+          <div class="step-tags"><span class="step-tag critical">Activates fabric-wide</span></div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">8</div>
+          <h4>Verify the zone is active</h4>
+          <div class="term">
+            <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="term-label">switch &middot; cli</span></div>
+            <pre>cfgshow
+zoneshow "host01_hba0_netapp_lif01"</pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">9</div>
+          <h4>Repeat for redundant paths</h4>
+          <p>Repeat steps 3&ndash;8 on Fabric B, and for every additional HBA/LIF pair, so multipathing spans both fabrics.</p>
+        </div>
+
+        <div class="step">
+          <div class="step-num">10</div>
+          <h4>Verify end to end from the host</h4>
+          <p>Rescan HBAs, confirm login, and check the LUN is visible and multipathed correctly.</p>
+          <div class="term">
+            <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="term-label">linux + ontap</span></div>
+            <pre>echo "1" &gt; /sys/class/fc_host/hostX/issue_lip
+multipath -ll
+<span class="comment"># on ONTAP</span>
+network fcp adapter show -instance
+lun mapping show</pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">11</div>
+          <h4>Document</h4>
+          <p>Record zone names, WWPNs, and which fabric/switch each pair traverses &mdash; it matters most during troubleshooting, not during setup.</p>
+        </div>
+
+      </div>
+
+      <div class="callout cyan">
+        <span class="icon">&#9432;</span>
+        <p><strong>MetroCluster or NPIV/Access Gateway?</strong> MetroCluster also requires zoning the FC-VI/ISL ports between fabrics, with stricter switch-model and FOS matching across sites. In Access Gateway mode, WWPN discovery happens against the upstream fabric switch, not the AG device itself.</p>
+      </div>
+    </section>
+
+    <!-- ================= 04 UPGRADE ================= -->
+    <section class="block" id="upgrade">
+      <div class="block-head">
+        <span class="block-tag">04 &mdash; Maintenance</span>
+        <h2>Fabric OS upgrade procedure</h2>
+        <p>Non-disruptive firmware upgrade (NDFU) sequence for single switches and dual-CP directors. Upgrade one fabric completely, validate, then move to the second.</p>
+      </div>
+
+      <div class="process">
+
+        <div class="step">
+          <div class="step-num">1</div>
+          <h4>Plan the upgrade path</h4>
+          <p>Confirm the target release is on the current Target Path (not just Posted), check the NetApp IMT against your ONTAP version, and confirm whether the jump requires intermediate hops &mdash; FOS often can't skip major versions in one step.</p>
+          <div class="term">
+            <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="term-label">switch &middot; cli</span></div>
+            <pre>version
+switchshow
+firmwareshow   <span class="comment"># director: confirms both CPs, HA sync</span>
+haShow         <span class="comment"># director only</span></pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">2</div>
+          <h4>Back up the configuration</h4>
+          <p>Your rollback safety net &mdash; do this even though the upgrade itself shouldn't touch config.</p>
+          <div class="term">
+            <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="term-label">switch &middot; cli</span></div>
+            <pre>configupload
+supportsave    <span class="comment"># full diagnostic snapshot</span></pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">3</div>
+          <h4>Check fabric and switch health</h4>
+          <p>Resolve marginal ports, faulted blades, or degraded PSUs before upgrading &mdash; never upgrade a switch already in a warning state.</p>
+          <div class="term">
+            <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="term-label">switch &middot; cli</span></div>
+            <pre>switchstatuspolicyshow
+switchstatusshow
+porterrshow
+slotshow       <span class="comment"># directors</span>
+sensorshow</pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">4</div>
+          <h4>Confirm HA state <span style="color:var(--text-faint);font-weight:400;">(director only)</span></h4>
+          <p>Must show the standby CP synced &mdash; otherwise the upgrade cannot be non-disruptive.</p>
+          <div class="term">
+            <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="term-label">switch &middot; cli</span></div>
+            <pre>haShow</pre>
+          </div>
+          <div class="step-tags"><span class="step-tag critical">Blocks NDU if unsynced</span></div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">5</div>
+          <h4>Stage the firmware</h4>
+          <p>Make the FOS package reachable on an FTP/SFTP/SCP server accessible from the switch's management IP. Verify checksum if provided.</p>
+        </div>
+
+        <div class="step">
+          <div class="step-num">6</div>
+          <h4>Run the firmware download</h4>
+          <p>On a director, this automatically upgrades the standby CP, fails over, then upgrades the former active CP &mdash; both end in sync on the new version.</p>
+          <div class="term">
+            <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="term-label">switch &middot; cli</span></div>
+            <pre>firmwaredownload
+<span class="comment"># prompts: server IP, protocol, path, credentials, filename</span></pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">7</div>
+          <h4>Monitor progress</h4>
+          <div class="term">
+            <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="term-label">switch &middot; cli</span></div>
+            <pre>firmwaredownloadstatus</pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">8</div>
+          <h4>Verify post-upgrade state</h4>
+          <p>Confirm both CPs report the new version, HA is re-synced, and every port that was online before is online again.</p>
+          <div class="term">
+            <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="term-label">switch &middot; cli</span></div>
+            <pre>version
+firmwareshow
+haShow
+switchshow</pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">9</div>
+          <h4>Check the fabric</h4>
+          <div class="term">
+            <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="term-label">switch &middot; cli</span></div>
+            <pre>fabricshow
+nsshow
+zoneshow</pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">10</div>
+          <h4>Validate host and storage connectivity</h4>
+          <p>Confirm NetApp target ports are logged in and LIFs are up; confirm host multipath software shows every expected path active again.</p>
+          <div class="term">
+            <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="term-label">ontap</span></div>
+            <pre>network fcp adapter show</pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">11</div>
+          <h4>Repeat per switch &mdash; one fabric at a time</h4>
+          <p>Never upgrade both fabrics simultaneously. Finish and validate Fabric A before starting Fabric B, so a working path exists throughout.</p>
+          <div class="split-note">
+            <div class="fab">
+              <div class="fab-label">Fabric A</div>
+              <div class="fab-state done">Upgraded &amp; validated</div>
+            </div>
+            <div class="arrow">&rarr;</div>
+            <div class="fab">
+              <div class="fab-label">Fabric B</div>
+              <div class="fab-state pending">Begin only after A is stable</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-num">12</div>
+          <h4>Close out</h4>
+          <p>Take a fresh <code class="inline">supportsave</code> for your records and update your documentation or CMDB with the new FOS version per switch.</p>
+        </div>
+
+      </div>
+
+      <div class="callout">
+        <span class="icon">&#9888;</span>
+        <p><strong>MetroCluster environments:</strong> coordinate the upgrade sequence with NetApp's documented order relative to controller failover state &mdash; don't treat it as a standalone switch task.</p>
+      </div>
+    </section>
+
+    <footer>
+      <span>Compiled reference &middot; verify against Broadcom TechDocs and the NetApp IMT before production use</span>
+      <span>FOS 8.2.x&ndash;10.0.x &middot; ONTAP 9</span>
+    </footer>
+  </main>
+</div>
+
+<script>
+  const links = document.querySelectorAll('.nav-link');
+  const sections = document.querySelectorAll('section.block');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const link = document.querySelector('.nav-link[href="#' + entry.target.id + '"]');
+      if (!link) return;
+      if (entry.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-15% 0px -70% 0px', threshold: 0 });
+  sections.forEach(s => io.observe(s));
+</script>
+
+</body>
+</html>
