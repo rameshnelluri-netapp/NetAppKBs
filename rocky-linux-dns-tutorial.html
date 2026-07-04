@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>From localhost to NetappWorld.com — A Rocky Linux DNS Runbook</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+  :root{
+    --bg: #0b0f14;
+    --panel: #121820;
+    --panel-2: #171f29;
+    --line: #263140;
+    --text: #cdd6e0;
+    --muted: #7c8a9c;
+    --accent: #6ee7b7;
+    --accent-dim: #2f6b57;
+    --amber: #e8b768;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  *{ box-sizing: border-box; }
+  html{ scroll-behavior: smooth; }
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.6;
+  }
+
+  /* ===== Prompt header signature ===== */
+  .prompt-bar{
+    position: sticky; top:0; z-index: 50;
+    background: #05070a;
+    border-bottom: 1px solid var(--line);
+    padding: 10px 24px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--muted);
+    display:flex; align-items:center; gap:10px;
+    overflow-x:auto;
+    white-space:nowrap;
+  }
+  .prompt-bar .dot{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+  .dot.r{background:#ff5f56;} .dot.y{background:#ffbd2e;} .dot.g{background:#27c93f;}
+  .prompt-user{ color: var(--accent); }
+  #promptHost{ color: var(--amber); transition: color .4s ease; }
+
+  /* ===== Layout ===== */
+  .shell{ display:flex; max-width: 1240px; margin: 0 auto; min-height: 100vh; }
+
+  nav.side{
+    width: 250px; flex-shrink:0;
+    padding: 32px 18px 40px 24px;
+    position: sticky; top: 45px; align-self:flex-start;
+    height: calc(100vh - 45px);
+    overflow-y:auto;
+  }
+  nav.side .eyebrow{
+    font-family: var(--mono); font-size:11px; letter-spacing:.12em;
+    text-transform:uppercase; color: var(--muted); margin-bottom:14px;
+  }
+  nav.side a{
+    display:flex; gap:10px; align-items:baseline;
+    color: var(--muted); text-decoration:none;
+    font-size: 13.5px; padding: 7px 0;
+    border-left: 2px solid transparent;
+    padding-left: 10px;
+    transition: color .15s, border-color .15s;
+  }
+  nav.side a .n{ font-family: var(--mono); color: var(--accent-dim); font-size:12px; }
+  nav.side a:hover, nav.side a.active{ color: var(--text); border-left-color: var(--accent); }
+  nav.side a.active .n{ color: var(--accent); }
+
+  main{ flex:1; min-width:0; padding: 0 32px 100px; }
+
+  header.hero{
+    padding: 64px 0 40px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 48px;
+  }
+  header.hero .kicker{
+    font-family: var(--mono); color: var(--accent); font-size: 13px;
+    letter-spacing:.08em; text-transform:uppercase; margin-bottom: 16px;
+  }
+  header.hero h1{
+    font-family: var(--mono); font-size: clamp(28px, 4vw, 42px);
+    line-height:1.25; margin:0 0 20px; color:#fff; font-weight:600;
+    max-width: 800px;
+  }
+  header.hero h1 span{ color: var(--accent); }
+  header.hero p{ color: var(--muted); max-width: 620px; font-size:15.5px; }
+
+  .journey{
+    display:flex; flex-wrap:wrap; gap:8px; margin-top:28px;
+    font-family: var(--mono); font-size:12.5px;
+  }
+  .journey .step{
+    background: var(--panel); border:1px solid var(--line);
+    padding:6px 12px; border-radius:4px; color: var(--muted);
+  }
+  .journey .arrow{ color: var(--accent-dim); align-self:center; }
+
+  section.card{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 32px 36px;
+    margin-bottom: 28px;
+    scroll-margin-top: 65px;
+  }
+  section.card .tag{
+    font-family: var(--mono); font-size:11.5px; color: var(--accent);
+    text-transform:uppercase; letter-spacing:.1em; margin-bottom:10px;
+  }
+  section.card h2{
+    font-family: var(--mono); font-size: 22px; color:#fff; margin:0 0 6px;
+    font-weight:600;
+  }
+  section.card .sub{ color: var(--muted); font-size:14px; margin-bottom:22px; }
+
+  h3.sh{
+    font-size:14.5px; color: var(--text); margin: 24px 0 10px;
+    font-weight:600;
+  }
+  p{ color: var(--text); font-size:15px; }
+  p.note{ color: var(--muted); font-size: 14px; }
+
+  pre{
+    background:#05070a; border:1px solid var(--line); border-radius:6px;
+    padding:16px 18px; overflow-x:auto; font-family: var(--mono);
+    font-size: 13.3px; color:#d7e6da; margin: 10px 0 18px;
+    position:relative;
+  }
+  pre .c{ color:#5c6b7a; }
+  code.inline{
+    font-family: var(--mono); background: var(--panel-2);
+    border:1px solid var(--line); padding:1px 6px; border-radius:4px;
+    font-size:13px; color: var(--accent);
+  }
+
+  .callout{
+    border-left: 3px solid var(--amber);
+    background: rgba(232,183,104,0.06);
+    padding: 12px 16px; border-radius: 0 6px 6px 0;
+    font-size: 14px; color: var(--text); margin: 16px 0;
+  }
+  .callout strong{ color: var(--amber); }
+
+  .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+  @media (max-width: 720px){ .grid2{ grid-template-columns: 1fr; } }
+  .box{
+    border:1px solid var(--line); border-radius:6px; padding:16px 18px;
+    background: var(--panel-2);
+  }
+  .box h4{ margin:0 0 8px; font-size:13.5px; color: var(--accent); font-family: var(--mono); }
+  .box p{ font-size: 13.5px; margin:0; color: var(--muted); }
+
+  table.cmp{
+    width:100%; border-collapse:collapse; font-size:13.5px; margin:16px 0 6px;
+  }
+  table.cmp th, table.cmp td{
+    border:1px solid var(--line); padding:10px 12px; text-align:left;
+  }
+  table.cmp th{ background: var(--panel-2); color: var(--accent); font-family: var(--mono); font-weight:500; font-size:12.5px; }
+  table.cmp td{ color: var(--muted); }
+
+  ol.steps, ul.plain{ padding-left: 20px; }
+  ol.steps li, ul.plain li{ margin-bottom: 8px; font-size:15px; color: var(--text); }
+
+  .flow{
+    font-family: var(--mono); font-size: 13px; color: var(--muted);
+    background:#05070a; border:1px solid var(--line); border-radius:6px;
+    padding:18px 20px; margin:16px 0; line-height:1.9;
+  }
+  .flow .k{ color: var(--accent); }
+
+  footer{
+    text-align:center; color: var(--muted); font-size:13px;
+    padding: 40px 0; font-family: var(--mono);
+  }
+
+  @media (max-width: 900px){
+    nav.side{ display:none; }
+    main{ padding: 0 18px 60px; }
+    section.card{ padding: 24px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="prompt-bar">
+  <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+  <span class="prompt-user">rnelluri@</span><span id="promptHost">localhost</span><span>:~$</span>
+  <span id="promptCmd">hostname -i</span>
+</div>
+
+<div class="shell">
+  <nav class="side">
+    <div class="eyebrow">Runbook</div>
+    <a href="#problem" class="navlink" data-host="localhost"><span class="n">00</span> The Problem</a>
+    <a href="#hostname" class="navlink" data-host="localhost"><span class="n">01</span> Fix the Hostname</a>
+    <a href="#staticip" class="navlink" data-host="myrockyvm"><span class="n">02</span> Set a Static IP</a>
+    <a href="#dnsbasics" class="navlink" data-host="myrockyvm"><span class="n">03</span> DNS vs Domain Join</a>
+    <a href="#vmwaredns" class="navlink" data-host="myrockyvm"><span class="n">04</span> Why google.com Resolved</a>
+    <a href="#winrecord" class="navlink" data-host="myrockyvm"><span class="n">05</span> Add a Record on Windows DNS</a>
+    <a href="#order" class="navlink" data-host="myrockyvm"><span class="n">06</span> What Order to Do Things</a>
+    <a href="#addc" class="navlink" data-host="myrockyvm"><span class="n">07</span> NetappWorld.com Walkthrough</a>
+    <a href="#forwarders" class="navlink" data-host="myrockyvm.NetappWorld.com"><span class="n">08</span> Forwarders Explained</a>
+    <a href="#ddns" class="navlink" data-host="myrockyvm.NetappWorld.com"><span class="n">09</span> Dynamic DNS Registration</a>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <div class="kicker">Lab notes · VMware Workstation → Rocky Linux → Active Directory DNS</div>
+      <h1>From <span>rnelluri@localhost</span> to a fully resolvable box in <span>NetappWorld.com</span></h1>
+      <p>A step-by-step record of getting a fresh Rocky Linux VM off a broken <code class="inline">localhost</code> identity and onto proper forward/reverse DNS resolution inside a Windows Active Directory domain.</p>
+      <div class="journey">
+        <span class="step">localhost</span><span class="arrow">→</span>
+        <span class="step">myrockyvm</span><span class="arrow">→</span>
+        <span class="step">static IP</span><span class="arrow">→</span>
+        <span class="step">Windows DNS record</span><span class="arrow">→</span>
+        <span class="step">NetappWorld.com member</span><span class="arrow">→</span>
+        <span class="step">self-registering DDNS</span>
+      </div>
+    </header>
+
+    <section class="card" id="problem">
+      <div class="tag">00 · Symptom</div>
+      <h2>The prompt says localhost, not the VM's name</h2>
+      <p class="sub">Everything starts here — a hostname that never got set, on a VM that already has a real IP.</p>
+      <pre>rnelluri@localhost:~$ hostname -i
+<span class="c">::1 127.0.0.1</span>
+
+rnelluri@localhost:~$ ifconfig -a
+ens160: flags=4163&lt;UP,BROADCAST,RUNNING,MULTICAST&gt;  mtu 1500
+        inet <span class="c">192.168.59.130</span>  netmask 255.255.255.0  broadcast 192.168.59.255
+        inet6 fe80::20c:29ff:fe90:4b15  prefixlen 64  scopeid 0x20&lt;link&gt;</pre>
+      <p>The VM clearly has a working IP (<code class="inline">192.168.59.130</code>) from VMware's NAT network. The prompt just never got told what to call itself, and nothing in <code class="inline">/etc/hosts</code> maps a real name to that IP — so <code class="inline">hostname -i</code> falls back to loopback.</p>
+    </section>
+
+    <section class="card" id="hostname">
+      <div class="tag">01 · Fix</div>
+      <h2>Set a real hostname and back it with /etc/hosts</h2>
+      <ol class="steps">
+        <li>Check the current hostname: <code class="inline">hostnamectl</code></li>
+        <li>Set a real one:
+          <pre>sudo hostnamectl set-hostname myrockyvm</pre>
+        </li>
+        <li>Map it to the actual IP in <code class="inline">/etc/hosts</code>:
+          <pre>sudo vi /etc/hosts
+
+<span class="c"># add / confirm these lines</span>
+127.0.0.1        localhost localhost.localdomain
+192.168.59.130   myrockyvm myrockyvm.localdomain myrockyvm</pre>
+        </li>
+        <li>Reload and verify:
+          <pre>exec bash
+hostname
+hostname -i</pre>
+        </li>
+      </ol>
+      <div class="callout"><strong>Watch out —</strong> if <code class="inline">127.0.0.1</code> also gets mapped to <code class="inline">myrockyvm</code>, <code class="inline">hostname -i</code> will resolve back to loopback again. Keep the real IP on its own line.</div>
+    </section>
+
+    <section class="card" id="staticip">
+      <div class="tag">02 · Stability</div>
+      <h2>Lock in a static IP so the mapping doesn't rot</h2>
+      <p class="sub">A DHCP lease can change on reboot — and then your <code class="inline">/etc/hosts</code> entry quietly points at the wrong machine.</p>
+      <pre>nmcli con show                          <span class="c"># find the connection name, e.g. ens160</span>
+ip route show                           <span class="c"># note current gateway</span>
+cat /etc/resolv.conf                    <span class="c"># note current DNS servers</span>
+
+sudo nmcli con mod ens160 ipv4.addresses 192.168.59.130/24
+sudo nmcli con mod ens160 ipv4.gateway 192.168.59.2
+sudo nmcli con mod ens160 ipv4.dns "8.8.8.8 8.8.4.4"
+sudo nmcli con mod ens160 ipv4.method manual
+
+sudo nmcli con down ens160 && sudo nmcli con up ens160
+
+ip addr show ens160
+ping -c 3 8.8.8.8</pre>
+      <p class="note">Using the IP the VM already had avoids disrupting anything else — this just stops it from being reassigned later.</p>
+    </section>
+
+    <section class="card" id="dnsbasics">
+      <div class="tag">03 · Concept</div>
+      <h2>Domain join is not what makes nslookup work</h2>
+      <p class="sub">These are two independent things that get conflated a lot.</p>
+      <div class="grid2">
+        <div class="box">
+          <h4>What nslookup actually needs</h4>
+          <p>A reachable DNS server address in <code class="inline">/etc/resolv.conf</code>. Nothing more. Public names resolve the moment that's set correctly.</p>
+        </div>
+        <div class="box">
+          <h4>What domain join is actually for</h4>
+          <p>Centralized authentication (logging in with domain accounts), Group Policy, and resolving <em>internal-only</em> names against a private DNS zone.</p>
+        </div>
+      </div>
+      <pre>cat /etc/resolv.conf
+nslookup google.com
+nmcli device show ens160 | grep DNS</pre>
+    </section>
+
+    <section class="card" id="vmwaredns">
+      <div class="tag">04 · Why it worked</div>
+      <h2>google.com resolved — but the reverse lookup didn't</h2>
+      <pre>rnelluri@localhost:~$ nslookup google.com
+Server:         192.168.59.2
+Address:        192.168.59.2#53
+Non-authoritative answer:
+Name:   google.com
+Address: 142.251.222.142
+
+rnelluri@localhost:~$ nslookup 192.168.59.130
+** server can't find 130.59.168.192.in-addr.arpa: NXDOMAIN</pre>
+      <p><code class="inline">192.168.59.2</code> is VMware's virtual NAT router. In VMware's NAT networks that single address does double duty: it's the <strong>default gateway</strong> and it also runs a lightweight <strong>DNS forwarder</strong> that relays queries to whatever DNS your host machine actually uses.</p>
+      <p>It has no records of its own, though — which is exactly why the reverse lookup on a private RFC&nbsp;1918 address like <code class="inline">192.168.59.130</code> returns <code class="inline">NXDOMAIN</code>. Nobody publishes PTR records for private ranges; that record only exists if something creates it locally.</p>
+      <table class="cmp">
+        <tr><th></th><th>VMware DNS (192.168.59.2)</th><th>A real DNS server (dnsmasq / bind / AD)</th></tr>
+        <tr><td>Who runs it</td><td>VMware, automatically</td><td>You, deliberately</td></tr>
+        <tr><td>Resolves google.com?</td><td>Yes — forwards it</td><td>Yes, if forwarders are set</td></tr>
+        <tr><td>Resolves your own hostnames?</td><td>No</td><td>Yes, once you add records</td></tr>
+        <tr><td>Reverse (PTR) lookups?</td><td>No</td><td>Yes, if a reverse zone exists</td></tr>
+      </table>
+    </section>
+
+    <section class="card" id="winrecord">
+      <div class="tag">05 · Setup</div>
+      <h2>Adding the Unix server's record to Windows DNS</h2>
+      <p class="sub">GUI path via DNS Manager, plus the PowerShell equivalent.</p>
+      <h3 class="sh">GUI</h3>
+      <ol class="steps">
+        <li>Open <strong>DNS Manager</strong> (<code class="inline">dnsmgmt.msc</code>) on the Windows DNS server.</li>
+        <li>Expand <strong>Forward Lookup Zones</strong> → right-click your zone → <strong>New Host (A or AAAA)</strong>.</li>
+        <li>Name: <code class="inline">myrockyvm</code> · IP: <code class="inline">192.168.59.130</code>.</li>
+        <li>Check <strong>"Create associated pointer (PTR) record"</strong> → <strong>Add Host</strong>.</li>
+        <li>If the checkbox is greyed out, create a matching <strong>Reverse Lookup Zone</strong> first (Network ID <code class="inline">192.168.59</code>), then re-add the host.</li>
+      </ol>
+      <h3 class="sh">PowerShell</h3>
+      <pre>Add-DnsServerResourceRecordA -Name "myrockyvm" -ZoneName "company.local" `
+  -IPv4Address "192.168.59.130" -CreatePtr
+
+<span class="c"># if the reverse zone doesn't exist yet:</span>
+Add-DnsServerPrimaryZone -NetworkID "192.168.59.0/24" -ReplicationScope "Forest"</pre>
+      <h3 class="sh">Point Linux at it, then verify both directions</h3>
+      <pre>sudo nmcli con mod ens160 ipv4.dns "&lt;Windows_DNS_Server_IP&gt;"
+sudo nmcli con up ens160
+
+nslookup myrockyvm.company.local
+nslookup 192.168.59.130</pre>
+    </section>
+
+    <section class="card" id="order">
+      <div class="tag">06 · Sequencing</div>
+      <h2>Which comes first — the DNS record or the client config?</h2>
+      <p class="sub">Functionally independent. Practically, one order debugs itself faster than the other.</p>
+      <div class="flow">
+<span class="k">1.</span> Create the A/PTR record on the Windows DNS server
+<span class="k">2.</span> Verify it <em>from the DNS server itself</em> — Resolve-DnsName
+<span class="k">3.</span> Point the Linux client's resolv.conf at that DNS server
+<span class="k">4.</span> Set the Linux hostname to match the record
+<span class="k">5.</span> Test resolution from the Linux side
+      </div>
+      <p>Testing step 2 on the server first removes one whole class of ambiguity: if Linux later fails to resolve, you already know the record is good — so the problem has to be network reachability, the wrong resolver IP, or a stale <code class="inline">resolv.conf</code>, not a missing record.</p>
+      <div class="callout"><strong>Don't forget —</strong> once Linux points at the internal DNS server instead of VMware's <code class="inline">192.168.59.2</code>, that server needs its own Forwarders configured, or external names like <code class="inline">google.com</code> will stop resolving.</div>
+    </section>
+
+    <section class="card" id="addc">
+      <div class="tag">07 · Full Walkthrough</div>
+      <h2>Doing it for real: domain controller NetappWorld.com</h2>
+      <ol class="steps">
+        <li><strong>Open DNS Manager</strong> on the domain controller.</li>
+        <li><strong>Confirm the forward zone</strong> — <code class="inline">NetappWorld.com</code> already exists under Forward Lookup Zones, created when the DC was promoted.</li>
+        <li><strong>Create the reverse zone</strong> (skip if present): right-click <em>Reverse Lookup Zones</em> → <em>New Zone</em> → Primary, AD-integrated → scope to domain controllers → <em>IPv4 Reverse Lookup Zone</em> → Network ID <code class="inline">192.168.59</code> → allow nonsecure &amp; secure updates (lab) → Finish.</li>
+        <li><strong>Add the host record</strong>: right-click <code class="inline">NetappWorld.com</code> → <em>New Host (A or AAAA)</em> → Name <code class="inline">myrockyvm</code>, IP <code class="inline">192.168.59.130</code>, check <em>Create associated pointer (PTR) record</em> → Add Host → Done.</li>
+        <li><strong>Verify</strong> — the A record appears under the forward zone, the PTR under <code class="inline">59.168.192.in-addr.arpa</code>.</li>
+        <li><strong>Set forwarders</strong> — server properties → Forwarders tab → add <code class="inline">8.8.8.8</code>, <code class="inline">8.8.4.4</code>.</li>
+      </ol>
+      <h3 class="sh">Rocky Linux side</h3>
+      <pre>sudo nmcli con mod ens160 ipv4.dns "192.168.59.&lt;DC_last_octet&gt;"
+sudo nmcli con mod ens160 ipv4.dns-search "NetappWorld.com"
+sudo hostnamectl set-hostname myrockyvm.NetappWorld.com
+sudo nmcli con up ens160</pre>
+      <h3 class="sh">Verify from both sides</h3>
+      <pre><span class="c"># On the domain controller (PowerShell)</span>
+Resolve-DnsName myrockyvm.NetappWorld.com
+Resolve-DnsName 192.168.59.130
+
+<span class="c"># On Rocky Linux</span>
+nslookup myrockyvm.NetappWorld.com
+nslookup 192.168.59.130
+nslookup google.com</pre>
+    </section>
+
+    <section class="card" id="forwarders">
+      <div class="tag">08 · Clears up confusion</div>
+      <h2>Why forwarders point to 8.8.8.8, not the DC's own IP</h2>
+      <p><code class="inline">NetappWorld.com</code>'s DNS server is <strong>authoritative</strong> for exactly one thing: its own zone. It has no idea what <code class="inline">google.com</code> is. When a client asks it for an external name, it has two options:</p>
+      <ul class="plain">
+        <li><strong>Recurse itself</strong> — walk the chain from root servers down to <code class="inline">.com</code> down to <code class="inline">google.com</code>.</li>
+        <li><strong>Forward the question</strong> to a resolver that already knows — that's what the Forwarders tab configures.</li>
+      </ul>
+      <p>Pointing the forwarder at the DC's <em>own</em> IP creates a loop — it would just be asking itself the same question it couldn't answer. The forwarder has to be a different, external-capable resolver: your ISP's DNS, a corporate upstream resolver, or a public one like <code class="inline">8.8.8.8</code> / <code class="inline">1.1.1.1</code>.</p>
+      <div class="callout"><strong>Not mandatory —</strong> if this DNS server only ever needs to resolve internal lab names, forwarders can be left empty; Windows will fall back to root-hint recursion. Forwarders just make external resolution faster and offload the work.</div>
+    </section>
+
+    <section class="card" id="ddns">
+      <div class="tag">09 · Automation</div>
+      <h2>Dynamic DNS — so future VMs register themselves</h2>
+      <p class="sub">Two paths, depending on how much security the lab needs.</p>
+
+      <h3 class="sh">Option A — Nonsecure updates (lab only)</h3>
+      <ol class="steps">
+        <li>DNS Manager → right-click <code class="inline">NetappWorld.com</code> → Properties → Dynamic updates → <strong>Nonsecure and secure</strong>. Repeat for the reverse zone.</li>
+        <li>If using DHCP, have the client send its hostname:
+          <pre>sudo nmcli con mod ens160 ipv4.dhcp-send-hostname yes
+sudo nmcli con mod ens160 ipv4.dhcp-hostname "myrockyvm.NetappWorld.com"</pre>
+        </li>
+        <li>Or trigger an update manually with <code class="inline">nsupdate</code>:
+          <pre>sudo dnf install bind-utils -y
+
+nsupdate &lt;&lt;EOF
+server 192.168.59.&lt;DC_IP&gt;
+zone NetappWorld.com
+update add myrockyvm.NetappWorld.com 3600 A 192.168.59.130
+send
+EOF</pre>
+        </li>
+      </ol>
+
+      <h3 class="sh">Option B — Secure updates via domain join (recommended)</h3>
+      <pre>sudo dnf install realmd sssd oddjob oddjob-mkhomedir adcli samba-common-tools krb5-workstation -y
+
+sudo realm discover NetappWorld.com
+sudo realm join NetappWorld.com -U Administrator
+
+<span class="c"># after joining, set the zone back to "Secure only" in DNS Manager</span>
+
+kinit administrator@NETAPPWORLD.COM
+nsupdate -g &lt;&lt;EOF
+server 192.168.59.&lt;DC_IP&gt;
+zone NetappWorld.com
+update add myrockyvm.NetappWorld.com 3600 A 192.168.59.130
+send
+EOF</pre>
+      <p class="note">The <code class="inline">-g</code> flag makes <code class="inline">nsupdate</code> authenticate over Kerberos (GSSAPI), so only domain-joined machines can write records — that's what "secure dynamic update" means in practice.</p>
+
+      <table class="cmp">
+        <tr><th></th><th>A · Nonsecure</th><th>B · Domain join</th></tr>
+        <tr><td>Setup effort</td><td>Low</td><td>Higher</td></tr>
+        <tr><td>Security</td><td>Weak — anyone can write records</td><td>Strong — Kerberos-authenticated</td></tr>
+        <tr><td>Production-realistic</td><td>No</td><td>Yes</td></tr>
+        <tr><td>Bonus</td><td>—</td><td>Also gives Linux AD login via sssd</td></tr>
+      </table>
+    </section>
+
+    <footer>rnelluri@myrockyvm.NetappWorld.com:~$ <span style="color:var(--accent)">history</span></footer>
+  </main>
+</div>
+
+<script>
+  const links = document.querySelectorAll('.navlink');
+  const sections = document.querySelectorAll('section.card');
+  const promptHost = document.getElementById('promptHost');
+  const promptCmd = document.getElementById('promptCmd');
+  const cmds = ['hostname -i','hostname -i','ip addr show','nslookup google.com','nslookup 192.168.59.130','Add-DnsServerResourceRecordA ...','nslookup myrockyvm.company.local','Resolve-DnsName myrockyvm.NetappWorld.com','nslookup google.com','nsupdate -g'];
+
+  function setActive(id, host, idx){
+    links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#'+id));
+    if(host){ promptHost.textContent = host; }
+    if(idx !== undefined && cmds[idx]) promptCmd.textContent = cmds[idx];
+  }
+
+  const observer = new IntersectionObserver((entries)=>{
+    entries.forEach(entry=>{
+      if(entry.isIntersecting){
+        const id = entry.target.id;
+        const link = document.querySelector('.navlink[href="#'+id+'"]');
+        if(link){
+          const idx = Array.from(links).indexOf(link);
+          setActive(id, link.dataset.host, idx);
+        }
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+
+  links.forEach(l => l.addEventListener('click', (e)=>{
+    const idx = Array.from(links).indexOf(l);
+    setActive(l.getAttribute('href').slice(1), l.dataset.host, idx);
+  }));
+</script>
+
+</body>
+</html>
