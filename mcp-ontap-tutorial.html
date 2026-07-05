@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Understanding MCP with ONTAP — A Field Guide</title>
+<style>
+  :root{
+    --bg: #0b0f0d;
+    --panel: #101713;
+    --panel-2: #131c17;
+    --line: #24352c;
+    --text: #dfe8e2;
+    --muted: #8ba396;
+    --accent: #4fd1a5;   /* NetApp-ish teal-green, distinct from Claude clay */
+    --accent-dim: #2c6b53;
+    --amber: #e0b872;
+    --mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+    --sans: 'IBM Plex Sans', 'Segoe UI', Arial, sans-serif;
+  }
+  @font-face{ }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(79,209,165,0.07), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent);}
+  .wrap{max-width:880px;margin:0 auto;padding:0 24px 120px;}
+
+  /* ---- Header / hero ---- */
+  header.hero{
+    border-bottom:1px solid var(--line);
+    padding:64px 0 40px;
+    position:relative;
+  }
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:12.5px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--accent);
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .eyebrow::before{
+    content:"";
+    width:7px;height:7px;border-radius:50%;
+    background:var(--accent);
+    box-shadow:0 0 8px var(--accent);
+    display:inline-block;
+  }
+  h1.title{
+    font-family:var(--mono);
+    font-size:clamp(28px, 5vw, 44px);
+    line-height:1.15;
+    margin:18px 0 10px;
+    color:#f2f7f4;
+    font-weight:600;
+    letter-spacing:-0.01em;
+  }
+  .subtitle{
+    color:var(--muted);
+    font-size:16.5px;
+    max-width:640px;
+  }
+  .meta-row{
+    margin-top:28px;
+    display:flex;
+    gap:22px;
+    flex-wrap:wrap;
+    font-family:var(--mono);
+    font-size:12.5px;
+    color:var(--muted);
+  }
+  .meta-row span b{color:var(--text);}
+
+  /* ---- Session flow diagram (signature element) ---- */
+  .flow{
+    margin:44px 0 8px;
+    display:grid;
+    grid-template-columns:1fr auto 1fr auto 1fr;
+    align-items:center;
+    gap:8px;
+    font-family:var(--mono);
+    font-size:12.5px;
+  }
+  .flow .node{
+    border:1px solid var(--line);
+    background:var(--panel);
+    border-radius:8px;
+    padding:14px 12px;
+    text-align:center;
+    color:var(--text);
+  }
+  .flow .node small{display:block;color:var(--muted);margin-top:4px;font-size:11px;}
+  .flow .arrow{color:var(--accent-dim);text-align:center;font-size:18px;}
+  @media (max-width:640px){
+    .flow{grid-template-columns:1fr; gap:6px;}
+    .flow .arrow{transform:rotate(90deg);}
+  }
+
+  /* ---- sections ---- */
+  section{padding:56px 0;border-bottom:1px solid var(--line);}
+  section:last-of-type{border-bottom:none;}
+  .num{
+    font-family:var(--mono);
+    color:var(--accent-dim);
+    font-size:13px;
+    letter-spacing:0.08em;
+  }
+  h2{
+    font-family:var(--mono);
+    font-size:22px;
+    color:#f2f7f4;
+    margin:6px 0 20px;
+    font-weight:600;
+  }
+  h3{
+    font-size:16px;
+    color:var(--accent);
+    margin:28px 0 10px;
+    font-family:var(--mono);
+    font-weight:600;
+  }
+  p{color:var(--text);font-size:15.5px;}
+  .lead{color:var(--muted);font-size:15.5px;}
+
+  /* code blocks */
+  pre{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-left:3px solid var(--accent-dim);
+    border-radius:6px;
+    padding:16px 18px;
+    overflow-x:auto;
+    font-family:var(--mono);
+    font-size:13px;
+    color:#c9e6d8;
+    margin:14px 0;
+  }
+  code{
+    font-family:var(--mono);
+    background:rgba(79,209,165,0.1);
+    color:var(--accent);
+    padding:1px 6px;
+    border-radius:4px;
+    font-size:0.9em;
+  }
+  pre code{background:none;padding:0;color:inherit;}
+
+  /* tables */
+  table{
+    width:100%;
+    border-collapse:collapse;
+    margin:18px 0;
+    font-size:14px;
+  }
+  th{
+    text-align:left;
+    font-family:var(--mono);
+    font-size:11.5px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:var(--muted);
+    border-bottom:1px solid var(--line);
+    padding:10px 12px;
+  }
+  td{
+    padding:12px;
+    border-bottom:1px solid var(--line);
+    color:var(--text);
+    vertical-align:top;
+  }
+  tr:last-child td{border-bottom:none;}
+  td code, th code{white-space:nowrap;}
+
+  /* callouts */
+  .callout{
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-left:3px solid var(--amber);
+    border-radius:6px;
+    padding:14px 18px;
+    margin:20px 0;
+    font-size:14.5px;
+    color:var(--text);
+  }
+  .callout b{color:var(--amber);}
+
+  .callout.good{border-left-color:var(--accent);}
+  .callout.good b{color:var(--accent);}
+
+  /* card grid for client/server */
+  .grid2{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px;
+    margin:20px 0;
+  }
+  @media (max-width:640px){.grid2{grid-template-columns:1fr;}}
+  .card{
+    border:1px solid var(--line);
+    background:var(--panel);
+    border-radius:10px;
+    padding:20px;
+  }
+  .card .tag{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin-bottom:8px;
+    display:block;
+  }
+  .card h4{margin:0 0 8px;font-size:17px;color:#f2f7f4;}
+  .card ul{margin:10px 0 0;padding-left:18px;color:var(--muted);font-size:14px;}
+  .card ul li{margin-bottom:6px;}
+
+  /* timeline of the actual session */
+  .steps{margin:20px 0;}
+  .step{
+    display:grid;
+    grid-template-columns:34px 1fr;
+    gap:16px;
+    padding:16px 0;
+    border-bottom:1px dashed var(--line);
+  }
+  .step:last-child{border-bottom:none;}
+  .step .dot{
+    font-family:var(--mono);
+    color:var(--accent-dim);
+    font-size:13px;
+    padding-top:2px;
+  }
+  .step .body b{color:#f2f7f4;}
+  .step .body{font-size:14.5px;color:var(--muted);}
+  .step .body code{color:var(--accent);}
+
+  footer{
+    padding:40px 0 0;
+    color:var(--muted);
+    font-family:var(--mono);
+    font-size:12px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">Field notes · Model Context Protocol</div>
+    <h1 class="title">Talking to a NetApp Cluster<br>Through an AI Agent</h1>
+    <p class="subtitle">A walk-through of what actually happened when we asked Claude to list clusters, pull cluster details, and fetch SVMs from an ONTAP simulator — and what the pieces are called.</p>
+    <div class="meta-row">
+      <span>Server label: <b>ontap-mcp</b></span>
+      <span>Cluster: <b>Cluster1 · ONTAP 9.11.1</b></span>
+      <span>Transport: <b>MCP over stdio/HTTP</b></span>
+    </div>
+
+    <div class="flow" aria-hidden="false">
+      <div class="node">You<small>natural language</small></div>
+      <div class="arrow">→</div>
+      <div class="node">Claude (MCP Client)<small>picks a tool</small></div>
+      <div class="arrow">→</div>
+      <div class="node">ontap-mcp-server<small>calls ONTAP REST API</small></div>
+    </div>
+  </header>
+
+  <section>
+    <span class="num">01</span>
+    <h2>Client vs. Server — who's who</h2>
+    <p class="lead">MCP borrows the classic client/server split. One side reasons in language, the other side just executes.</p>
+
+    <div class="grid2">
+      <div class="card">
+        <span class="tag">MCP Client</span>
+        <h4>Claude (the agent)</h4>
+        <p style="color:var(--muted);font-size:14px;margin-top:0;">The reasoning layer. Reads your request, decides <i>which</i> tool answers it, and fills in the parameters.</p>
+        <ul>
+          <li>Runs <code>tool_search</code> to discover what's available</li>
+          <li>Chooses <code>ontap_get</code> vs. <code>create_volume</code>, etc.</li>
+          <li>No direct access to your cluster — only through tools</li>
+        </ul>
+      </div>
+      <div class="card">
+        <span class="tag">MCP Server</span>
+        <h4>ontap-mcp-server (Docker)</h4>
+        <p style="color:var(--muted);font-size:14px;margin-top:0;">A plain backend service. No model, no language understanding — just a catalog of functions.</p>
+        <ul>
+          <li>Holds credentials for registered clusters</li>
+          <li>Translates each tool call into a REST HTTP request</li>
+          <li>Returns raw JSON back to the client</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout">
+      <b>Naming gotcha:</b> the label <code>ontap-mcp</code> that shows up in front of every tool (<code>ontap-mcp:list_registered_clusters</code>) is just a key in the client's config file — not something read from the Docker container. It could be named anything; it happened to be chosen independently of the container name <code>ontap-mcp-server</code>.
+    </div>
+
+    <pre><code>{
+  "mcpServers": {
+    "ontap-mcp": {              // ← arbitrary label, chosen in config
+      "command": "docker",
+      "args": ["exec", "-i", "ontap-mcp-server", "..."]
+    }
+  }
+}</code></pre>
+  </section>
+
+  <section>
+    <span class="num">02</span>
+    <h2>What actually happened, step by step</h2>
+    <p class="lead">Four requests, each resolved to a different tool call against the same MCP server.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="dot">1</div>
+        <div class="body"><b>"List the ONTAP systems available"</b><br>
+        Claude called <code>list_registered_clusters</code> — a purpose-built tool with no parameters, since it just reads the server's own config of registered pollers. Returned: <code>Cluster1 (9.11)</code>.</div>
+      </div>
+      <div class="step">
+        <div class="dot">2</div>
+        <div class="body"><b>"Check the simulator is reachable, give version + details"</b><br>
+        Claude called the generic <code>ontap_get</code> tool with <code>path: /cluster</code>. This is a live REST GET against the cluster, so a successful response also proves reachability.</div>
+      </div>
+      <div class="step">
+        <div class="dot">3</div>
+        <div class="body"><b>"Give me the vservers list"</b><br>
+        Same generic tool, different path: <code>ontap_get(path: "/svm/svms")</code>. One flexible tool, many endpoints.</div>
+      </div>
+      <div class="step">
+        <div class="dot">4</div>
+        <div class="body"><b>"Is this using the NetApp REST API?"</b><br>
+        Yes — <code>ontap_get</code> strips the <code>/api</code> prefix and hits ONTAP's native REST endpoints directly, e.g. <code>https://&lt;cluster-mgmt-ip&gt;/api/svm/svms</code>.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <span class="num">03</span>
+    <h2>Two shapes of tool: read vs. write</h2>
+    <p class="lead">Reads get one flexible tool. Writes get many narrow ones. That's a deliberate safety trade-off, not an inconsistency.</p>
+
+    <table>
+      <thead>
+        <tr><th>Operation</th><th>Tool</th><th>Underlying REST call</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Discover clusters</td><td><code>list_registered_clusters</code></td><td>local server config, not a REST call</td></tr>
+        <tr><td>Any read</td><td><code>ontap_get</code></td><td><code>GET /api/&lt;any path&gt;</code></td></tr>
+        <tr><td>Create a volume</td><td><code>create_volume</code></td><td><code>POST /storage/volumes</code></td></tr>
+        <tr><td>Create an SVM</td><td><code>create_svm</code></td><td><code>POST /svm/svms</code></td></tr>
+        <tr><td>Create a snapshot</td><td><code>create_snapshot</code></td><td><code>POST /storage/volumes/{uuid}/snapshots</code></td></tr>
+        <tr><td>Resize / rename a volume</td><td><code>update_volume</code></td><td><code>PATCH /storage/volumes/{uuid}</code></td></tr>
+        <tr><td>Delete a volume</td><td><code>delete_volume</code></td><td><code>DELETE /storage/volumes/{uuid}</code></td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout good">
+      <b>Why the split exists:</b> reads are low-risk, so one generic tool covering any REST path is fine. Writes are high-risk, so each gets an explicit, validated parameter set (size, protocol, aggregate…) instead of an arbitrary JSON body — harder to misuse by accident.
+    </div>
+  </section>
+
+  <section>
+    <span class="num">04</span>
+    <h2>Extending it: plugging in Ansible health checks</h2>
+    <p class="lead">MCP tools aren't limited to REST calls — a tool is just "some code the server runs." That means an existing Ansible playbook could become a tool too.</p>
+
+    <p>To make "run a health check" a real request Claude can act on, the MCP server itself needs a new tool added by whoever maintains it — this isn't something the client side (Claude) can create on the fly.</p>
+
+    <h3>What that tool would need to do</h3>
+    <table>
+      <tbody>
+        <tr><td style="width:32px;color:var(--accent-dim);font-family:var(--mono)">1</td><td>Define a new tool, e.g. <code>run_ansible_health_check(cluster_name)</code></td></tr>
+        <tr><td style="color:var(--accent-dim);font-family:var(--mono)">2</td><td>Implementation shells out to the playbook: <code>ansible-playbook health_check.yml -e cluster=&lt;name&gt;</code></td></tr>
+        <tr><td style="color:var(--accent-dim);font-family:var(--mono)">3</td><td>Capture stdout / JSON callback output from Ansible</td></tr>
+        <tr><td style="color:var(--accent-dim);font-family:var(--mono)">4</td><td>Return it as the tool's structured result</td></tr>
+        <tr><td style="color:var(--accent-dim);font-family:var(--mono)">5</td><td>Redeploy the MCP server so the tool is registered</td></tr>
+      </tbody>
+    </table>
+
+    <p>Once live, it behaves exactly like every other tool in this conversation: it shows up in <code>tool_search</code>, and a request like <i>"run a health check on Cluster1"</i> resolves to a single call — <code>run_ansible_health_check(cluster_name: "Cluster1")</code> — same pattern as everything above.</p>
+  </section>
+
+  <footer>
+    Generated from a live MCP session against ontap-mcp-server → Cluster1 (ONTAP 9.11.1)
+  </footer>
+
+</div>
+</body>
+</html>
