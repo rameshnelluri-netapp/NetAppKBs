@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inside the Cell — How an SSD Actually Stores a Bit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B0E14;
+    --panel:#121722;
+    --panel-2:#171E2C;
+    --line:#232C3D;
+    --amber:#F2A93B;
+    --amber-dim:#8A6626;
+    --teal:#4FD3C4;
+    --red:#E2574C;
+    --text:#E8EAED;
+    --muted:#8B93A1;
+    --muted-2:#5C6577;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'IBM Plex Sans', sans-serif;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--amber-dim); color:var(--text);}
+
+  .mono{font-family:'IBM Plex Mono', monospace;}
+
+  a{color:var(--teal);}
+
+  /* ---------- layout shells ---------- */
+  .wrap{max-width:920px; margin:0 auto; padding:0 28px;}
+  section{padding:96px 0;}
+  section.tight{padding:64px 0;}
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    text-transform:uppercase;
+    letter-spacing:.14em;
+    font-size:12px;
+    color:var(--teal);
+    margin:0 0 14px;
+  }
+  h1,h2,h3{font-family:'IBM Plex Mono', monospace; font-weight:600; line-height:1.15; margin:0;}
+  h2{font-size:28px; letter-spacing:-.01em; margin-bottom:10px;}
+  p{color:var(--text); margin:0 0 16px; max-width:64ch;}
+  .lede{color:var(--muted); font-size:17px; max-width:60ch;}
+  .card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+  }
+
+  /* ---------- header / nav ---------- */
+  header{
+    position:sticky; top:0; z-index:50;
+    background:rgba(11,14,20,.86);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav{
+    max-width:920px; margin:0 auto; padding:16px 28px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .brand{font-family:'IBM Plex Mono', monospace; font-size:13px; letter-spacing:.06em; color:var(--muted);}
+  .brand b{color:var(--text);}
+  .navlinks{display:flex; gap:22px; font-family:'IBM Plex Mono', monospace; font-size:12.5px;}
+  .navlinks a{color:var(--muted-2); text-decoration:none; transition:color .15s;}
+  .navlinks a:hover{color:var(--teal);}
+  @media (max-width:640px){ .navlinks{display:none;} }
+
+  /* ---------- hero ---------- */
+  .hero{padding:88px 0 60px; position:relative;}
+  .hero h1{font-size:clamp(30px,5vw,46px); letter-spacing:-.015em; margin-bottom:18px;}
+  .hero h1 span{color:var(--amber);}
+  .scope{
+    margin-top:44px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    background:radial-gradient(120% 140% at 10% 0%, #151C29 0%, #0D121B 70%);
+    padding:20px 20px 14px;
+  }
+  .scope-head{
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-family:'IBM Plex Mono', monospace; font-size:11.5px; color:var(--muted-2);
+    letter-spacing:.08em; text-transform:uppercase; margin-bottom:8px;
+  }
+  .scope-head .live{color:var(--amber);}
+  .dot{display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--amber); margin-right:6px; animation:pulse 1.6s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.25;}}
+  canvas{display:block; width:100%; height:170px;}
+  .scope-caption{
+    font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--muted-2);
+    padding-top:10px; border-top:1px solid var(--line); margin-top:6px;
+  }
+
+  /* ---------- glass / cell analogy ---------- */
+  .analogy{
+    display:grid; grid-template-columns:1fr 1fr; gap:40px; align-items:center;
+  }
+  @media (max-width:720px){ .analogy{grid-template-columns:1fr;} }
+  .glass-rig{display:flex; gap:22px; justify-content:center; align-items:flex-end; padding:20px 0;}
+  .glass{
+    width:46px; height:130px; border:2px solid var(--line);
+    border-top:none; border-radius:0 0 6px 6px; position:relative; overflow:hidden;
+    background:#0D121B;
+  }
+  .glass .fill{
+    position:absolute; bottom:0; left:0; right:0;
+    background:linear-gradient(180deg, var(--teal), #2C8078);
+    transition:height 1.4s cubic-bezier(.2,.8,.2,1);
+  }
+  .glass-label{
+    text-align:center; font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted-2); margin-top:8px;
+  }
+  .glass-col{display:flex; flex-direction:column; align-items:center;}
+
+  /* ---------- interactive cell-type selector ---------- */
+  .selector{
+    display:flex; flex-wrap:wrap; gap:8px; margin-bottom:22px;
+  }
+  .selector button{
+    font-family:'IBM Plex Mono', monospace;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    color:var(--muted);
+    padding:9px 16px;
+    border-radius:7px;
+    font-size:13px;
+    cursor:pointer;
+    transition:all .15s;
+  }
+  .selector button:hover{color:var(--text); border-color:var(--muted-2);}
+  .selector button.active{
+    background:var(--amber);
+    color:#1A1204;
+    border-color:var(--amber);
+    font-weight:600;
+  }
+  .cell-readout{
+    display:grid; grid-template-columns:1.3fr 1fr; gap:0;
+    border:1px solid var(--line); border-radius:12px; overflow:hidden;
+  }
+  @media (max-width:720px){ .cell-readout{grid-template-columns:1fr;} }
+  .cell-canvas-box{background:#0D121B; padding:18px;}
+  .cell-stats{background:var(--panel); padding:22px 24px; border-left:1px solid var(--line);}
+  @media (max-width:720px){ .cell-stats{border-left:none; border-top:1px solid var(--line);} }
+  .stat-row{
+    display:flex; justify-content:space-between; align-items:baseline;
+    padding:11px 0; border-bottom:1px solid var(--line);
+    font-family:'IBM Plex Mono', monospace; font-size:13.5px;
+  }
+  .stat-row:last-child{border-bottom:none;}
+  .stat-row .k{color:var(--muted);}
+  .stat-row .v{color:var(--text); font-weight:600;}
+  .stat-row .v.warn{color:var(--red);}
+  .stat-row .v.good{color:var(--teal);}
+
+  /* ---------- hierarchy zoom ---------- */
+  .zoom-track{position:relative; padding-left:34px;}
+  .zoom-track::before{
+    content:''; position:absolute; left:9px; top:6px; bottom:6px; width:1px;
+    background:linear-gradient(var(--line), var(--line)) ;
+  }
+  .zoom-item{position:relative; padding-bottom:34px;}
+  .zoom-item:last-child{padding-bottom:0;}
+  .zoom-item::before{
+    content:''; position:absolute; left:-34px; top:4px; width:9px; height:9px;
+    border-radius:50%; background:var(--bg); border:2px solid var(--amber);
+  }
+  .zoom-item h3{font-size:15.5px; color:var(--text); margin-bottom:5px;}
+  .zoom-item h3 .scale{color:var(--amber); margin-right:10px;}
+  .zoom-item p{color:var(--muted); font-size:14.5px; margin-bottom:0;}
+
+  /* ---------- layer diagram (ONTAP vs FTL) ---------- */
+  .stack{display:flex; flex-direction:column; gap:2px; border-radius:12px; overflow:hidden; border:1px solid var(--line);}
+  .layer{
+    padding:18px 22px;
+    display:flex; justify-content:space-between; align-items:center; gap:20px;
+    flex-wrap:wrap;
+  }
+  .layer .lname{font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:14px;}
+  .layer .ldesc{color:var(--muted); font-size:13.5px; max-width:46ch; margin:0;}
+  .layer.l1{background:#171E2C;}
+  .layer.l2{background:#141A26;}
+  .layer.l3{background:#111621;}
+  .layer .lname.ontap{color:var(--teal);}
+  .layer .lname.ftl{color:var(--amber);}
+  .arrow-down{
+    text-align:center; font-family:'IBM Plex Mono', monospace; color:var(--muted-2); font-size:12px; padding:6px 0;
+  }
+
+  /* ---------- comparison table ---------- */
+  table{width:100%; border-collapse:collapse; font-size:14px;}
+  th,td{text-align:left; padding:13px 14px; border-bottom:1px solid var(--line);}
+  th{font-family:'IBM Plex Mono', monospace; font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted-2); font-weight:500;}
+  td{color:var(--text);}
+  tr:last-child td{border-bottom:none;}
+  .bar-cell{display:flex; align-items:center; gap:10px;}
+  .bar-track{flex:1; height:6px; background:var(--panel-2); border-radius:3px; overflow:hidden; max-width:110px;}
+  .bar-fill{height:100%; border-radius:3px;}
+  .tag{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; padding:2px 8px; border-radius:20px; font-weight:600;
+  }
+  .tag.tlc{background:rgba(79,211,196,.14); color:var(--teal);}
+  .tag.qlc{background:rgba(242,169,59,.14); color:var(--amber);}
+
+  /* ---------- glossary grid ---------- */
+  .glossary{display:grid; grid-template-columns:repeat(2,1fr); gap:14px;}
+  @media (max-width:640px){ .glossary{grid-template-columns:1fr;} }
+  .gterm{padding:18px 20px;}
+  .gterm .gname{font-family:'IBM Plex Mono', monospace; color:var(--amber); font-size:13.5px; margin-bottom:6px;}
+  .gterm p{font-size:13.5px; color:var(--muted); margin:0;}
+
+  footer{
+    border-top:1px solid var(--line); padding:40px 0 60px;
+    font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--muted-2);
+    text-align:center;
+  }
+
+  hr.rule{border:none; border-top:1px solid var(--line); margin:0;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <div class="brand"><b>NAND//</b> a field guide to what's inside a flash cell</div>
+    <div class="navlinks">
+      <a href="#cell">Cell</a>
+      <a href="#levels">Bit levels</a>
+      <a href="#hierarchy">Hierarchy</a>
+      <a href="#layers">ONTAP vs FTL</a>
+      <a href="#compare">TLC vs QLC</a>
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Physical storage, from the ground up</p>
+    <h1>A bit is just a <span>voltage level</span> someone agreed to measure.</h1>
+    <p class="lede">Every write your storage system performs ends here — at a tiny trapped charge inside a NAND cell. This is what that charge is, how many values it can represent, and how a system like ONTAP finds its way back to it.</p>
+
+    <div class="scope">
+      <div class="scope-head">
+        <span><span class="dot"></span><span class="live">READING CELL</span></span>
+        <span id="scopeMode">QLC · 4 bits/cell · 16 levels</span>
+      </div>
+      <canvas id="scopeCanvas"></canvas>
+      <div class="scope-caption">The controller doesn't see a "bit." It sees a charge, and decides which band it falls into.</div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section id="cell" class="tight">
+  <div class="wrap">
+    <p class="eyebrow">01 — The cell</p>
+    <h2>Think of it as a glass that holds a charge, not a value.</h2>
+    <p class="lede">A NAND cell is a microscopic trap for electrons. To read it, the controller measures how much charge is sitting inside — a voltage. It never reads "1" or "0" directly. It reads a water level, then decides what that level means.</p>
+
+    <div class="analogy" style="margin-top:34px;">
+      <div class="glass-rig">
+        <div class="glass-col">
+          <div class="glass"><div class="fill" id="fillA" style="height:15%"></div></div>
+          <div class="glass-label">low charge</div>
+        </div>
+        <div class="glass-col">
+          <div class="glass"><div class="fill" id="fillB" style="height:55%"></div></div>
+          <div class="glass-label">mid charge</div>
+        </div>
+        <div class="glass-col">
+          <div class="glass"><div class="fill" id="fillC" style="height:88%"></div></div>
+          <div class="glass-label">high charge</div>
+        </div>
+      </div>
+      <div>
+        <p>The physical range — empty to full — never changes. What changes between SLC, TLC, and QLC is how finely that same range gets sliced.</p>
+        <p style="margin-bottom:0;">Slice it into 2 bands and you get near-zero ambiguity. Slice it into 16 and every band is a sliver — read the charge a fraction off, and the controller reads the wrong number entirely.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section id="levels">
+  <div class="wrap">
+    <p class="eyebrow">02 — One cell, one number</p>
+    <h2>More bits per cell means more bands to tell apart — not more bits actually stored.</h2>
+    <p class="lede">A QLC cell doesn't hold "16 bits." It holds one 4-bit number, chosen from 16 possible values — the same way a 4-digit combination lock holds one combination, picked from 10,000 possibilities. Pick a type below and watch the margin shrink as bits per cell go up.</p>
+
+    <div class="selector" id="typeSelector" style="margin-top:30px;">
+      <button data-type="slc">SLC — 1 bit</button>
+      <button data-type="mlc">MLC — 2 bits</button>
+      <button data-type="tlc" class="active">TLC — 3 bits</button>
+      <button data-type="qlc">QLC — 4 bits</button>
+      <button data-type="plc">PLC — 5 bits</button>
+    </div>
+
+    <div class="cell-readout">
+      <div class="cell-canvas-box">
+        <canvas id="levelCanvas" style="height:220px;"></canvas>
+      </div>
+      <div class="cell-stats">
+        <div class="stat-row"><span class="k">Bits per cell</span><span class="v" id="statBits">3</span></div>
+        <div class="stat-row"><span class="k">Voltage bands (2ⁿ)</span><span class="v" id="statLevels">8</span></div>
+        <div class="stat-row"><span class="k">Margin per band</span><span class="v" id="statMargin">wide</span></div>
+        <div class="stat-row"><span class="k">Write endurance</span><span class="v" id="statEndurance">~1,000–3,000 P/E cycles</span></div>
+        <div class="stat-row"><span class="k">Typical use</span><span class="v" id="statUse">Enterprise, mixed workloads</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section id="hierarchy" class="tight">
+  <div class="wrap">
+    <p class="eyebrow">03 — Zooming out</p>
+    <h2>Cells don't work alone — they're organized in a strict physical hierarchy.</h2>
+    <p class="lede">You can't read or erase a single cell. The drive operates on groups of cells, and each grouping level has its own rules — this is a real physical nesting, not an arbitrary order.</p>
+
+    <div class="zoom-track" style="margin-top:36px;">
+      <div class="zoom-item">
+        <h3><span class="scale">~nm</span>Cell</h3>
+        <p>One trapped charge. Holds one value: 1 bit (SLC) up to 5 bits (PLC).</p>
+      </div>
+      <div class="zoom-item">
+        <h3><span class="scale">~16KB</span>Page</h3>
+        <p>Thousands of cells. This is the smallest unit you can read or write — you can never touch a single cell in isolation.</p>
+      </div>
+      <div class="zoom-item">
+        <h3><span class="scale">~MB</span>Block</h3>
+        <p>Hundreds of pages. Erasing only happens at this level — write a page, but you must erase the whole block, even to reclaim one stale page.</p>
+      </div>
+      <div class="zoom-item">
+        <h3><span class="scale">~10s of GB</span>Die</h3>
+        <p>Thousands of blocks on one piece of silicon.</p>
+      </div>
+      <div class="zoom-item">
+        <h3><span class="scale">~100s of GB</span>Package</h3>
+        <p>Multiple dies stacked vertically — modern 3D NAND stacks 100+ layers to raise density without a larger footprint.</p>
+      </div>
+      <div class="zoom-item">
+        <h3><span class="scale">TBs</span>Drive</h3>
+        <p>Many packages, coordinated by an onboard controller that handles wear-leveling, garbage collection, and error correction across the entire array.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section id="layers">
+  <div class="wrap">
+    <p class="eyebrow">04 — Two black boxes, stacked</p>
+    <h2>ONTAP never sees a cell. It stops at the logical block address.</h2>
+    <p class="lede">A storage OS and the SSD's own firmware split the work cleanly. Neither one knows the other's internals — and that separation is deliberate.</p>
+
+    <div class="stack" style="margin-top:32px;">
+      <div class="layer l1">
+        <div class="lname ontap">ONTAP / WAFL</div>
+        <p class="ldesc">Tracks volumes, aggregates, and RAID groups. Writes a file to a logical block address — "LBA 48213 on SSD 7" — and stops there.</p>
+      </div>
+      <div class="arrow-down">↓ hands off a plain LBA, nothing more ↓</div>
+      <div class="layer l2">
+        <div class="lname ftl">SSD controller (FTL)</div>
+        <p class="ldesc">Owns the actual physical placement: which die, block, page, and cells. Maintains its own private map from LBA → physical location.</p>
+      </div>
+      <div class="arrow-down">↓ moves data freely underneath, for its own reasons ↓</div>
+      <div class="layer l3">
+        <div class="lname" style="color:var(--muted);">Wear-leveling · Garbage collection · Bad-block remap</div>
+        <p class="ldesc">The same LBA can point to different physical cells over time. ONTAP never notices — it just asks for LBA 48213 and gets the right data back.</p>
+      </div>
+    </div>
+
+    <p style="margin-top:28px; color:var(--muted); font-size:14.5px;">This is why NetApp can write one filesystem that works across SSDs from any vendor, any NAND type — the block-device interface (NVMe/SAS) hides all the physical detail underneath.</p>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section id="compare" class="tight">
+  <div class="wrap">
+    <p class="eyebrow">05 — Side by side</p>
+    <h2>TLC vs. QLC, where it actually shows up</h2>
+    <div class="card" style="margin-top:28px; overflow:hidden;">
+      <table>
+        <thead>
+          <tr><th>Property</th><th>TLC</th><th>QLC</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Bits per cell</td>
+            <td><span class="tag tlc">3 bits</span></td>
+            <td><span class="tag qlc">4 bits</span></td>
+          </tr>
+          <tr>
+            <td>Voltage bands</td>
+            <td>8</td>
+            <td>16</td>
+          </tr>
+          <tr>
+            <td>Relative density</td>
+            <td class="bar-cell">baseline<div class="bar-track"><div class="bar-fill" style="width:65%; background:var(--teal);"></div></div></td>
+            <td class="bar-cell">+33%<div class="bar-track"><div class="bar-fill" style="width:100%; background:var(--amber);"></div></div></td>
+          </tr>
+          <tr>
+            <td>Write endurance</td>
+            <td class="bar-cell">higher<div class="bar-track"><div class="bar-fill" style="width:85%; background:var(--teal);"></div></div></td>
+            <td class="bar-cell">lower<div class="bar-track"><div class="bar-fill" style="width:35%; background:var(--amber);"></div></div></td>
+          </tr>
+          <tr>
+            <td>Write latency</td>
+            <td class="bar-cell">lower<div class="bar-track"><div class="bar-fill" style="width:80%; background:var(--teal);"></div></div></td>
+            <td class="bar-cell">higher<div class="bar-track"><div class="bar-fill" style="width:50%; background:var(--amber);"></div></div></td>
+          </tr>
+          <tr>
+            <td>Cost per GB</td>
+            <td class="bar-cell">higher<div class="bar-track"><div class="bar-fill" style="width:75%; background:var(--teal);"></div></div></td>
+            <td class="bar-cell">lower<div class="bar-track"><div class="bar-fill" style="width:38%; background:var(--amber);"></div></div></td>
+          </tr>
+          <tr>
+            <td>Fits well</td>
+            <td>Mixed read/write, databases, low-latency tiers</td>
+            <td>Capacity tiers, backups, read-heavy or write-once data</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section class="tight">
+  <div class="wrap">
+    <p class="eyebrow">Reference</p>
+    <h2>Quick glossary</h2>
+    <div class="glossary" style="margin-top:26px;">
+      <div class="card gterm"><div class="gname">Voltage state</div><p>The amount of trapped charge in a cell, measured on read. Each distinguishable level maps to one binary value.</p></div>
+      <div class="card gterm"><div class="gname">FTL</div><p>Flash Translation Layer — the SSD's own firmware that maps logical addresses to physical cell locations.</p></div>
+      <div class="card gterm"><div class="gname">Wear-leveling</div><p>Spreading writes evenly across all blocks so no single area wears out from repeated erase cycles.</p></div>
+      <div class="card gterm"><div class="gname">Write amplification</div><p>Extra physical writes caused by having to erase a whole block to reclaim a single stale page.</p></div>
+      <div class="card gterm"><div class="gname">P/E cycle</div><p>One program (write) plus one erase — the basic unit of wear a NAND cell can survive before failing.</p></div>
+      <div class="card gterm"><div class="gname">LBA</div><p>Logical Block Address — the flat, virtual address the OS writes to. Never tied to a fixed physical location.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  cell → page → block → die → package → drive
+</footer>
+
+<script>
+/* ---------------- hero scope: settling voltage trace ---------------- */
+(function(){
+  const canvas = document.getElementById('scopeCanvas');
+  const ctx = canvas.getContext('2d');
+  let w,h,dpr;
+  function resize(){
+    dpr = window.devicePixelRatio || 1;
+    w = canvas.clientWidth; h = canvas.clientHeight || 170;
+    canvas.width = w*dpr; canvas.height = h*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const bandsCount = 16;
+  let target = 11; // which band we're "reading"
+  let current = h*0.5;
+  let t = 0;
+  const points = [];
+  const maxPoints = 140;
+
+  function bandY(i){
+    const pad = 14;
+    const usable = h - pad*2;
+    return pad + usable - (i/(bandsCount-1))*usable;
+  }
+
+  function step(){
+    t += 1;
+    if (t % 90 === 0){ target = Math.floor(Math.random()*bandsCount); }
+    const goal = bandY(target);
+    current += (goal-current)*0.06 + (Math.random()-0.5)*1.4;
+    points.push(current);
+    if (points.length > maxPoints) points.shift();
+    draw();
+    requestAnimationFrame(step);
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,w,h);
+    // band lines
+    ctx.strokeStyle = 'rgba(139,147,161,0.10)';
+    ctx.lineWidth = 1;
+    for(let i=0;i<bandsCount;i++){
+      const y = bandY(i);
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke();
+    }
+    // trace
+    ctx.beginPath();
+    const stepX = w/maxPoints;
+    points.forEach((p,i)=>{
+      const x = w - (points.length-i)*stepX;
+      if(i===0) ctx.moveTo(x,p); else ctx.lineTo(x,p);
+    });
+    ctx.strokeStyle = '#F2A93B';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = 'rgba(242,169,59,0.5)';
+    ctx.shadowBlur = 8;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // current dot
+    const lastY = points[points.length-1];
+    ctx.beginPath();
+    ctx.arc(w-stepX, lastY, 3.5, 0, Math.PI*2);
+    ctx.fillStyle = '#F2A93B';
+    ctx.fill();
+  }
+  step();
+})();
+
+/* ---------------- glass fill randomizer ---------------- */
+(function(){
+  const ids = ['fillA','fillB','fillC'];
+  function randomize(){
+    ids.forEach(id=>{
+      const el = document.getElementById(id);
+      const val = 10 + Math.random()*82;
+      el.style.height = val+'%';
+    });
+  }
+  setInterval(randomize, 2600);
+})();
+
+/* ---------------- level selector + canvas ---------------- */
+(function(){
+  const types = {
+    slc:{bits:1, endurance:'~30,000–100,000 P/E cycles', use:'Caching layers, extreme-endurance tiers', margin:'very wide'},
+    mlc:{bits:2, endurance:'~10,000 P/E cycles', use:'Legacy enterprise, moderate endurance needs', margin:'wide'},
+    tlc:{bits:3, endurance:'~1,000–3,000 P/E cycles', use:'Enterprise, mixed workloads', margin:'moderate'},
+    qlc:{bits:4, endurance:'~100–1,000 P/E cycles', use:'Capacity tiers, backup targets, read-heavy data', margin:'narrow'},
+    plc:{bits:5, endurance:'~few hundred P/E cycles (emerging)', use:'Archival, cold data, deep-capacity tiers', margin:'very narrow'}
+  };
+
+  const canvas = document.getElementById('levelCanvas');
+  const ctx = canvas.getContext('2d');
+  let w,h,dpr;
+  function resize(){
+    dpr = window.devicePixelRatio || 1;
+    w = canvas.clientWidth; h = canvas.clientHeight || 220;
+    canvas.width = w*dpr; canvas.height = h*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    draw(current);
+  }
+  window.addEventListener('resize', resize);
+
+  let current = 'tlc';
+
+  function draw(key){
+    const bits = types[key].bits;
+    const levels = Math.pow(2,bits);
+    ctx.clearRect(0,0,w,h);
+
+    const padTop = 14, padBottom = 14, padLeft = 44, padRight = 14;
+    const usableH = h - padTop - padBottom;
+    const usableW = w - padLeft - padRight;
+    const bandH = usableH/levels;
+
+    for(let i=0;i<levels;i++){
+      const y = padTop + i*bandH;
+      const gapRatio = Math.max(0.06, Math.min(0.34, 0.9/levels));
+      const gap = bandH*gapRatio;
+      const bh = bandH - gap;
+
+      const hue = 42 - (i/(levels-1))*20;
+      ctx.fillStyle = `hsla(${hue}, 70%, ${58 - i*1.2}%, 0.85)`;
+      ctx.fillRect(padLeft, y+gap/2, usableW, bh);
+
+      ctx.fillStyle = 'rgba(232,234,237,0.55)';
+      ctx.font = '10px "IBM Plex Mono", monospace';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      const binStr = (levels-1-i).toString(2).padStart(bits,'0');
+      ctx.fillText(binStr, padLeft-8, y+bandH/2);
+    }
+  }
+
+  document.querySelectorAll('#typeSelector button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('#typeSelector button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      current = btn.dataset.type;
+      const d = types[current];
+      document.getElementById('statBits').textContent = d.bits;
+      document.getElementById('statLevels').textContent = Math.pow(2,d.bits);
+      document.getElementById('statMargin').textContent = d.margin;
+      document.getElementById('statEndurance').textContent = d.endurance;
+      document.getElementById('statUse').textContent = d.use;
+      const warnLevels = d.bits >= 4;
+      const enduranceEl = document.getElementById('statEndurance');
+      enduranceEl.classList.toggle('warn', warnLevels);
+      enduranceEl.classList.toggle('good', d.bits <= 2);
+      document.getElementById('scopeMode').textContent =
+        `${current.toUpperCase()} · ${d.bits} bit${d.bits>1?'s':''}/cell · ${Math.pow(2,d.bits)} levels`;
+      resize();
+    });
+  });
+
+  resize();
+})();
+</script>
+
+</body>
+</html>
