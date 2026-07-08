@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetApp Data-at-Rest Encryption — Deep Dive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0E1319;
+    --panel:#161E27;
+    --panel-2:#1C2531;
+    --border:#28323E;
+    --text:#E7EDF3;
+    --muted:#8CA0B3;
+    --hw:#E8A34C;      /* hardware / SED / NSE */
+    --hw-dim:#4A3A22;
+    --sw:#4FD8C4;      /* software / NVE / NAE */
+    --sw-dim:#1D3B37;
+    --alert:#FF6B5D;
+    --mono:'IBM Plex Mono', monospace;
+    --sans:'IBM Plex Sans', sans-serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    line-height:1.6;
+    font-size:16px;
+  }
+  ::selection{background:var(--sw-dim); color:var(--sw);}
+
+  a{color:var(--sw);}
+
+  .wrap{max-width:920px; margin:0 auto; padding:0 24px;}
+
+  /* ---------- top bar ---------- */
+  .topbar{
+    border-bottom:1px solid var(--border);
+    background:rgba(14,19,25,0.9);
+    position:sticky; top:0; z-index:50;
+    backdrop-filter:blur(6px);
+  }
+  .topbar .wrap{display:flex; align-items:center; justify-content:space-between; height:52px;}
+  .prompt{font-family:var(--mono); font-size:13px; color:var(--muted);}
+  .prompt span{color:var(--sw);}
+  .nav-dots{display:flex; gap:14px; font-family:var(--mono); font-size:12px;}
+  .nav-dots a{color:var(--muted); text-decoration:none; border-bottom:1px solid transparent; padding-bottom:2px;}
+  .nav-dots a:hover{color:var(--text); border-color:var(--border);}
+  @media (max-width:720px){ .nav-dots{display:none;} }
+
+  /* ---------- hero ---------- */
+  .hero{padding:80px 0 56px; border-bottom:1px solid var(--border);}
+  .eyebrow{
+    font-family:var(--mono); font-size:12.5px; letter-spacing:.08em; color:var(--sw);
+    display:inline-flex; align-items:center; gap:8px; margin-bottom:22px;
+  }
+  .eyebrow::before{content:''; width:7px; height:7px; background:var(--sw); border-radius:50%; box-shadow:0 0 8px var(--sw);}
+  h1{
+    font-family:var(--mono); font-weight:700; font-size:clamp(30px,5vw,46px);
+    line-height:1.12; letter-spacing:-0.01em; margin-bottom:20px;
+  }
+  h1 em{font-style:normal; color:var(--sw);}
+  .lede{color:var(--muted); font-size:17.5px; max-width:640px;}
+  .hero-meta{
+    display:flex; gap:28px; margin-top:36px; font-family:var(--mono); font-size:12.5px; color:var(--muted); flex-wrap:wrap;
+  }
+  .hero-meta b{color:var(--text); display:block; font-size:13px; margin-bottom:3px;}
+
+  /* ---------- sections ---------- */
+  section{padding:64px 0; border-bottom:1px solid var(--border);}
+  section:last-of-type{border-bottom:none;}
+  .kicker{
+    font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--muted); margin-bottom:10px;
+  }
+  h2{
+    font-family:var(--mono); font-size:clamp(22px,3vw,28px); margin-bottom:18px; letter-spacing:-.01em;
+  }
+  h3{font-family:var(--mono); font-size:17px; margin:28px 0 10px; color:var(--text);}
+  p{margin-bottom:14px; color:#C7D2DC; max-width:720px;}
+  p.tight{margin-bottom:0;}
+  strong{color:var(--text);}
+  .callout-sw strong, .tag-sw{color:var(--sw);}
+  .tag-hw{color:var(--hw);}
+
+  code, .inline-code{
+    font-family:var(--mono); background:var(--panel-2); border:1px solid var(--border);
+    padding:1px 6px; border-radius:4px; font-size:.9em; color:var(--sw);
+  }
+  pre{
+    font-family:var(--mono); background:#0B0F14; border:1px solid var(--border); border-radius:8px;
+    padding:16px 18px; overflow-x:auto; font-size:13.5px; color:#B9E9E1; margin:16px 0 20px; line-height:1.6;
+  }
+  pre .c{color:var(--muted);}
+
+  ul{margin:8px 0 18px 20px; color:#C7D2DC;}
+  li{margin-bottom:6px;}
+  li::marker{color:var(--muted);}
+
+  /* ---------- stack diagram (signature element) ---------- */
+  .stack{
+    border:1px solid var(--border); border-radius:12px; overflow:hidden; margin:28px 0 12px; background:var(--panel);
+  }
+  .stack-row{
+    display:grid; grid-template-columns:170px 1fr; border-top:1px solid var(--border);
+  }
+  .stack-row:first-child{border-top:none;}
+  .stack-label{
+    font-family:var(--mono); font-size:12.5px; color:var(--muted); padding:16px 18px;
+    display:flex; align-items:center; border-right:1px solid var(--border);
+  }
+  .stack-body{padding:14px 18px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;}
+  .chip{
+    font-family:var(--mono); font-size:12px; padding:5px 10px; border-radius:6px; border:1px solid;
+    white-space:nowrap;
+  }
+  .chip-sw{background:var(--sw-dim); border-color:#2C5952; color:var(--sw);}
+  .chip-hw{background:var(--hw-dim); border-color:#5C4726; color:var(--hw);}
+  .chip-neutral{background:var(--panel-2); border-color:var(--border); color:var(--muted);}
+  .stack-note{font-size:13px; color:var(--muted);}
+  @media (max-width:600px){
+    .stack-row{grid-template-columns:1fr;}
+    .stack-label{border-right:none; border-bottom:1px solid var(--border); padding:10px 16px;}
+  }
+
+  /* ---------- comparison cards ---------- */
+  .cards{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin:24px 0 8px;}
+  @media (max-width:760px){ .cards{grid-template-columns:1fr;} }
+  .card{
+    background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:20px;
+    transition:border-color .15s ease, transform .15s ease;
+  }
+  .card:hover{border-color:#3A4A5A; transform:translateY(-2px);}
+  .card-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;}
+  .card-title{font-family:var(--mono); font-size:15px; font-weight:600;}
+  .badge{font-family:var(--mono); font-size:10.5px; padding:3px 8px; border-radius:20px; border:1px solid;}
+  .badge-hw{color:var(--hw); border-color:var(--hw); background:var(--hw-dim);}
+  .badge-sw{color:var(--sw); border-color:var(--sw); background:var(--sw-dim);}
+  .card ul{margin:0; padding-left:18px; font-size:14px;}
+  .card li{color:#B9C6D2; margin-bottom:7px;}
+
+  /* ---------- table ---------- */
+  .tbl-wrap{overflow-x:auto; margin:24px 0; border:1px solid var(--border); border-radius:10px;}
+  table{width:100%; border-collapse:collapse; font-size:14px; min-width:640px;}
+  th, td{padding:12px 16px; text-align:left; border-bottom:1px solid var(--border);}
+  th{
+    font-family:var(--mono); font-size:12px; letter-spacing:.04em; text-transform:uppercase;
+    color:var(--muted); background:var(--panel-2);
+  }
+  tr:last-child td{border-bottom:none;}
+  td{color:#C7D2DC;}
+  td.hl{color:var(--sw); font-family:var(--mono); font-size:13px;}
+  td.hl2{color:var(--hw); font-family:var(--mono); font-size:13px;}
+
+  /* ---------- verdict panel ---------- */
+  .verdict{
+    background:linear-gradient(155deg, var(--panel), var(--panel-2));
+    border:1px solid var(--border); border-left:3px solid var(--sw);
+    border-radius:10px; padding:24px 26px; margin:20px 0;
+  }
+  .verdict h3{margin-top:0; color:var(--sw);}
+
+  .caveat{
+    background:var(--panel); border:1px solid var(--border); border-left:3px solid var(--hw);
+    border-radius:10px; padding:20px 24px; margin:20px 0;
+  }
+  .caveat h3{margin-top:0; color:var(--hw);}
+
+  /* numbered decision steps */
+  .steps{counter-reset:step; margin:24px 0;}
+  .step{display:grid; grid-template-columns:40px 1fr; gap:16px; padding:16px 0; border-top:1px solid var(--border);}
+  .step:first-child{border-top:none;}
+  .step-num{
+    counter-increment:step; font-family:var(--mono); color:var(--sw); font-size:14px;
+  }
+  .step-num::before{content:counter(step, decimal-leading-zero);}
+  .step-body b{display:block; color:var(--text); margin-bottom:3px; font-size:14.5px;}
+  .step-body span{color:var(--muted); font-size:13.5px;}
+
+  footer{padding:40px 0 60px; text-align:center;}
+  footer p{color:var(--muted); font-size:13px; font-family:var(--mono); max-width:none;}
+
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto;}
+    .card{transition:none;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <div class="prompt">netapp<span>@</span>ontap<span>:</span>~/encryption$</div>
+    <div class="nav-dots">
+      <a href="#stack">stack</a>
+      <a href="#sed">nse/sed</a>
+      <a href="#nve">nve</a>
+      <a href="#nae">nae</a>
+      <a href="#compare">compare</a>
+      <a href="#verdict">verdict</a>
+    </div>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">DATA-AT-REST ENCRYPTION · ONTAP</div>
+    <h1>NetApp encryption, <em>layer by layer</em></h1>
+    <p class="lede">
+      ONTAP gives you three ways to encrypt data at rest — one hardware-based, two
+      software-based — and they sit at different points in the I/O stack. This walks
+      through how NSE (self-encrypting drives), NVE, and NAE actually work, where they
+      differ, and why "VE" (volume/aggregate encryption) is usually the better default
+      even though SED still has a place.
+    </p>
+    <div class="hero-meta">
+      <div><b>NSE / SED</b>hardware, per-drive</div>
+      <div><b>NVE</b>software, per-volume</div>
+      <div><b>NAE</b>software, per-aggregate</div>
+      <div><b>Platform</b>ONTAP 9.x</div>
+    </div>
+  </div>
+</header>
+
+<section id="stack">
+  <div class="wrap">
+    <div class="kicker">01 · Where each one sits</div>
+    <h2>Same goal, different layer</h2>
+    <p>
+      Every one of these technologies encrypts data at rest with AES-256. The difference
+      that actually matters is <strong>where in the write path the encryption happens</strong> —
+      that single fact explains almost every practical trade-off below.
+    </p>
+
+    <div class="stack">
+      <div class="stack-row">
+        <div class="stack-label">Client / network</div>
+        <div class="stack-body">
+          <span class="chip chip-neutral">NFS / SMB / iSCSI / FC</span>
+          <span class="stack-note">Not covered here — this is in-flight traffic (TLS 1.3 via Cluster Peering Encryption), a separate concern from at-rest encryption.</span>
+        </div>
+      </div>
+      <div class="stack-row">
+        <div class="stack-label">WAFL / storage efficiency</div>
+        <div class="stack-body">
+          <span class="chip chip-neutral">Dedup · compression · compaction</span>
+        </div>
+      </div>
+      <div class="stack-row">
+        <div class="stack-label">RAID layer</div>
+        <div class="stack-body">
+          <span class="chip chip-sw">NVE encrypts here</span>
+          <span class="chip chip-sw">NAE encrypts here</span>
+          <span class="stack-note">The ONTAP CryptoMod encrypts blocks <em>after</em> dedup/compression run, so storage efficiency isn't lost to encryption.</span>
+        </div>
+      </div>
+      <div class="stack-row">
+        <div class="stack-label">Disk firmware</div>
+        <div class="stack-body">
+          <span class="chip chip-hw">NSE / SED encrypts here</span>
+          <span class="stack-note">The drive itself does the crypto in hardware — ONTAP just authenticates to it.</span>
+        </div>
+      </div>
+      <div class="stack-row">
+        <div class="stack-label">Physical platters</div>
+        <div class="stack-body">
+          <span class="chip chip-neutral">Ciphertext at rest</span>
+        </div>
+      </div>
+    </div>
+    <p class="stack-note" style="max-width:720px;">
+      Because NVE/NAE sit above the disk and NSE sits inside it, the two are not mutually
+      exclusive — you can layer software encryption on top of self-encrypting drives for
+      "double encryption," which some compliance regimes explicitly want.
+    </p>
+  </div>
+</section>
+
+<section id="sed">
+  <div class="wrap">
+    <div class="kicker tag-hw">02 · Hardware-based</div>
+    <h2>NSE — NetApp Storage Encryption <span class="badge badge-hw">SED</span></h2>
+    <p>
+      NSE is NetApp's implementation of full-disk encryption using <strong>self-encrypting
+      drives (SEDs)</strong> from qualified vendors. The drive encrypts every block as it's
+      written and decrypts on read — entirely in the drive's own controller, invisible to
+      ONTAP's CPU.
+    </p>
+    <ul>
+      <li>The data key never leaves the drive; ONTAP only holds an <strong>authentication key</strong>, fetched from the Onboard Key Manager (OKM) or an external KMIP server, to unlock the drive on boot or after it changes nodes.</li>
+      <li>Encrypts <strong>the entire drive</strong> — there's no concept of "encrypt this volume but not that one" within a SED; the granularity is the physical disk.</li>
+      <li>SED drives are <strong>FIPS 140-2 Level 2</strong> validated — a higher physical-tamper bar than the software modules below.</li>
+      <li>Because the crypto is offloaded to dedicated silicon on the drive, NSE typically <strong>outperforms</strong> software encryption for raw throughput.</li>
+      <li>Requires purchasing NetApp-qualified SED (or NVMe SED) media — you can't retrofit encryption onto drives you already own.</li>
+    </ul>
+    <pre>cluster1::&gt; <span class="c"># confirm drives are self-encrypting</span>
+disk encrypt show
+cluster1::&gt; <span class="c"># onboard key manager setup, needed by NSE, NVE, and NAE alike</span>
+security key-manager onboard enable</pre>
+  </div>
+</section>
+
+<section id="nve">
+  <div class="wrap">
+    <div class="kicker callout-sw">03 · Software-based</div>
+    <h2>NVE — NetApp Volume Encryption <span class="badge badge-sw">per volume</span></h2>
+    <p>
+      NVE encrypts data at the <strong>RAID layer</strong> in software, using ONTAP's
+      CryptoMod. Because it runs above WAFL's storage-efficiency engine, dedup and
+      compression still happen first — only the resulting blocks get encrypted, so
+      efficiency isn't sacrificed for security.
+    </p>
+    <ul>
+      <li>Works on <strong>any drive type</strong> — SED or not, SSD or HDD, any qualified NetApp platform from ONTAP 9.1 onward. No special media required.</li>
+      <li>Every encrypted <strong>FlexVol gets its own unique XTS-AES-256 key</strong>. Delete the volume, the key is destroyed with it — which is also what makes <code>secure-purge</code> a true cryptographic shred of a single volume, without touching the rest of the aggregate.</li>
+      <li>Included with the VE license (bundled in ONTAP One) at no extra hardware cost.</li>
+      <li>The one trade-off: NVE volumes sit outside <strong>aggregate-level deduplication</strong> — dedup still works within the volume, just not across volumes in the aggregate.</li>
+      <li>The CryptoMod is <strong>FIPS 140-2 Level 1</strong> validated — software's ceiling, one tier below SED hardware.</li>
+    </ul>
+    <pre>cluster1::&gt; <span class="c"># enable NVE on an existing volume</span>
+volume encryption conversion start -vserver vs1 -volume vol1
+cluster1::&gt; <span class="c"># cryptographically shred a deleted volume's data</span>
+volume encryption secure-purge start -vserver vs1 -volume vol1</pre>
+  </div>
+</section>
+
+<section id="nae">
+  <div class="wrap">
+    <div class="kicker callout-sw">04 · Software-based</div>
+    <h2>NAE — NetApp Aggregate Encryption <span class="badge badge-sw">per aggregate</span></h2>
+    <p>
+      NAE (ONTAP 9.6+) is NVE's sibling: same CryptoMod, same RAID-layer placement, same
+      AES-256 — but the encryption key is scoped to the <strong>aggregate</strong> rather
+      than the individual volume.
+    </p>
+    <ul>
+      <li>Every volume in an NAE aggregate shares the aggregate's key set, which means those volumes stay eligible for <strong>aggregate-level deduplication</strong> — the one thing NVE gives up.</li>
+      <li>When a volume is deleted, its data is gone but the <strong>aggregate's keys persist</strong> (they're only destroyed if the whole aggregate is destroyed) — the trade for that extra dedup reach is that per-volume secure-purge isn't available on NAE volumes.</li>
+      <li>Since ONTAP 9.7, if a VE license is present and a key manager (OKM or external) is configured, <strong>new aggregates default to NAE and new stand-alone volumes default to NVE</strong> — encryption becomes opt-out rather than opt-in.</li>
+      <li>NVE and NAE volumes can coexist in the same aggregate; you can convert between them with a <code>volume move</code>.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="compare">
+  <div class="wrap">
+    <div class="kicker">05 · Side by side</div>
+    <h2>The three, compared</h2>
+    <div class="cards">
+      <div class="card">
+        <div class="card-head"><span class="card-title">NSE</span><span class="badge badge-hw">hardware</span></div>
+        <ul>
+          <li>Encrypts whole drive</li>
+          <li>FIPS 140-2 Level 2</li>
+          <li>Best raw performance</li>
+          <li>Requires SED media</li>
+          <li>No per-volume control</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-head"><span class="card-title">NVE</span><span class="badge badge-sw">software</span></div>
+        <ul>
+          <li>Key per volume</li>
+          <li>Any drive type</li>
+          <li>True crypto-shred of a volume</li>
+          <li>No aggregate-level dedup</li>
+          <li>FIPS 140-2 Level 1</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-head"><span class="card-title">NAE</span><span class="badge badge-sw">software</span></div>
+        <ul>
+          <li>Key per aggregate</li>
+          <li>Any drive type</li>
+          <li>Keeps aggregate dedup</li>
+          <li>No per-volume purge</li>
+          <li>FIPS 140-2 Level 1</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Dimension</th><th>NSE / SED</th><th>NVE</th><th>NAE</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Encryption point</td><td class="hl2">Disk firmware</td><td class="hl">RAID layer</td><td class="hl">RAID layer</td></tr>
+          <tr><td>Key scope</td><td>Per drive (auth key)</td><td>Per volume</td><td>Per aggregate</td></tr>
+          <tr><td>Drive requirement</td><td>Qualified SEDs only</td><td>Any drive</td><td>Any drive</td></tr>
+          <tr><td>Aggregate dedup</td><td>Unaffected</td><td>Excluded</td><td>Included</td></tr>
+          <tr><td>FIPS validation</td><td>140-2 Level 2</td><td>140-2 Level 1</td><td>140-2 Level 1</td></tr>
+          <tr><td>Works on MetroCluster / Select</td><td>No</td><td>Yes</td><td>Yes</td></tr>
+          <tr><td>Per-item crypto-shred</td><td>Whole drive sanitize</td><td>Yes, per volume</td><td>No (aggregate only)</td></tr>
+          <tr><td>Extra hardware cost</td><td>Yes</td><td>No</td><td>No</td></tr>
+          <tr><td>Default since ONTAP 9.7</td><td>—</td><td>Yes, on non-NAE aggregates</td><td>Yes, on new aggregates</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="verdict">
+  <div class="wrap">
+    <div class="kicker callout-sw">06 · The actual question</div>
+    <h2>So why is "VE" usually the better call?</h2>
+    <p>
+      "VE" (NVE/NAE) wins on <strong>flexibility, reach, and lifecycle control</strong> — not
+      on raw cryptographic strength, where SED hardware still edges it out. Here's the case:
+    </p>
+
+    <div class="verdict">
+      <h3>1. It runs everywhere SED can't</h3>
+      <p class="tight">SED is a property of the physical drive — it doesn't exist in NetApp
+      MetroCluster software builds, ONTAP Select, or on any array populated with non-SED
+      media. NVE/NAE are software, so they're the <em>only</em> at-rest option in those
+      environments, and the same feature set follows you from on-prem to virtualized ONTAP.</p>
+    </div>
+
+    <div class="verdict">
+      <h3>2. No forklift upgrade, no drive tax</h3>
+      <p class="tight">SEDs cost more than standard drives and must come from NetApp's
+      qualified list. NVE/NAE encrypt whatever's already in the shelf — existing HDDs,
+      SSDs, third-party-qualified media — under a software license (VE, bundled in
+      ONTAP&nbsp;One) instead of a hardware refresh.</p>
+    </div>
+
+    <div class="verdict">
+      <h3>3. Granularity matches how data actually gets deleted</h3>
+      <p class="tight">A SED's unit of control is the whole drive. NVE's unit of control is
+      a single volume — so decommissioning one tenant's data means destroying one key
+      (<code>secure-purge</code>), instantly and verifiably, without touching anything
+      else sharing that aggregate. That's a much cleaner story for multi-tenant or
+      compliance-driven deletion than physically sanitizing a shared drive.</p>
+    </div>
+
+    <div class="verdict">
+      <h3>4. You choose what's encrypted, not "everything or nothing per drive"</h3>
+      <p class="tight">With SED, every block on the drive is encrypted, full stop. With NVE
+      you decide volume by volume; with NAE you decide aggregate by aggregate — and NAE
+      still gets you back the aggregate-level dedup that NVE gives up, so the efficiency
+      trade-off is tunable rather than fixed.</p>
+    </div>
+
+    <div class="caveat">
+      <h3>Where SED still wins</h3>
+      <p class="tight">
+        SED hardware is <strong>FIPS 140-2 Level 2</strong> validated versus the CryptoMod's
+        Level 1, and because the crypto runs on dedicated drive silicon instead of the
+        controller's CPU, NSE generally has a <strong>lower performance overhead</strong>
+        at scale. If your compliance framework specifically requires Level 2 hardware
+        validation, or you're already standardized on SED media, NSE isn't obsolete —
+        and NetApp explicitly supports stacking NVE/NAE <em>on top of</em> SED for
+        double encryption rather than treating it as either/or.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="kicker">07 · Picking one</div>
+    <h2>A quick decision path</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body"><b>Already on ONTAP 9.7+ with a key manager configured?</b><span>You likely have NVE/NAE running by default already — check with <code>volume show -fields is-encrypted</code>.</span></div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body"><b>Need aggregate-level dedup across many tenant volumes?</b><span>Favor NAE aggregates over plain NVE volumes.</span></div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body"><b>Need to guarantee instant, verifiable deletion of one dataset?</b><span>Use NVE on that volume specifically — <code>secure-purge</code> isn't available on NAE.</span></div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body"><b>Mandated FIPS 140-2 Level 2, or maximum throughput at scale?</b><span>Add NSE/SED media and optionally layer NVE or NAE on top for double encryption.</span></div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body"><b>Running MetroCluster, ONTAP Select, or non-SED media?</b><span>NVE/NAE is the only path — SED isn't an option here.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>ontap 9.x · NSE / NVE / NAE — AES-256, RAID-layer or drive-firmware, your choice of key scope</p>
+  </div>
+</footer>
+
+</body>
+</html>
