@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetApp AFX — Disaggregated ONTAP, Deep Dive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0F1A;
+    --surface:#0F1626;
+    --surface-2:#141D33;
+    --line:#233150;
+    --fabric:#4FD1C5;
+    --compute:#F2B84B;
+    --parity:#C1502E;
+    --text:#E7EDF7;
+    --text-dim:#8FA0BE;
+    --text-faint:#526182;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important;}
+  }
+  a{color:var(--fabric);}
+  ::selection{background:var(--fabric); color:#04141A;}
+
+  .wrap{max-width:1080px; margin:0 auto; padding:0 32px;}
+
+  /* ---------- top nav ---------- */
+  .topnav{
+    position:sticky; top:0; z-index:50;
+    backdrop-filter: blur(10px);
+    background:rgba(10,15,26,0.85);
+    border-bottom:1px solid var(--line);
+  }
+  .topnav .wrap{
+    display:flex; align-items:center; justify-content:space-between;
+    height:56px;
+    max-width:1120px;
+  }
+  .brandmark{
+    font-family:var(--mono); font-size:13px; letter-spacing:0.08em;
+    color:var(--text); text-decoration:none; display:flex; align-items:center; gap:8px;
+  }
+  .brandmark .dot{width:7px;height:7px;border-radius:50%;background:var(--fabric); box-shadow:0 0 8px var(--fabric);}
+  .navlinks{display:flex; gap:22px; font-family:var(--mono); font-size:12px;}
+  .navlinks a{color:var(--text-dim); text-decoration:none; letter-spacing:0.03em;}
+  .navlinks a:hover{color:var(--fabric);}
+  @media (max-width:780px){ .navlinks{display:none;} }
+
+  /* ---------- hero ---------- */
+  .hero{
+    padding:88px 0 40px;
+    position:relative;
+    overflow:hidden;
+  }
+  .eyebrow{
+    font-family:var(--mono); font-size:12px; letter-spacing:0.16em;
+    color:var(--fabric); text-transform:uppercase; margin:0 0 18px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .eyebrow::before{content:''; width:24px; height:1px; background:var(--fabric);}
+  h1.title{
+    font-size:clamp(38px, 6vw, 64px);
+    line-height:1.04;
+    margin:0 0 22px;
+    font-weight:700;
+    letter-spacing:-0.01em;
+  }
+  h1.title em{
+    font-style:normal;
+    background:linear-gradient(90deg, var(--fabric), #8be9df);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .lede{
+    font-size:18px; color:var(--text-dim); max-width:640px; margin:0 0 40px;
+  }
+  .lede code, p code, li code{
+    font-family:var(--mono); font-size:0.88em; background:var(--surface-2);
+    padding:2px 6px; border-radius:4px; color:#B9E5DF; border:1px solid var(--line);
+  }
+
+  /* ---------- X diagram (signature element) ---------- */
+  .xdiagram{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:28px 20px 18px;
+    margin-top:8px;
+  }
+  .xdiagram svg{width:100%; height:auto; display:block;}
+  .xdiagram .cap{
+    display:flex; justify-content:space-between; margin-top:14px;
+    font-family:var(--mono); font-size:11px; color:var(--text-faint); letter-spacing:0.04em;
+  }
+  .cap .k1{color:var(--compute);} .cap .k2{color:var(--fabric);}
+
+  .node-box{fill:var(--surface-2); stroke:var(--compute); stroke-width:1.3;}
+  .shelf-box{fill:var(--surface-2); stroke:var(--fabric); stroke-width:1.3;}
+  .switch-box{fill:#182238; stroke:var(--text-faint); stroke-width:1;}
+  .fabric-line{stroke:var(--line); stroke-width:1;}
+  .lbl{font-family:'IBM Plex Mono'; font-size:10px; fill:var(--text-dim);}
+  .lbl-strong{font-family:'IBM Plex Mono'; font-size:10.5px; fill:var(--text);}
+
+  .packet{fill:var(--fabric); filter:drop-shadow(0 0 4px var(--fabric));}
+
+  /* ---------- sections ---------- */
+  section{padding:64px 0; border-top:1px solid var(--line);}
+  .section-head{display:flex; gap:18px; align-items:baseline; margin-bottom:28px;}
+  .secnum{
+    font-family:var(--mono); font-size:13px; color:var(--text-faint);
+    border:1px solid var(--line); border-radius:20px; padding:3px 11px;
+    white-space:nowrap;
+  }
+  h2{
+    font-size:clamp(24px,3.4vw,32px); margin:0; font-weight:700; letter-spacing:-0.01em;
+  }
+  h3{font-size:19px; margin:32px 0 12px; font-weight:600; color:var(--text);}
+  p{color:var(--text-dim); margin:0 0 16px; max-width:720px;}
+  .lead-p{color:var(--text); font-size:16.5px;}
+  ul.plain{padding-left:20px; color:var(--text-dim); max-width:720px;}
+  ul.plain li{margin-bottom:8px;}
+  strong{color:var(--text); font-weight:600;}
+
+  /* callout */
+  .callout{
+    border-left:2px solid var(--fabric);
+    background:var(--surface);
+    padding:14px 18px; border-radius:0 8px 8px 0;
+    margin:20px 0; max-width:720px;
+  }
+  .callout p{margin:0; color:var(--text); font-size:14.5px;}
+  .callout .tag{font-family:var(--mono); font-size:10.5px; color:var(--fabric); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:6px; display:block;}
+  .callout.warn{border-left-color:var(--parity);}
+  .callout.warn .tag{color:var(--parity);}
+
+  /* grid cards */
+  .grid{display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin:24px 0;}
+  @media (max-width:700px){.grid{grid-template-columns:1fr;}}
+  .grid.tri{grid-template-columns:repeat(3,1fr);}
+  @media (max-width:900px){.grid.tri{grid-template-columns:1fr;}}
+  .card{
+    background:var(--surface); border:1px solid var(--line); border-radius:10px;
+    padding:18px 20px;
+  }
+  .card h4{margin:0 0 8px; font-size:14.5px; font-family:var(--mono); color:var(--compute); letter-spacing:0.02em;}
+  .card p{margin:0; font-size:14px; color:var(--text-dim);}
+
+  /* compare table */
+  .compare{
+    width:100%; border-collapse:collapse; margin:24px 0; font-size:14.5px;
+  }
+  .compare th, .compare td{
+    text-align:left; padding:12px 14px; border-bottom:1px solid var(--line); vertical-align:top;
+  }
+  .compare th{
+    font-family:var(--mono); font-size:11.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.05em; font-weight:500;
+  }
+  .compare td.feat{color:var(--text); font-weight:600; width:26%;}
+  .compare td{color:var(--text-dim);}
+  .compare .col-unified{color:var(--text-dim);}
+  .compare .col-afx{color:var(--fabric);}
+  .compare tr:hover td{background:rgba(79,209,197,0.03);}
+
+  /* pipeline / layered diagram */
+  .stack{display:flex; flex-direction:column; gap:2px; margin:24px 0; max-width:720px;}
+  .stack .layer{
+    background:var(--surface); border:1px solid var(--line); border-radius:8px;
+    padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:14px;
+  }
+  .stack .layer .name{font-family:var(--mono); font-size:13.5px; color:var(--text);}
+  .stack .layer .desc{font-size:12.5px; color:var(--text-faint); text-align:right;}
+  .stack .arrow{align-self:center; color:var(--text-faint); font-size:12px; font-family:var(--mono); padding:2px 0;}
+
+  /* raid math box */
+  .raidbox{
+    background:var(--surface); border:1px solid var(--line); border-radius:10px;
+    padding:20px 22px; margin:22px 0; max-width:720px;
+  }
+  .raidbar{display:flex; height:26px; border-radius:5px; overflow:hidden; margin:14px 0 10px; border:1px solid var(--line);}
+  .raidbar .data{background:#1B2A44;}
+  .raidbar .parity{background:var(--parity);}
+  .raidbar .spare{background:var(--compute); opacity:0.55;}
+  .raidlegend{display:flex; gap:18px; font-family:var(--mono); font-size:11.5px; color:var(--text-dim); flex-wrap:wrap;}
+  .raidlegend span{display:flex; align-items:center; gap:6px;}
+  .swatch{width:10px; height:10px; border-radius:2px; display:inline-block;}
+
+  /* accordion FAQ */
+  .faq-item{border-bottom:1px solid var(--line);}
+  .faq-q{
+    width:100%; text-align:left; background:none; border:none; color:var(--text);
+    font-family:var(--sans); font-size:15.5px; font-weight:600; padding:18px 0;
+    display:flex; justify-content:space-between; align-items:center; cursor:pointer; gap:14px;
+  }
+  .faq-q:hover{color:var(--fabric);}
+  .faq-q .plus{font-family:var(--mono); color:var(--text-faint); font-size:16px; transition:transform 0.25s ease; flex-shrink:0;}
+  .faq-item.open .plus{transform:rotate(45deg); color:var(--fabric);}
+  .faq-a{max-height:0; overflow:hidden; transition:max-height 0.3s ease;}
+  .faq-a p{padding-bottom:18px; margin:0; max-width:680px;}
+  .faq-item.open .faq-a{max-height:300px;}
+
+  /* glossary */
+  .gloss{display:grid; grid-template-columns:1fr; gap:0;}
+  .gterm{
+    display:grid; grid-template-columns:160px 1fr; gap:20px;
+    padding:14px 0; border-bottom:1px solid var(--line);
+  }
+  @media (max-width:600px){.gterm{grid-template-columns:1fr; gap:4px;}}
+  .gterm dt{font-family:var(--mono); font-size:13px; color:var(--compute); font-weight:600;}
+  .gterm dd{margin:0; color:var(--text-dim); font-size:14px;}
+
+  footer{
+    border-top:1px solid var(--line); padding:36px 0 60px;
+    font-family:var(--mono); font-size:11.5px; color:var(--text-faint);
+  }
+
+  .toc-pill{
+    display:inline-flex; gap:8px; align-items:center;
+    font-family:var(--mono); font-size:11px; color:var(--text-faint);
+    border:1px solid var(--line); border-radius:20px; padding:6px 12px; margin:6px 8px 6px 0;
+    text-decoration:none;
+  }
+  .toc-pill:hover{border-color:var(--fabric); color:var(--fabric);}
+  .toc-row{margin-top:28px;}
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="wrap">
+    <a class="brandmark" href="#top"><span class="dot"></span>AFX / DEEP&nbsp;DIVE</a>
+    <div class="navlinks">
+      <a href="#concept">Concept</a>
+      <a href="#hardware">Hardware</a>
+      <a href="#pool">Storage Pool</a>
+      <a href="#raid">RAID</a>
+      <a href="#logical">Volumes</a>
+      <a href="#network">Networking</a>
+      <a href="#ha">Failover</a>
+      <a href="#faq">FAQ</a>
+    </div>
+  </div>
+</nav>
+
+<div id="top" class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Architecture Tutorial · ONTAP 9.17.1+</p>
+    <h1 class="title">Understanding<br><em>NetApp AFX</em></h1>
+    <p class="lede">A ground-up walkthrough of NetApp's disaggregated ONTAP architecture — where compute nodes and storage shelves separate, join over a switched fabric, and reassemble into a single elastic pool. Built for the questions a systems engineer actually asks.</p>
+
+    <div class="xdiagram">
+      <svg viewBox="0 0 900 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagram of AFX controller nodes on top, connected through a switch fabric, to storage shelves on the bottom">
+        <!-- compute nodes top -->
+        <g id="nodes-row">
+          <rect class="node-box" x="60"  y="30" width="110" height="46" rx="6"/>
+          <rect class="node-box" x="220" y="30" width="110" height="46" rx="6"/>
+          <rect class="node-box" x="380" y="30" width="110" height="46" rx="6"/>
+          <rect class="node-box" x="540" y="30" width="110" height="46" rx="6"/>
+          <rect class="node-box" x="700" y="30" width="110" height="46" rx="6"/>
+          <text class="lbl-strong" x="115" y="58" text-anchor="middle">node 1</text>
+          <text class="lbl-strong" x="275" y="58" text-anchor="middle">node 2</text>
+          <text class="lbl-strong" x="435" y="58" text-anchor="middle">node 3</text>
+          <text class="lbl-strong" x="595" y="58" text-anchor="middle">node 4</text>
+          <text class="lbl-strong" x="755" y="58" text-anchor="middle">node N</text>
+        </g>
+        <text class="lbl" x="60" y="20" fill="#F2B84B">COMPUTE — AFX 1K CONTROLLERS</text>
+
+        <!-- switch fabric bar -->
+        <rect class="switch-box" x="40" y="140" width="820" height="30" rx="5"/>
+        <text class="lbl" x="450" y="160" text-anchor="middle" fill="#8FA0BE">400GbE SWITCH FABRIC — RoCE</text>
+
+        <!-- fabric lines: every node to every shelf, crossing through switch -->
+        <g id="cross-lines" stroke-width="1" opacity="0.55">
+          <line class="fabric-line" x1="115" y1="76"  x2="120" y2="230"/>
+          <line class="fabric-line" x1="115" y1="76"  x2="400" y2="230"/>
+          <line class="fabric-line" x1="115" y1="76"  x2="680" y2="230"/>
+          <line class="fabric-line" x1="435" y1="76"  x2="120" y2="230"/>
+          <line class="fabric-line" x1="435" y1="76"  x2="400" y2="230"/>
+          <line class="fabric-line" x1="435" y1="76"  x2="680" y2="230"/>
+          <line class="fabric-line" x1="755" y1="76"  x2="120" y2="230"/>
+          <line class="fabric-line" x1="755" y1="76"  x2="400" y2="230"/>
+          <line class="fabric-line" x1="755" y1="76"  x2="680" y2="230"/>
+        </g>
+
+        <!-- animated packets -->
+        <circle class="packet" r="3.2">
+          <animateMotion dur="2.4s" repeatCount="indefinite" path="M115,76 L120,230"/>
+        </circle>
+        <circle class="packet" r="3.2">
+          <animateMotion dur="3.1s" repeatCount="indefinite" begin="0.4s" path="M435,76 L680,230"/>
+        </circle>
+        <circle class="packet" r="3.2">
+          <animateMotion dur="2.7s" repeatCount="indefinite" begin="0.9s" path="M755,76 L400,230"/>
+        </circle>
+        <circle class="packet" r="3.2">
+          <animateMotion dur="2.2s" repeatCount="indefinite" begin="1.3s" path="M120,230 L755,76"/>
+        </circle>
+
+        <!-- storage shelves bottom -->
+        <g id="shelf-row">
+          <rect class="shelf-box" x="60"  y="230" width="120" height="50" rx="6"/>
+          <rect class="shelf-box" x="340" y="230" width="120" height="50" rx="6"/>
+          <rect class="shelf-box" x="620" y="230" width="120" height="50" rx="6"/>
+          <text class="lbl-strong" x="120" y="260" text-anchor="middle">shelf A</text>
+          <text class="lbl-strong" x="400" y="260" text-anchor="middle">shelf B</text>
+          <text class="lbl-strong" x="680" y="260" text-anchor="middle">shelf C</text>
+        </g>
+        <text class="lbl" x="60" y="308" fill="#4FD1C5">CAPACITY — NX224 NVMe SHELVES (SAZ)</text>
+      </svg>
+      <div class="cap">
+        <span><span class="k1">Add nodes</span> → more throughput &amp; CPU</span>
+        <span><span class="k2">Add shelves</span> → more capacity &amp; disk performance</span>
+      </div>
+    </div>
+
+    <div class="toc-row">
+      <a class="toc-pill" href="#concept">01 Concept</a>
+      <a class="toc-pill" href="#hardware">02 Hardware</a>
+      <a class="toc-pill" href="#pool">03 Storage Pool</a>
+      <a class="toc-pill" href="#raid">04 RAID</a>
+      <a class="toc-pill" href="#logical">05 Volumes &amp; Ownership</a>
+      <a class="toc-pill" href="#network">06 Parallel Access</a>
+      <a class="toc-pill" href="#ha">07 Failover</a>
+      <a class="toc-pill" href="#glossary">08 Glossary</a>
+      <a class="toc-pill" href="#faq">09 FAQ</a>
+    </div>
+  </div>
+</div>
+
+<!-- 01 CONCEPT -->
+<section id="concept">
+  <div class="wrap">
+    <div class="section-head"><span class="secnum">01</span><h2>The core idea: disaggregation</h2></div>
+    <p class="lead-p">Every NetApp system before AFX — FAS, AFF, ASA — ties compute and capacity together. Each controller owns a fixed set of disks. Want more throughput? You buy more disks whether you need them or not. Want more capacity? You buy more controllers whether you need them or not. AFX breaks that coupling.</p>
+    <p>In AFX, controller nodes and storage shelves are physically separate boxes joined by a shared Ethernet fabric instead of direct cabling. No controller owns any disk. Every controller can reach every disk. This is what "AF" (all-flash) "X" (the crossing of compute over storage through the fabric, visualized in the diagram above) is named for.</p>
+
+    <div class="grid">
+      <div class="card">
+        <h4>UNIFIED ONTAP (FAS / AFF)</h4>
+        <p>A controller node owns its disks directly. It builds an aggregate from them. A volume on that aggregate can only draw capacity from that node's disks — this creates silos. Growing performance and growing capacity are the same purchase.</p>
+      </div>
+      <div class="card">
+        <h4>AFX (DISAGGREGATED ONTAP)</h4>
+        <p>Controllers and shelves connect through switches. Every node sees every disk. Capacity lives in one shared pool. Growing performance (nodes) and growing capacity (shelves) are two independent purchases.</p>
+      </div>
+    </div>
+
+    <div class="callout">
+      <span class="tag">Worth knowing</span>
+      <p>AFX is still ONTAP — same codebase as Unified ONTAP and ASA r2. It's a different "personality": how the system boots determines whether it runs the disaggregated storage model or the traditional one. A cluster's personality is fixed at deployment and cannot be converted later.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 02 HARDWARE -->
+<section id="hardware">
+  <div class="wrap">
+    <div class="section-head"><span class="secnum">02</span><h2>The physical building blocks</h2></div>
+    <p class="lead-p">Three hardware components, plus the network fabric that ties them together.</p>
+
+    <div class="grid tri">
+      <div class="card">
+        <h4>AFX 1K CONTROLLER</h4>
+        <p>2U, no onboard disk. Dual 52-core CPUs, 1TB RAM. Handles client protocols (NFS/SMB/S3), data management, and RAID logic. Eight 100GbE ports per node: HA, cluster network, and storage traffic.</p>
+      </div>
+      <div class="card">
+        <h4>NX224 NVMe SHELF</h4>
+        <p>The capacity layer. Same chassis as AFF shelves, but fitted with NSM140 modules over NVMe-oF instead of a direct SAS backplane. Only fully populated shelves are supported; shelves hot-add nondisruptively.</p>
+      </div>
+      <div class="card">
+        <h4>DX50 DATA COMPUTE NODE</h4>
+        <p>A GPU-powered offload node — comparable to a DPU — that powers the AI Data Engine: metadata indexing, data curation, and pipeline acceleration without taxing the primary controllers.</p>
+      </div>
+    </div>
+
+    <h3>Why nodes come in pairs</h3>
+    <p>A minimum AFX cluster is <strong>four nodes</strong>, and nodes are always added two at a time — single-node expansion isn't supported. That's because every node still belongs to an HA pair (more on this in Section 07), and pairing is structural to the design, not an optional configuration.</p>
+
+    <h3>Drive types</h3>
+    <p>AFX shelves support both TLC and QLC flash. Smaller-capacity drives (7.6TB, 15.3TB) are TLC; anything above 30TB is QLC. Both meet the same read-performance bar; QLC trails slightly on sustained write-heavy workloads and wears a bit faster under those conditions — a factor to weigh against its density advantage when sizing a shelf.</p>
+  </div>
+</section>
+
+<!-- 03 STORAGE POOL -->
+<section id="pool">
+  <div class="wrap">
+    <div class="section-head"><span class="secnum">03</span><h2>How disks alone become a pool</h2></div>
+    <p class="lead-p">A shelf has no controller of its own — so what actually turns a stack of disks into usable storage?</p>
+    <p>The NSM140 modules in each shelf expose the drives as NVMe-oF targets across two independent network paths (Path_A / Path_B), both wired into redundant switches. Every controller node is wired into those same switches. The result: any controller can address any disk over the fabric, at RDMA-class latency (RoCE — RDMA over Converged Ethernet), roughly as if it were local.</p>
+    <p>The intelligence — RAID layout, disk selection, data placement — lives entirely in the controller nodes' ONTAP software, not in the shelf. The shelf is a smart, redundant enclosure for flash; the brains are upstream. Collectively, the controllers' shared view of every disk in every shelf is called the <strong>Storage Availability Zone (SAZ)</strong> — one pool per cluster, with no fixed relationship between any shelf and any node.</p>
+
+    <div class="stack">
+      <div class="layer"><span class="name">CLIENT PROTOCOLS</span><span class="desc">NFS · SMB · S3</span></div>
+      <div class="arrow">↓ presented as</div>
+      <div class="layer"><span class="name">FlexVol / FlexGroup / S3 bucket</span><span class="desc">logical containers, provisioned by the admin</span></div>
+      <div class="arrow">↓ carved from</div>
+      <div class="layer"><span class="name">Storage Availability Zone (SAZ)</span><span class="desc">one shared, RAID-protected pool per cluster</span></div>
+      <div class="arrow">↓ built from disks in</div>
+      <div class="layer"><span class="name">NX224 shelves over NVMe-oF / RoCE</span><span class="desc">no per-node ownership</span></div>
+    </div>
+
+    <div class="callout warn">
+      <span class="tag">What disappears</span>
+      <p>Physical aggregates are no longer an administrable concept in AFX. There's nothing equivalent to <code>storage aggregate add-disks</code> — you can't pick disks or assign RAID groups by hand. You add shelves; ONTAP does the rest.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 04 RAID -->
+<section id="raid">
+  <div class="wrap">
+    <div class="section-head"><span class="secnum">04</span><h2>RAID and WAFL, still under the hood</h2></div>
+    <p class="lead-p">AFX doesn't replace WAFL or RAID protection — it changes who manages them and how big a group can get.</p>
+    <p>WAFL's write-anywhere layout and RAID logic remain tightly coupled, exactly as in traditional ONTAP: writes land in NVRAM first, get batched into full-stripe writes, and parity is calculated once per stripe rather than per disk. What's different is the scale a RAID group can reach, because drives are no longer limited to what fits in one shelf's local backplane.</p>
+
+    <div class="raidbox">
+      <span class="tag" style="font-family:var(--mono); font-size:11px; color:var(--text-faint); letter-spacing:0.06em; text-transform:uppercase;">RAID group composition — 96 drives</span>
+      <div class="raidbar">
+        <div class="data" style="width:79.2%;"></div>
+        <div class="parity" style="width:16%;"></div>
+        <div class="spare" style="width:4.8%;"></div>
+      </div>
+      <div class="raidlegend">
+        <span><span class="swatch" style="background:#1B2A44;"></span>92 data drives</span>
+        <span><span class="swatch" style="background:var(--parity);"></span>3 parity drives (RAID-TEC)</span>
+        <span><span class="swatch" style="background:var(--compute); opacity:0.55;"></span>1 spare</span>
+      </div>
+    </div>
+
+    <ul class="plain">
+      <li><strong>Small / single-shelf clusters:</strong> start on RAID-DP (dual parity), the same scheme used across the rest of the ONTAP portfolio.</li>
+      <li><strong>Once a second shelf is added:</strong> ONTAP automatically converts groups to <strong>RAID-TEC</strong> — triple parity, tolerating three simultaneous drive failures — at a group size of up to 96 drives.</li>
+      <li><strong>Overhead:</strong> with 92 data drives against 4 overhead drives (3 parity + 1 spare), usable-to-raw efficiency sits a touch above 96% at the RAID layer — well ahead of the roughly 32-drive ceiling in Unified ONTAP.</li>
+      <li><strong>Rebuilds:</strong> because every node can see every disk, a rebuild after a drive failure is distributed across multiple nodes at once — not carried by a single owning controller — which shortens the exposure window after a failure.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 05 LOGICAL LAYER -->
+<section id="logical">
+  <div class="wrap">
+    <div class="section-head"><span class="secnum">05</span><h2>Volumes, ownership, and why it isn't a bottleneck</h2></div>
+    <p class="lead-p">A FlexVol is still assigned to one node. That sounds like it should reintroduce the bottleneck disaggregation just removed — here's why it mostly doesn't.</p>
+
+    <h3>What "ownership" means now</h3>
+    <p>Since every node can already read and write every disk, owning a volume no longer means owning its data. It means one thing only: which node's NVRAM commits that volume's writes. That's a lightweight, reassignable role, not a physical claim on capacity.</p>
+
+    <h3>Zero Copy Volume Move (ZCVM)</h3>
+    <p>Moving a volume's ownership in Unified ONTAP means copying data with SnapMirror — real time, real temporary capacity. In AFX, since the data already sits in a pool every node can reach, a move is just a metadata pointer update. It happens instantly, with nothing physically relocated. <strong>Automated Topology Management (ATM)</strong> uses this to continuously rebalance ownership across the cluster, and ONTAP 9.18.1 extended that rebalancing to factor in per-node CPU load, not just volume count.</p>
+
+    <div class="callout">
+      <span class="tag">So where's the real answer to the bottleneck question?</span>
+      <p>Single-node ownership genuinely does cap one FlexVol's write throughput to one node's front-end resources. AFX's answer is architectural, not magic: use a <strong>FlexGroup volume</strong> instead of a single FlexVol for large, high-throughput datasets. A FlexGroup is made of many constituent volumes, automatically spread across nodes, presented to clients as one namespace — see Section 06 for how clients actually pull from all of them at once.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 06 NETWORKING -->
+<section id="network">
+  <div class="wrap">
+    <div class="section-head"><span class="secnum">06</span><h2>How clients get full-cluster throughput</h2></div>
+    <p class="lead-p">A GPU training job isn't limited to talking to one controller, even against a single logical volume — if the client and mount are configured to spread out.</p>
+
+    <ul class="plain">
+      <li><strong>Every node presents its own NFS endpoint.</strong> Best practice is one IP per node per protocol — a bigger cluster means more parallel endpoints, automatically.</li>
+      <li><strong>pNFS (NFSv4.1)</strong> lets a pNFS-aware client discover every node's endpoint and distribute I/O across all of them from a single mount point, instead of pinning the whole session to one server.</li>
+      <li><strong>Session trunking</strong> stacks multiple TCP connections per node on top of that, further multiplying throughput per client.</li>
+      <li><strong>Multichannel SMB</strong> does the equivalent for Windows clients, and is enabled by default.</li>
+    </ul>
+
+    <p>Put together — a FlexGroup volume, spread across every node in the cluster, mounted with pNFS and session trunking — a single namespace can deliver aggregate throughput close to the sum of the whole cluster's front-end bandwidth. That combination, not single-node ownership, is where AFX's scale-out performance claim actually comes from.</p>
+  </div>
+</section>
+
+<!-- 07 HA / FAILOVER -->
+<section id="ha">
+  <div class="wrap">
+    <div class="section-head"><span class="secnum">07</span><h2>Failover: still pairs, not any-to-any</h2></div>
+    <p class="lead-p">Even though every node can already reach every disk, failover in AFX is not "any surviving node can catch any failed node." It's still strict HA pairing.</p>
+    <p>Every node is bound to exactly one partner — node 1 with node 2, node 3 with node 4, and so on. If node 1 fails, <strong>only node 2</strong> takes over immediately: committing in-flight writes and assuming client sessions. A third node never performs that initial catch. What changed from legacy ONTAP is only <em>how</em> the partners talk — instead of a direct NVRAM cable between the two boxes, they communicate over a dedicated HA VLAN on the shared cluster switches. That's what lets AFX admins put HA partners in separate racks or rows for added fault isolation, something a direct-cabled pair could never do.</p>
+    <p>After the immediate takeover, ONTAP does spread things wider: volume ownership across the whole surviving cluster gets rebalanced via ZCVM, so the load doesn't stay pinned to the one partner node for long. But the failover event itself — the instant response to a dead node — is always a fixed 1:1 relationship.</p>
+
+    <div class="callout warn">
+      <span class="tag">Why not any-to-any, given the disks are shared?</span>
+      <p>Because failover is a compute/session concern, not a data-access concern. The bottleneck it solves is "who resumes serving this client and committing these writes right now" — and that hand-off machinery (heartbeats, NVRAM mirroring) is still built around a dedicated partner, inherited unchanged from Unified ONTAP's HA model.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 08 GLOSSARY -->
+<section id="glossary">
+  <div class="wrap">
+    <div class="section-head"><span class="secnum">08</span><h2>Glossary</h2></div>
+    <dl class="gloss">
+      <div class="gterm"><dt>SAZ</dt><dd>Storage Availability Zone — the single shared pool of RAID-protected capacity for an entire AFX cluster. One per cluster.</dd></div>
+      <div class="gterm"><dt>NSM140</dt><dd>The NVMe shelf module inside an NX224 enclosure that exposes drives over NVMe-oF instead of a direct SAS backplane.</dd></div>
+      <div class="gterm"><dt>RoCE</dt><dd>RDMA over Converged Ethernet — the ultra-low-latency transport connecting controllers to shelves across the switch fabric.</dd></div>
+      <div class="gterm"><dt>ZCVM</dt><dd>Zero Copy Volume Move — reassigning which node owns a volume via metadata pointer update, with no data copy.</dd></div>
+      <div class="gterm"><dt>ATM</dt><dd>Automated Topology Management — the internal service that detects imbalance and triggers ZCVM to rebalance volumes across nodes.</dd></div>
+      <div class="gterm"><dt>RAID-TEC</dt><dd>Triple-parity RAID tolerating three simultaneous drive failures; AFX's default once a cluster spans multiple shelves.</dd></div>
+      <div class="gterm"><dt>FlexGroup</dt><dd>A scale-out volume made of many constituent FlexVols spread across nodes, presented as one namespace.</dd></div>
+      <div class="gterm"><dt>DX50</dt><dd>GPU-powered data compute node that offloads metadata indexing and pipeline work for the AI Data Engine.</dd></div>
+    </dl>
+  </div>
+</section>
+
+<!-- 09 FAQ -->
+<section id="faq">
+  <div class="wrap">
+    <div class="section-head"><span class="secnum">09</span><h2>Fast answers</h2></div>
+    <div id="faqlist">
+
+      <div class="faq-item">
+        <button class="faq-q">Can I mix AFX nodes with AFF or FAS nodes in one cluster?<span class="plus">+</span></button>
+        <div class="faq-a"><p>No. AFX runs a distinct ONTAP personality from Unified ONTAP, and a cluster can't mix personalities. Migration between them happens via SnapMirror or FlexCache, not by joining nodes into the same cluster.</p></div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q">Do the controllers and shelves need to be in the same rack?<span class="plus">+</span></button>
+        <div class="faq-a"><p>Not architecturally — they're joined through switches, not direct cabling, so HA pairs can even live in separate racks or rows. In practice most deployments keep them close, since this is still an ultra-low-latency fabric rather than a long-haul network.</p></div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q">What happens to volume placement when I add a shelf?<span class="plus">+</span></button>
+        <div class="faq-a"><p>ONTAP detects the new shelf automatically, incorporates its disks into the SAZ, and folds them into RAID group management — no admin action required. Existing volumes aren't forced to move, but ATM may rebalance over time.</p></div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q">Is thick provisioning available?<span class="plus">+</span></button>
+        <div class="faq-a"><p>No. Because there are no per-node aggregate domains to reserve space from, AFX volumes are thin-provisioned by default and thick provisioning isn't offered.</p></div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-q">What's the smallest supported AFX cluster?<span class="plus">+</span></button>
+        <div class="faq-a"><p>Four controller nodes, added in pairs. Two-node configurations exist only for internal scaling demonstrations and aren't supported for customer deployment.</p></div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    AFX DEEP DIVE — compiled from NetApp ONTAP-AFX documentation and NetApp partner technical writeups · reference only, verify against current NetApp Hardware Universe before design work
+  </div>
+</footer>
+
+<script>
+  document.querySelectorAll('.faq-q').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      btn.parentElement.classList.toggle('open');
+    });
+  });
+</script>
+
+</body>
+</html>
