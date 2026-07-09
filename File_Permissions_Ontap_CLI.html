@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>File_Permissions_Ontap_CLI</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #161a22;
+    --panel-border: #262c38;
+    --text: #e6e9ef;
+    --muted: #9aa4b2;
+    --accent: #4fd1c5;
+    --accent-2: #7c9eff;
+    --code-bg: #0b0d12;
+    --code-border: #2a3142;
+    --tag: #2a3142;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+  }
+  .wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+  header {
+    padding-bottom: 24px;
+    margin-bottom: 32px;
+    border-bottom: 1px solid var(--panel-border);
+  }
+  header h1 {
+    font-size: 28px;
+    margin: 0 0 8px;
+    letter-spacing: -0.02em;
+  }
+  header p {
+    color: var(--muted);
+    margin: 0;
+    font-size: 15px;
+  }
+  nav {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 36px;
+  }
+  nav h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 10px;
+  }
+  nav ol {
+    margin: 0;
+    padding-left: 20px;
+    columns: 2;
+    font-size: 14px;
+  }
+  nav a { color: var(--accent-2); text-decoration: none; }
+  nav a:hover { text-decoration: underline; }
+
+  section {
+    margin-bottom: 44px;
+  }
+  .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #05201d;
+    font-weight: 700;
+    font-size: 14px;
+    margin-right: 10px;
+  }
+  h2 {
+    display: flex;
+    align-items: center;
+    font-size: 20px;
+    margin: 0 0 10px;
+  }
+  h3 {
+    font-size: 15px;
+    color: var(--accent-2);
+    margin: 20px 0 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  p { margin: 8px 0; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px 22px;
+  }
+  .purpose {
+    color: var(--muted);
+    font-size: 14.5px;
+    margin-bottom: 14px;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.55;
+    margin: 0 0 12px;
+  }
+  code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  .cmd { color: var(--accent); }
+  .out { color: var(--muted); }
+  .prompt { color: #6b7280; }
+  ul.notes {
+    margin: 10px 0 0;
+    padding-left: 20px;
+    font-size: 14px;
+  }
+  ul.notes li { margin-bottom: 6px; }
+  .tag {
+    display: inline-block;
+    background: var(--tag);
+    color: var(--accent-2);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-left: 8px;
+    vertical-align: middle;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+  }
+  .flow {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px 22px;
+    margin-bottom: 36px;
+    font-size: 14px;
+  }
+  .flow ol { margin: 8px 0 0; padding-left: 22px; }
+  .flow li { margin-bottom: 6px; }
+  .callout {
+    border-left: 3px solid var(--accent-2);
+    background: rgba(124,158,255,0.08);
+    padding: 10px 16px;
+    border-radius: 0 8px 8px 0;
+    font-size: 13.5px;
+    color: var(--text);
+    margin-top: 14px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+    margin-top: 10px;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--panel-border);
+  }
+  th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.05em; }
+  footer {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid var(--panel-border);
+    color: var(--muted);
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>File Permissions on ONTAP CLI</h1>
+  <p>A walkthrough of diagnosing file identity, inode mapping, and NTFS/UNIX security attributes for a file in a NetApp ONTAP cluster, using <code>test.txt</code> in the <code>window</code> volume as a running example.</p>
+</header>
+
+<nav>
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#step1">Explore the inode from a file path</a></li>
+    <li><a href="#step2">Get the file handle identifiers</a></li>
+    <li><a href="#step3">Resolve a path from an inode number</a></li>
+    <li><a href="#step4">Inspect security style and ACLs</a></li>
+  </ol>
+</nav>
+
+<div class="flow">
+  <strong>Why these commands are used together:</strong> each command answers a different question about the same object &mdash; "where does this path live on disk," "what unique IDs identify this file cluster-wide," "what path does this inode belong to," and "what permissions actually protect it." Chaining them lets you fully diagnose a file access or permissions issue.
+  <ol>
+    <li>Start from a known path &rarr; find its inode (<code>vol explore</code>)</li>
+    <li>Get durable identifiers for that file (<code>vol file show-filehandle</code>)</li>
+    <li>Go the other direction: inode &rarr; path (<code>vol file show-inode</code>)</li>
+    <li>Check the actual permission model &mdash; NTFS/UNIX/ACLs (<code>vserver security file-directory show</code>)</li>
+  </ol>
+</div>
+
+<section id="step1">
+  <h2><span class="step-num">1</span>Explore the Inode of a File Path</h2>
+  <div class="card">
+    <div class="purpose">Walks the volume's file system tree from a given path and reports low-level inode metadata &mdash; useful for confirming exactly which inode backs a file and inspecting its raw attributes (size, timestamps, ownership, block pointers).</div>
+    <pre><code><span class="prompt">cluster1::*> </span><span class="cmd">vol explore -format inode -scope window/Q1_Windows/test.txt</span>
+<span class="out">found 1026.64/Q1_Windows to be inode 1026.97
+found 1026.97/test.txt to be inode 1026.99
+inode 1026.99 generation 1509628 at location 1026@261434b+352:288
+   type 1.0, flags 0x02
+   size 7, blockcount 0, future_blocks 0, level 0
+   umask 010777, uid 0, gid 1, xinode 100, sinode 0, nlink 1, av-gen-num 0
+   metadata_len high 0, low 0, bucket_id 0
+   ctime 09-Jul-2026 17:10:02, mtime 09-Jul-2026 17:10:02, atime 09-Jul-2026 17:10:27
+   parent inode 97, generation 1481920, FSA rulegen 1
+   ptr[0]: pvbn 120325176845687, vvbn 101</span></code></pre>
+    <ul class="notes">
+      <li><strong>-format inode</strong> tells the tool to render output as raw inode metadata rather than block or buftree layout.</li>
+      <li><strong>-scope</strong> takes a <code>volume/path</code> value &mdash; ONTAP resolves each path component to its inode in turn, shown in the "found ... to be inode ..." lines.</li>
+      <li>The resolved inode here is <code>1026.99</code> (inode number 99, generation 1509628).</li>
+      <li><code>uid 0, gid 1</code> and <code>umask 010777</code> reflect the UNIX-style ownership bits that coexist with the file's NTFS security style.</li>
+      <li><code>parent inode 97</code> confirms this file lives directly under the folder inode found in the first tree-walk line.</li>
+    </ul>
+    <div class="callout">This is a diagnostic/support-level command (note the <code>*</code> in the advanced prompt) &mdash; typically used with NetApp support to debug low-level file system issues, not for routine administration.</div>
+  </div>
+</section>
+
+<section id="step2">
+  <h2><span class="step-num">2</span>Show the File Handle</h2>
+  <div class="card">
+    <div class="purpose">Returns the durable, cluster-wide identifiers (file ID, generation, FSID, MSID, DSID) that make up a file's NFS file handle &mdash; useful for correlating a file across protocols, replication, or support cases.</div>
+    <pre><code><span class="prompt">cluster1::*> </span><span class="cmd">vol file show-filehandle -vserver svm1 -path /vol/window/Q1_Windows/test.txt</span>
+<span class="out"> Vserver                    Path
+ ----------------------     -------------------------------------
+ svm1                       /vol/window/Q1_Windows/test.txt
+ flags   snapid  fileid     generation  fsid        msid          dsid
+ ------- ------  ---------  ----------  ----------  ------------  -------------
+ 0x0     0       0x63       0x1708fc    0x402       0x80f3bf44    0x402
+ volume
+ ------------------------------------------------------------------------------
+ window</span></code></pre>
+    <table>
+      <tr><th>Field</th><th>Value</th><th>Meaning</th></tr>
+      <tr><td>fileid</td><td>0x63</td><td>99 in decimal &mdash; matches the inode number 99 seen in the other commands</td></tr>
+      <tr><td>generation</td><td>0x1708fc</td><td>1,509,628 in decimal &mdash; matches the generation from <code>vol explore</code></td></tr>
+      <tr><td>fsid</td><td>0x402</td><td>File system (volume) identifier</td></tr>
+      <tr><td>msid / dsid</td><td>0x80f3bf44 / 0x402</td><td>Master/data set identifiers used internally by WAFL and for FlexGroup member mapping</td></tr>
+    </table>
+    <div class="callout">The <code>fileid</code> (0x63 = 99) is the same inode referenced as <code>1026.99</code> and later looked up in Step 3 &mdash; this is the thread that ties all four commands to one file.</div>
+  </div>
+</section>
+
+<section id="step3">
+  <h2><span class="step-num">3</span>Resolve a Path from an Inode Number</h2>
+  <div class="card">
+    <div class="purpose">The reverse lookup of Step 1: given a volume and an inode number, returns the full file path. Useful when you only have an inode number (e.g., from a log, a quota report, or corruption alert) and need to know which file it belongs to.</div>
+    <pre><code><span class="prompt">cluster1::*> </span><span class="cmd">vol file show-inode -vserver svm1 -volume window -inode-number 99</span>
+<span class="out">                       Inode
+Vserver   Volume       Number   File Path
+--------- ------------ -------- ----------------------------------
+svm1      window       99       /vol/window/Q1_Windows/test.txt</span></code></pre>
+    <ul class="notes">
+      <li>Inode number <strong>99</strong> resolves back to <code>/vol/window/Q1_Windows/test.txt</code>, confirming consistency with Steps 1 and 2.</li>
+      <li>This command is especially handy for FlexGroup volumes or after a restore, where a file's path may not be immediately obvious.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="step4">
+  <h2><span class="step-num">4</span>Inspect Security Style and ACLs</h2>
+  <div class="card">
+    <div class="purpose">Displays the full effective permissions model for a file or directory &mdash; security style, DOS attributes, UNIX mode bits, and (for NTFS) the owner, group, and DACL entries. This is the command you reach for when troubleshooting "access denied" issues.</div>
+    <pre><code><span class="prompt">cluster1::*> </span><span class="cmd">vserver security file-directory show -vserver svm1 -path /windows/Q1_Windows/test.txt</span>
+<span class="out">                  Vserver: svm1
+Dummy index for tree walk: -
+                File Path: /windows/Q1_Windows/test.txt
+        File Inode Number: 99
+           Security Style: ntfs
+          Effective Style: ntfs
+           DOS Attributes: 20
+   DOS Attributes in Text: ---A----
+  Expanded Dos Attributes: -
+             UNIX User Id: 0
+            UNIX Group Id: 1
+           UNIX Mode Bits: 777
+   UNIX Mode Bits in Text: rwxrwxrwx
+                     ACLs: NTFS Security Descriptor
+                           Control:0x8004
+                           Owner:BUILTIN\Administrators
+                           Group:DEMO\Domain Users
+                           DACL - ACEs
+                             ALLOW-Everyone-0x1f01ff-(Inherited)</span></code></pre>
+    <ul class="notes">
+      <li><strong>Security Style / Effective Style: ntfs</strong> &mdash; access is enforced using Windows ACLs, not UNIX mode bits, even though UNIX ownership (<code>uid 0, gid 1</code>) is still tracked for NFS interoperability.</li>
+      <li><strong>DOS Attributes: ---A----</strong> &mdash; the Archive bit is set; no Read-only, Hidden, or System flags.</li>
+      <li><strong>UNIX Mode Bits: rwxrwxrwx (777)</strong> &mdash; irrelevant to access enforcement here since the effective style is NTFS, but still stored on the inode.</li>
+      <li><strong>DACL - ACEs: ALLOW-Everyone-0x1f01ff-(Inherited)</strong> &mdash; a single inherited ACE grants full control (0x1f01ff) to Everyone, inherited from the parent folder rather than set explicitly on the file.</li>
+      <li><strong>File Inode Number: 99</strong> ties this permissions view directly back to the same inode explored in Steps 1&ndash;3.</li>
+    </ul>
+    <div class="callout">If a user reports unexpected access to or being blocked from this file, this is the single command that shows the real, effective permission model &mdash; check <code>Effective Style</code> first, then the DACL.</div>
+  </div>
+</section>
+
+<footer>
+  Tutorial generated from ONTAP CLI session output &middot; commands run in advanced privilege mode (<code>cluster1::*&gt;</code>) &middot; example file: <code>/vol/window/Q1_Windows/test.txt</code> (inode 99)
+</footer>
+
+</div>
+</body>
+</html>

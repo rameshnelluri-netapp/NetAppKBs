@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Filesystem &amp; Access Control Internals — Field Notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0F1319;
+    --panel:#161B23;
+    --panel-raised:#1B2129;
+    --border:#2A313C;
+    --border-soft:#212831;
+    --text:#E7E5DE;
+    --muted:#8B93A1;
+    --dim:#565F6E;
+    --amber:#E8A33D;
+    --teal:#5FC3B2;
+    --violet:#9B8EE8;
+    --mono:'JetBrains Mono', ui-monospace, monospace;
+    --sans:'Inter', system-ui, sans-serif;
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* subtle grid texture */
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(var(--border-soft) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border-soft) 1px, transparent 1px);
+    background-size: 64px 64px;
+    opacity:0.25;
+    pointer-events:none;
+    z-index:0;
+  }
+
+  a{color:var(--teal);}
+
+  /* ---------- layout shell ---------- */
+  .shell{
+    position:relative;
+    z-index:1;
+    display:grid;
+    grid-template-columns: 260px 1fr;
+    max-width:1240px;
+    margin:0 auto;
+    min-height:100vh;
+  }
+
+  /* ---------- sidebar / TOC ---------- */
+  .toc{
+    position:sticky;
+    top:0;
+    align-self:start;
+    height:100vh;
+    padding:40px 20px 40px 32px;
+    border-right:1px solid var(--border);
+    overflow-y:auto;
+  }
+  .toc-brand{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:0.14em;
+    color:var(--dim);
+    text-transform:uppercase;
+    margin-bottom:6px;
+  }
+  .toc-title{
+    font-family:var(--mono);
+    font-weight:700;
+    font-size:16px;
+    color:var(--text);
+    margin-bottom:32px;
+    line-height:1.4;
+  }
+  .toc-section{margin-bottom:28px;}
+  .toc-label{
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:0.12em;
+    color:var(--dim);
+    text-transform:uppercase;
+    margin-bottom:10px;
+  }
+  .toc-list{list-style:none; margin:0; padding:0;}
+  .toc-list li{margin-bottom:2px;}
+  .toc-list a{
+    display:flex;
+    gap:10px;
+    align-items:baseline;
+    text-decoration:none;
+    color:var(--muted);
+    font-size:13.5px;
+    padding:6px 8px;
+    margin-left:-8px;
+    border-radius:4px;
+    transition:background 0.15s, color 0.15s;
+  }
+  .toc-list a:hover{background:var(--panel-raised); color:var(--text);}
+  .toc-num{
+    font-family:var(--mono);
+    color:var(--amber);
+    font-size:12px;
+    flex-shrink:0;
+  }
+
+  /* ---------- main content ---------- */
+  main{padding:56px 48px 120px 48px; min-width:0;}
+
+  .hero{margin-bottom:64px;}
+  .hero-eyebrow{
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:0.16em;
+    text-transform:uppercase;
+    color:var(--amber);
+    margin-bottom:18px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .hero-eyebrow::before{
+    content:"";
+    width:20px; height:1px;
+    background:var(--amber);
+    display:inline-block;
+  }
+  h1{
+    font-family:var(--mono);
+    font-size:clamp(28px, 4vw, 42px);
+    font-weight:700;
+    line-height:1.15;
+    margin:0 0 20px 0;
+    letter-spacing:-0.01em;
+  }
+  .hero p{
+    color:var(--muted);
+    font-size:16px;
+    max-width:640px;
+    margin:0;
+  }
+  .hero-meta{
+    display:flex;
+    gap:24px;
+    margin-top:28px;
+    padding-top:24px;
+    border-top:1px solid var(--border);
+    flex-wrap:wrap;
+  }
+  .meta-item{font-family:var(--mono); font-size:12px; color:var(--dim);}
+  .meta-item strong{color:var(--muted); font-weight:500;}
+
+  /* ---------- topic section ---------- */
+  .topic{
+    margin-bottom:88px;
+    scroll-margin-top:32px;
+  }
+  .topic-head{
+    display:flex;
+    align-items:baseline;
+    gap:16px;
+    margin-bottom:8px;
+  }
+  .topic-index{
+    font-family:var(--mono);
+    font-size:14px;
+    color:var(--amber);
+  }
+  h2{
+    font-family:var(--mono);
+    font-size:26px;
+    font-weight:700;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  .topic-sub{
+    color:var(--muted);
+    font-size:15px;
+    margin:10px 0 32px 0;
+    max-width:680px;
+  }
+
+  h3{
+    font-family:var(--sans);
+    font-size:15px;
+    font-weight:600;
+    color:var(--text);
+    margin:36px 0 14px 0;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  h3::before{
+    content:"";
+    width:6px; height:6px;
+    background:var(--teal);
+    border-radius:1px;
+    display:inline-block;
+    transform:rotate(45deg);
+  }
+
+  p{margin:0 0 14px 0; color:var(--text); font-size:15px;}
+  p.dim{color:var(--muted);}
+
+  /* ---------- terminal block ---------- */
+  .term{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:8px;
+    margin:18px 0 24px 0;
+    overflow:hidden;
+  }
+  .term-bar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:9px 14px;
+    background:var(--panel-raised);
+    border-bottom:1px solid var(--border);
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--dim);
+    letter-spacing:0.04em;
+  }
+  .term-body{
+    padding:16px 18px;
+    font-family:var(--mono);
+    font-size:13px;
+    overflow-x:auto;
+    white-space:pre;
+    color:#C7CCD6;
+  }
+  .term-body .prompt{color:var(--teal);}
+  .term-body .flag{color:var(--violet);}
+  .term-body .path{color:var(--amber);}
+  .term-body .hdr{color:var(--dim);}
+  .term-body .val{color:#DDE1E8;}
+
+  /* ---------- comparison table ---------- */
+  .dtable{
+    width:100%;
+    border-collapse:collapse;
+    margin:18px 0 28px 0;
+    font-size:14px;
+  }
+  .dtable th{
+    text-align:left;
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--dim);
+    padding:10px 14px;
+    border-bottom:1px solid var(--border);
+  }
+  .dtable td{
+    padding:13px 14px;
+    border-bottom:1px solid var(--border-soft);
+    vertical-align:top;
+    color:var(--muted);
+  }
+  .dtable tr:last-child td{border-bottom:none;}
+  .dtable td.k{
+    font-family:var(--mono);
+    color:var(--text);
+    font-weight:500;
+    white-space:nowrap;
+  }
+  .dtable td.hex{font-family:var(--mono); color:var(--amber); white-space:nowrap;}
+
+  /* tag pills */
+  .pill{
+    display:inline-block;
+    font-family:var(--mono);
+    font-size:11px;
+    padding:2px 8px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    color:var(--muted);
+  }
+  .pill.allow{color:var(--teal); border-color:rgba(95,195,178,0.35); background:rgba(95,195,178,0.08);}
+
+  /* ---------- ACE decoder (signature interactive element) ---------- */
+  .ace-block{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:22px;
+    margin:22px 0 30px 0;
+  }
+  .ace-line{
+    font-family:var(--mono);
+    font-size:14px;
+    color:var(--muted);
+    margin-bottom:18px;
+  }
+  .ace-line .tag-allow{color:var(--teal); font-weight:600;}
+  .ace-line .tag-who{color:var(--violet);}
+  .ace-line .tag-mask{color:var(--amber); cursor:pointer; border-bottom:1px dashed var(--amber);}
+  .ace-line .tag-inh{color:var(--dim);}
+
+  .ace-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(150px,1fr));
+    gap:1px;
+    background:var(--border);
+    border:1px solid var(--border);
+    border-radius:6px;
+    overflow:hidden;
+  }
+  .ace-cell{
+    background:var(--panel-raised);
+    padding:14px 16px;
+    cursor:pointer;
+    transition:background 0.15s;
+  }
+  .ace-cell:hover{background:#212934;}
+  .ace-cell.active{background:rgba(232,163,61,0.10); box-shadow:inset 0 0 0 1px var(--amber);}
+  .ace-cell .lbl{font-family:var(--mono); font-size:10.5px; color:var(--dim); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px;}
+  .ace-cell .v{font-family:var(--mono); font-size:14px; color:var(--text);}
+  .ace-detail{
+    margin-top:16px;
+    padding:14px 16px;
+    background:var(--panel-raised);
+    border-left:2px solid var(--amber);
+    border-radius:0 6px 6px 0;
+    font-size:13.5px;
+    color:var(--muted);
+    display:none;
+  }
+  .ace-detail.show{display:block;}
+  .ace-detail strong{color:var(--text);}
+
+  /* ---------- field grid for handle breakdown ---------- */
+  .field-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(220px,1fr));
+    gap:12px;
+    margin:20px 0 28px 0;
+  }
+  .field-card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:16px 18px;
+  }
+  .field-card .fname{
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--teal);
+    text-transform:lowercase;
+    margin-bottom:6px;
+  }
+  .field-card .fval{
+    font-family:var(--mono);
+    font-size:15px;
+    color:var(--amber);
+    margin-bottom:8px;
+  }
+  .field-card .fdesc{
+    font-size:12.5px;
+    color:var(--muted);
+    line-height:1.5;
+  }
+
+  .callout{
+    background:rgba(155,142,232,0.07);
+    border:1px solid rgba(155,142,232,0.28);
+    border-left:3px solid var(--violet);
+    border-radius:0 8px 8px 0;
+    padding:14px 18px;
+    margin:22px 0;
+    font-size:14px;
+    color:var(--muted);
+  }
+  .callout strong{color:var(--text);}
+
+  code.inline{
+    font-family:var(--mono);
+    background:var(--panel-raised);
+    border:1px solid var(--border);
+    padding:1px 6px;
+    border-radius:4px;
+    font-size:0.88em;
+    color:var(--amber);
+  }
+
+  footer{
+    border-top:1px solid var(--border);
+    padding:32px 48px;
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--dim);
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+
+  @media (max-width: 880px){
+    .shell{grid-template-columns:1fr;}
+    .toc{
+      position:relative;
+      height:auto;
+      border-right:none;
+      border-bottom:1px solid var(--border);
+      padding:24px 20px;
+    }
+    main{padding:40px 20px 80px 20px;}
+    footer{padding:24px 20px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <nav class="toc">
+    <div class="toc-brand">field notes</div>
+    <div class="toc-title">Filesystem &amp;<br>Access Control<br>Internals</div>
+
+    <div class="toc-section">
+      <div class="toc-label">Contents</div>
+      <ul class="toc-list">
+        <li><a href="#timestamps"><span class="toc-num">§1</span> atime / mtime / ctime</a></li>
+        <li><a href="#ntfs"><span class="toc-num">§2</span> NTFS Security Descriptors</a></li>
+        <li><a href="#netapp"><span class="toc-num">§3</span> NetApp File Handles</a></li>
+      </ul>
+    </div>
+
+    <div class="toc-section">
+      <div class="toc-label">Platforms covered</div>
+      <ul class="toc-list">
+        <li style="color:var(--dim); font-family:var(--mono); font-size:12px; padding:4px 8px;">Linux / POSIX</li>
+        <li style="color:var(--dim); font-family:var(--mono); font-size:12px; padding:4px 8px;">Windows / NTFS</li>
+        <li style="color:var(--dim); font-family:var(--mono); font-size:12px; padding:4px 8px;">NetApp ONTAP</li>
+      </ul>
+    </div>
+  </nav>
+
+  <main>
+
+    <section class="hero">
+      <div class="hero-eyebrow">reference notes</div>
+      <h1>Three things storage admins<br>get asked to explain</h1>
+      <p>A walkthrough of file timestamps, Windows NTFS permission structures, and NetApp's internal file-handle identifiers — the kind of output you paste into a ticket and then have to explain to someone.</p>
+      <div class="hero-meta">
+        <div class="meta-item"><strong>Sections</strong> 3</div>
+        <div class="meta-item"><strong>Level</strong> sysadmin / storage</div>
+        <div class="meta-item"><strong>Format</strong> command output → plain english</div>
+      </div>
+    </section>
+
+    <!-- ============ SECTION 1 ============ -->
+    <section class="topic" id="timestamps">
+      <div class="topic-head">
+        <span class="topic-index">§1</span>
+        <h2>atime, mtime, ctime</h2>
+      </div>
+      <p class="topic-sub">Every Unix/Linux file carries three timestamps. Only one of them means what people assume it means.</p>
+
+      <div class="term">
+        <div class="term-bar"><span>stat.output</span><span>ext4 / xfs</span></div>
+        <div class="term-body"><span class="prompt">$</span> stat file.txt
+  <span class="hdr">Access:</span> <span class="val">2026-07-09 09:12:03</span>
+  <span class="hdr">Modify:</span> <span class="val">2026-07-08 22:40:51</span>
+  <span class="hdr">Change:</span> <span class="val">2026-07-09 08:55:17</span></div>
+      </div>
+
+      <h3>What each one actually tracks</h3>
+      <table class="dtable">
+        <tr><th>Field</th><th>Updates when</th><th>Common misconception</th></tr>
+        <tr>
+          <td class="k">atime</td>
+          <td>File contents are <em>read</em> — opened, catted, scanned by a backup job.</td>
+          <td>Often disabled entirely (<code class="inline">noatime</code>, <code class="inline">relatime</code>) because updating it on every read is expensive.</td>
+        </tr>
+        <tr>
+          <td class="k">mtime</td>
+          <td>File <em>contents</em> change — edited, appended, overwritten, truncated.</td>
+          <td>This is what <code class="inline">ls -l</code> shows. Most people mean this when they say "last modified."</td>
+        </tr>
+        <tr>
+          <td class="k">ctime</td>
+          <td>File <em>metadata</em> changes — permissions, ownership, links, name — <em>or</em> whenever mtime changes.</td>
+          <td>Not "creation time," despite the name. That's the single most common mix-up.</td>
+        </tr>
+      </table>
+
+      <div class="callout">
+        <strong>The rule that matters:</strong> mtime changes only when content changes. ctime changes when content <em>or</em> metadata changes — ctime is a superset of mtime. If ctime moved but mtime didn't, something touched permissions, ownership, or the file's name/location — not the data itself.
+      </div>
+
+      <div class="term">
+        <div class="term-bar"><span>example</span><span>bash</span></div>
+        <div class="term-body"><span class="prompt">$</span> echo "hello" > file.txt      <span class="hdr"># mtime + ctime both update</span>
+<span class="prompt">$</span> chmod 644 file.txt           <span class="hdr"># only ctime updates — content untouched</span></div>
+      </div>
+
+      <p class="dim">One more nuance: Linux has no universally reliable "creation time" exposed through ctime. Filesystems like ext4 store a separate <code class="inline">crtime</code> ("birth time") field, viewable via <code class="inline">stat -c %w</code> where supported — but it isn't ctime, and isn't guaranteed everywhere.</p>
+    </section>
+
+    <!-- ============ SECTION 2 ============ -->
+    <section class="topic" id="ntfs">
+      <div class="topic-head">
+        <span class="topic-index">§2</span>
+        <h2>NTFS Security Descriptors</h2>
+      </div>
+      <p class="topic-sub">Windows attaches a Security Descriptor to every file and folder. It's a bundle of who-owns-it and who-can-do-what — the DACL is the "who can do what" part.</p>
+
+      <div class="term">
+        <div class="term-bar"><span>icacls / Get-Acl output</span><span>NTFS</span></div>
+        <div class="term-body">NTFS Security Descriptor
+  <span class="hdr">Control:</span> <span class="val">0x8004</span>
+  <span class="hdr">Owner:</span>   <span class="path">BUILTIN\Administrators</span>
+  <span class="hdr">Group:</span>   <span class="val">DEMO\Domain Users</span>
+  DACL - ACEs
+    <span class="flag">ALLOW</span>-Everyone-<span class="val">0x1f01ff</span>-(Inherited)</div>
+      </div>
+
+      <h3>The four parts of a Security Descriptor</h3>
+      <table class="dtable">
+        <tr><th>Part</th><th>What it is</th></tr>
+        <tr><td class="k">Owner</td><td>Who owns the object. The owner can always change its permissions, regardless of what the DACL says.</td></tr>
+        <tr><td class="k">Group</td><td>A legacy field carried over for POSIX compatibility. Windows access checks mostly ignore it.</td></tr>
+        <tr><td class="k">DACL</td><td>Discretionary Access Control List — the actual allow/deny permission rules. This is the part people mean by "the permissions."</td></tr>
+        <tr><td class="k">SACL</td><td>System Access Control List — auditing rules (what gets logged), not shown in this output.</td></tr>
+      </table>
+
+      <h3>Decoding the ACE — click a piece</h3>
+      <div class="ace-block">
+        <div class="ace-line">
+          <span class="tag-allow">ALLOW</span>-<span class="tag-who">Everyone</span>-<span class="tag-mask" data-target="mask">0x1f01ff</span>-<span class="tag-inh">(Inherited)</span>
+        </div>
+        <div class="ace-grid">
+          <div class="ace-cell" data-target="type"><div class="lbl">ACE type</div><div class="v">ALLOW</div></div>
+          <div class="ace-cell" data-target="who"><div class="lbl">Trustee</div><div class="v">Everyone</div></div>
+          <div class="ace-cell active" data-target="mask"><div class="lbl">Access mask</div><div class="v">0x1f01ff</div></div>
+          <div class="ace-cell" data-target="inh"><div class="lbl">Origin</div><div class="v">Inherited</div></div>
+        </div>
+        <div class="ace-detail show" id="detail-mask">
+          <strong>0x1f01ff</strong> decodes to <strong>Full Control</strong> — read, write, execute, delete, change permissions, and take ownership. It's the broadest grant NTFS has. Other common masks: <code class="inline">0x1301bf</code> Modify, <code class="inline">0x1301a9</code> Read &amp; Execute, <code class="inline">0x100081</code> Read-only.
+        </div>
+        <div class="ace-detail" id="detail-type">
+          <strong>ALLOW</strong> means this rule grants access. The other possibility is <strong>DENY</strong>, which blocks it — and Deny ACEs are always evaluated first, regardless of list order.
+        </div>
+        <div class="ace-detail" id="detail-who">
+          <strong>Everyone</strong> is a built-in security principal matching every user, authenticated or not (on modern Windows, "Everyone" excludes anonymous logons by default). It's the broadest possible trustee.
+        </div>
+        <div class="ace-detail" id="detail-inh">
+          <strong>Inherited</strong> means this rule wasn't set directly on this object — it flowed down from the parent folder's permissions. An ACE set explicitly on the object itself would show without this tag.
+        </div>
+      </div>
+
+      <div class="callout">
+        <strong>Plain-English read of the example:</strong> This file is owned by Administrators. Everyone has Full Control over it, and that permission wasn't configured here — it was inherited from the parent folder.
+      </div>
+
+      <h3>An analogy</h3>
+      <p class="dim">Think of a DACL as a bouncer's guest list. The <strong>Owner</strong> is whoever booked the venue and can rewrite the list anytime. The <strong>DACL</strong> is the list itself. Each <strong>ACE</strong> is one line on it — "Allow, John, VIP access, written by the venue manager, not the booker." The <strong>SACL</strong>, not shown here, is the logbook of who the bouncer records as having entered.</p>
+    </section>
+
+    <!-- ============ SECTION 3 ============ -->
+    <section class="topic" id="netapp">
+      <div class="topic-head">
+        <span class="topic-index">§3</span>
+        <h2>NetApp File Handles</h2>
+      </div>
+      <p class="topic-sub">ONTAP tracks every file by an internal identifier set, separate from its path — the thing NFS clients actually cache and reference.</p>
+
+      <div class="term">
+        <div class="term-bar"><span>ONTAP CLI</span><span>cluster1::&gt;</span></div>
+        <div class="term-body"><span class="prompt">cluster1::*&gt;</span> vol file show-filehandle -vserver svm1 -path <span class="path">/vol/window/Q1_Windows/test.txt</span>
+
+ Vserver                    Path
+ ----------------------     -------------------------------------
+ svm1                       /vol/window/Q1_Windows/test.txt
+ flags   snapid  fileid     generation  fsid        msid          dsid
+ ------- ------  ---------  ----------  ----------  ------------  -------------
+ <span class="val">0x0     0       0x63       0x1708fc    0x402       0x80f3bf44    0x402</span>
+ volume
+ ------------------------------------------------------------------------------
+ window</div>
+      </div>
+
+      <p class="dim">The command asks ONTAP: show me the internal NFS/CIFS handle for this exact file. The path is the human-friendly label; everything below is how ONTAP actually identifies the object.</p>
+
+      <h3>Field by field</h3>
+      <div class="field-grid">
+        <div class="field-card">
+          <div class="fname">flags</div>
+          <div class="fval">0x0</div>
+          <div class="fdesc">Internal status flags on the handle. Zero means nothing unusual is set.</div>
+        </div>
+        <div class="field-card">
+          <div class="fname">snapid</div>
+          <div class="fval">0</div>
+          <div class="fdesc">Snapshot ID. Zero means this is the live, active version — not a copy inside a <code class="inline">.snapshot</code> directory.</div>
+        </div>
+        <div class="field-card">
+          <div class="fname">fileid</div>
+          <div class="fval">0x63 <span style="color:var(--dim); font-size:12px;">(99)</span></div>
+          <div class="fdesc">Unique identifier for the file within its volume — the inode-equivalent.</div>
+        </div>
+        <div class="field-card">
+          <div class="fname">generation</div>
+          <div class="fval">0x1708fc</div>
+          <div class="fdesc">Increments if a fileid gets reused by a new file after deletion. Prevents an NFS client's stale cached handle from silently pointing at the wrong file.</div>
+        </div>
+        <div class="field-card">
+          <div class="fname">fsid</div>
+          <div class="fval">0x402 <span style="color:var(--dim); font-size:12px;">(1026)</span></div>
+          <div class="fdesc">Identifies the specific volume/filesystem instance the file lives in.</div>
+        </div>
+        <div class="field-card">
+          <div class="fname">msid</div>
+          <div class="fval">0x80f3bf44</div>
+          <div class="fdesc">Master Set ID — a persistent identity for the volume, tracked across its lifecycle (e.g. FlexClone, SnapMirror relationships).</div>
+        </div>
+        <div class="field-card">
+          <div class="fname">dsid</div>
+          <div class="fval">0x402</div>
+          <div class="fdesc">Data Set ID — identifies the actual data container. Here it matches fsid.</div>
+        </div>
+        <div class="field-card">
+          <div class="fname">volume</div>
+          <div class="fval">window</div>
+          <div class="fdesc">The volume name the file belongs to — the human label for the container.</div>
+        </div>
+      </div>
+
+      <h3>Why this matters</h3>
+      <p>This output is mostly pulled during troubleshooting:</p>
+      <table class="dtable">
+        <tr><th>Scenario</th><th>What the handle tells you</th></tr>
+        <tr>
+          <td class="k">Stale NFS handle errors</td>
+          <td>NFS clients cache fileid + generation + fsid. Delete and recreate a file at the same path, and the generation changes — the client's cached handle goes stale until it re-resolves the path.</td>
+        </tr>
+        <tr>
+          <td class="k">FlexClone / SnapMirror cases</td>
+          <td>The same path can correspond to different underlying objects across a clone or mirror relationship. msid/dsid let support correlate the exact object, not just the name.</td>
+        </tr>
+      </table>
+
+      <div class="callout">
+        <strong>Analogy:</strong> the path is a street address. fileid + generation + fsid is more like a social-security-number-plus-issue-date. Two files can share the same "address" over time if one is deleted and another created in its place — but their ID-plus-issue-date combination never collides, which is exactly what the generation field protects against.
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  <span>field notes — timestamps · NTFS ACLs · ONTAP file handles</span>
+  <span>compiled from CLI output, plain-english pass</span>
+</footer>
+
+<script>
+  document.querySelectorAll('.ace-cell, .tag-mask').forEach(function(el){
+    el.addEventListener('click', function(){
+      var target = el.getAttribute('data-target');
+      document.querySelectorAll('.ace-cell').forEach(function(c){ c.classList.remove('active'); });
+      document.querySelectorAll('.ace-detail').forEach(function(d){ d.classList.remove('show'); });
+      var cell = document.querySelector('.ace-cell[data-target="'+target+'"]');
+      if(cell) cell.classList.add('active');
+      var detail = document.getElementById('detail-'+target);
+      if(detail) detail.classList.add('show');
+    });
+  });
+</script>
+
+</body>
+</html>
