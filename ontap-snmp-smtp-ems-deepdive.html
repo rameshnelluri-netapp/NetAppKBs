@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ONTAP SNMP, SMTP & Event Notification Deep Dive</title>
+<style>
+  :root{
+    --ink:#101826;
+    --ink-soft:#3b4658;
+    --paper:#f4f5f2;
+    --surface:#ffffff;
+    --line:#e2e4de;
+    --accent:#0e7c86;
+    --accent-soft:#e4f2f2;
+    --amber:#c2680f;
+    --amber-soft:#faf1e2;
+    --ok:#1f8a4c;
+    --bad:#c13b3b;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:var(--paper);line-height:1.6;}
+  a{color:var(--accent);}
+
+  .topbar{
+    background:var(--ink);color:#dfe6ee;padding:10px 28px;
+    font-family:var(--mono);font-size:12.5px;letter-spacing:.02em;
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  .topbar .status{color:var(--ok);}
+  .topbar .status::before{content:"●  ";}
+
+  .layout{display:grid;grid-template-columns:270px 1fr;max-width:1280px;margin:0 auto;}
+  @media (max-width:880px){.layout{grid-template-columns:1fr;} nav.toc{display:none;}}
+
+  nav.toc{position:sticky;top:0;height:100vh;overflow-y:auto;padding:32px 20px 60px 28px;border-right:1px solid var(--line);}
+  nav.toc .kicker{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--ink-soft);margin-bottom:14px;}
+  nav.toc .group-label{font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);margin:18px 0 6px 8px;text-transform:uppercase;letter-spacing:.08em;}
+  nav.toc ol{list-style:none;margin:0;padding:0;counter-reset:sec;}
+  nav.toc li{counter-increment:sec;margin-bottom:2px;}
+  nav.toc a{display:flex;gap:10px;text-decoration:none;color:var(--ink-soft);font-size:13.5px;padding:7px 8px;border-radius:6px;}
+  nav.toc a::before{content:counter(sec,decimal-leading-zero);font-family:var(--mono);color:var(--accent);font-size:11px;padding-top:1px;}
+  nav.toc a:hover{background:var(--accent-soft);color:var(--ink);}
+
+  main{padding:0 0 100px 0;}
+
+  .hero{padding:64px 56px 40px 56px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(14,124,134,0.06), transparent 60%);}
+  .hero .eyebrow{font-family:var(--mono);color:var(--accent);font-size:12.5px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:16px;}
+  .hero h1{font-size:clamp(28px,4vw,42px);line-height:1.15;margin:0 0 18px 0;letter-spacing:-.01em;}
+  .hero p.lead{max-width:640px;color:var(--ink-soft);font-size:16.5px;margin:0 0 26px 0;}
+  .hero .badges{display:flex;flex-wrap:wrap;gap:8px;}
+  .badge{font-family:var(--mono);font-size:11.5px;padding:5px 10px;background:var(--surface);border:1px solid var(--line);border-radius:20px;color:var(--ink-soft);}
+
+  section{padding:52px 56px;border-bottom:1px solid var(--line);}
+  section:target{background:var(--accent-soft);}
+  @media (max-width:640px){section, .hero{padding-left:24px;padding-right:24px;}}
+
+  .section-head{display:flex;align-items:baseline;gap:14px;margin-bottom:8px;}
+  .section-num{font-family:var(--mono);color:var(--accent);font-size:14px;}
+  h2{font-size:26px;margin:0;letter-spacing:-.01em;}
+  .section-sub{color:var(--ink-soft);margin:6px 0 28px 0;max-width:680px;}
+  h3{font-size:18px;margin:34px 0 12px 0;}
+  p{max-width:720px;}
+  ul,ol{max-width:700px;padding-left:22px;}
+  li{margin-bottom:6px;}
+
+  pre{background:var(--ink);color:#e7ecf3;font-family:var(--mono);font-size:13px;padding:16px 18px;border-radius:8px;overflow-x:auto;max-width:780px;line-height:1.55;}
+  pre .c{color:#7fd7c4;}
+  pre .o{color:#9aa7bd;}
+  code.inline{font-family:var(--mono);background:var(--surface);border:1px solid var(--line);padding:1px 6px;border-radius:4px;font-size:.92em;}
+
+  .callout{max-width:720px;border-left:3px solid var(--accent);background:var(--accent-soft);padding:14px 18px;border-radius:0 8px 8px 0;margin:20px 0;font-size:14.5px;}
+  .callout.warn{border-color:var(--amber);background:var(--amber-soft);}
+  .callout.danger{border-color:var(--bad);background:#fbeaea;}
+  .callout .tag{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;display:block;margin-bottom:6px;color:var(--ink-soft);}
+
+  table{border-collapse:collapse;width:100%;max-width:820px;margin:18px 0 8px 0;font-size:14px;}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;}
+  th{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);border-bottom:2px solid var(--ink);}
+
+  .flow{display:flex;flex-wrap:wrap;align-items:center;gap:0;margin:28px 0;max-width:920px;}
+  .flow .node{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;min-width:140px;font-size:13px;}
+  .flow .node .n{font-family:var(--mono);font-size:10.5px;color:var(--accent);display:block;margin-bottom:4px;}
+  .flow .arrow{font-family:var(--mono);color:var(--ink-soft);padding:0 10px;font-size:13px;white-space:nowrap;}
+  @media (max-width:640px){.flow{flex-direction:column;align-items:flex-start;} .flow .arrow{padding:6px 0;}}
+
+  .steps{max-width:760px;counter-reset:step;list-style:none;padding:0;margin:22px 0;}
+  .steps li{counter-increment:step;position:relative;padding:0 0 22px 42px;border-left:2px solid var(--line);margin-left:14px;}
+  .steps li:last-child{border-color:transparent;padding-bottom:0;}
+  .steps li::before{content:counter(step);position:absolute;left:-15px;top:0;width:28px;height:28px;background:var(--ink);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;}
+  .steps h4{margin:0 0 6px 0;font-size:15.5px;}
+  .steps p{margin:0 0 8px 0;font-size:14.5px;color:var(--ink-soft);}
+
+  .pill{display:inline-block;font-family:var(--mono);font-size:10.5px;padding:2px 8px;border-radius:10px;background:var(--surface);border:1px solid var(--line);color:var(--ink-soft);margin-right:6px;}
+  .pill.inc{color:var(--ok);border-color:var(--ok);}
+  .pill.exc{color:var(--bad);border-color:var(--bad);}
+
+  footer{padding:40px 56px;font-size:12.5px;color:var(--ink-soft);font-family:var(--mono);}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span>cluster1::*&gt; <span style="color:#fff">event notification show</span></span>
+  <span class="status">EMS: routing events</span>
+</div>
+
+<div class="layout">
+
+  <nav class="toc">
+    <div class="kicker">On this page</div>
+    <ol>
+      <li><a href="#overview">EMS overview</a></li>
+      <li><a href="#snmp-concept">SNMP concepts</a></li>
+      <li><a href="#snmp-setup">SNMP setup</a></li>
+      <li><a href="#smtp-setup">SMTP / email setup</a></li>
+      <li><a href="#destinations">Notification destinations</a></li>
+      <li><a href="#filters">Event filters</a></li>
+      <li><a href="#notifications">Wiring it together</a></li>
+      <li><a href="#troubleshoot">Troubleshooting</a></li>
+      <li><a href="#cheatsheet">Command cheat sheet</a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <div class="hero">
+      <div class="eyebrow">ONTAP · EMS · SNMP · SMTP</div>
+      <h1>Wiring up ONTAP's Event Management System: SNMP, email, filters, and destinations</h1>
+      <p class="lead">How ONTAP turns internal system events into SNMP traps and email alerts — the EMS pipeline end to end, with working commands for SNMPv1/v2c/v3, SMTP relay configuration, custom event filters, and routing it all to real destinations.</p>
+      <div class="badges">
+        <span class="badge">event filter create</span>
+        <span class="badge">event notification destination create</span>
+        <span class="badge">system snmp traphost</span>
+        <span class="badge">security login -application snmp</span>
+      </div>
+    </div>
+
+    <!-- 1 -->
+    <section id="overview">
+      <div class="section-head"><span class="section-num">01</span><h2>EMS: the pipeline behind every alert</h2></div>
+      <p class="section-sub">Three independent pieces have to be built, in order, before any alert reaches you.</p>
+
+      <p>Every warning, error, or state change inside ONTAP — a disk failure, a failed takeover, a full aggregate — is generated internally as an <strong>EMS event</strong> (Event Management System). By itself, an EMS event just lands in the internal event log. To actually get notified, three separate objects need to exist and be linked together:</p>
+
+      <div class="flow">
+        <div class="node"><span class="n">1 · Filter</span>Which events matter to you</div>
+        <div class="arrow">→</div>
+        <div class="node"><span class="n">2 · Destination</span>Where they should go (email / SNMP / syslog / REST)</div>
+        <div class="arrow">→</div>
+        <div class="node"><span class="n">3 · Notification</span>The link that binds a filter to one or more destinations</div>
+      </div>
+
+      <p>This is the modern <code class="inline">event filter</code> / <code class="inline">event notification destination</code> / <code class="inline">event notification</code> command set. Older ONTAP guides reference <code class="inline">event destination</code> and <code class="inline">event route</code> — those are deprecated but may still show up if you inherit an older cluster's config.</p>
+
+      <div class="callout">
+        <span class="tag">Out of the box</span>
+        A fresh cluster has exactly one destination pre-defined — <code class="inline">snmp-traphost</code> — and it's already bound to the built-in <code class="inline">default-trap-events</code> filter (all ALERT/EMERGENCY events, plus all Standard/Built-in SNMP trap type events). No email destination exists until you create one.
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section id="snmp-concept">
+      <div class="section-head"><span class="section-num">02</span><h2>SNMP concepts in ONTAP</h2></div>
+      <p class="section-sub">Traps vs. polling, and the version differences that decide how much setup you need.</p>
+
+      <p>SNMP in ONTAP works in two directions:</p>
+      <ul>
+        <li><strong>Polling</strong> — an external monitoring tool queries the cluster's SNMP agent for values (disk status, interface counters, etc.) using <code class="inline">GET</code>/<code class="inline">GETNEXT</code>/<code class="inml:inline">WALK</code> against ONTAP's MIB.</li>
+        <li><strong>Traps</strong> — ONTAP proactively pushes an alert to a configured <strong>traphost</strong> the moment a matching event occurs, rather than waiting to be asked. This is what EMS event notifications ride on.</li>
+      </ul>
+
+      <table>
+        <tr><th>Version</th><th>Auth model</th><th>Use case today</th></tr>
+        <tr><td>SNMPv1</td><td>Plaintext community string</td><td>Legacy only — avoid on anything reachable outside a trusted segment</td></tr>
+        <tr><td>SNMPv2c</td><td>Plaintext community string</td><td>Still common for read-only polling on isolated management networks</td></tr>
+        <tr><td>SNMPv3</td><td>Per-user auth (MD5/SHA) + optional privacy encryption (DES/AES)</td><td>Recommended — the only version with real authentication and encryption</td></tr>
+      </table>
+
+      <div class="callout warn">
+        <span class="tag">Security note</span>
+        SNMPv1/v2c community strings travel in clear text and offer no per-user accountability. If your monitoring tooling supports it, SNMPv3 with authPriv (auth + privacy) is the only version worth using outside a fully isolated management VLAN.
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section id="snmp-setup">
+      <div class="section-head"><span class="section-num">03</span><h2>SNMP setup</h2></div>
+      <p class="section-sub">Enable the protocol, then configure the version you actually need.</p>
+
+      <h3>1. Confirm SNMP is enabled</h3>
+      <pre><span class="c">cluster1::&gt; system snmp show</span></pre>
+
+      <h3>2. Set contact and location (optional but good practice)</h3>
+      <pre><span class="c">cluster1::&gt; system snmp contact -contact "Storage Team &lt;storage@company.com&gt;"
+cluster1::&gt; system snmp location -location "DC2 - Row 4 - Rack 12"</span></pre>
+
+      <h3>3a. SNMPv1/v2c — community string (simple, less secure)</h3>
+      <pre><span class="c">cluster1::&gt; system snmp community add -type ro -community-name my_ro_string</span></pre>
+      <p>Only <em>read-only</em> communities are supported in ONTAP — there's no write community.</p>
+
+      <div class="callout">
+        <span class="tag">What a community string actually is</span>
+        It is <strong>not</strong> a user account, and it has no relationship to Active Directory, LDAP, or ONTAP's own local/SSH accounts. Think of it as a shared password that also doubles as an access label. It lives in exactly two places — the ONTAP cluster and whatever monitoring tool (NMS) is polling it — and both sides just need to type the same string. ONTAP never asks "who are you" for v1/v2c; it only checks "did the request include the right string." There is no identity, no per-caller accountability, and nothing is encrypted on the wire:
+        <pre style="margin-top:10px;"><span class="c">snmpwalk -v2c -c my_ro_string 10.30.40.10 .1.3.6.1.4.1.789...</span></pre>
+        If <code class="inline">my_ro_string</code> matches what's configured on the cluster, the poll succeeds — that's the entire v1/v2c security model.
+      </div>
+
+      <h3>3b. SNMPv3 — USM user (recommended)</h3>
+      <pre><span class="c">cluster1::*&gt; security login create -username snmpv3user -application snmp -authmethod usm
+Enter the authoritative entity's EngineID [local EngineID]: <span class="o">&lt;enter&gt;</span>
+Which authentication protocol do you want to choose (none, md5, sha) [none]: <span class="c">sha</span>
+Enter the authentication protocol password (min 8 characters): <span class="o">********</span>
+Which privacy protocol do you want to choose (none, des, aes128) [none]: <span class="c">aes128</span>
+Enter privacy protocol password (min 8 characters): <span class="o">********</span></span></pre>
+
+      <div class="callout warn">
+        <span class="tag">This still isn't an AD user</span>
+        SNMPv3 replaces the shared-string model with <strong>USM — the User-based Security Model</strong>, which is why the command uses <code class="inline">-username</code>. But this is a locally-defined, SNMP-only identity that exists purely inside ONTAP's SNMP subsystem — it has no relationship to Active Directory/LDAP, and no relationship to <code class="inline">security login create -application ssh</code> accounts used for CLI/System Manager login. A USM user can't log into the cluster anywhere else; it exists for exactly one purpose — authenticating SNMP polling and trap traffic under its own credentials instead of a string everyone shares.
+      </div>
+
+      <table>
+        <tr><th></th><th>Community string (v1/v2c)</th><th>USM user (v3)</th></tr>
+        <tr><td>What it is</td><td>Shared secret string</td><td>Named identity with its own credentials</td></tr>
+        <tr><td>Tied to AD/LDAP?</td><td>No</td><td>No</td></tr>
+        <tr><td>Encrypted on the wire?</td><td>No</td><td>Yes, if a privacy protocol is set</td></tr>
+        <tr><td>Per-caller accountability?</td><td>No — everyone shares the same string</td><td>Yes — each USM user is distinct</td></tr>
+        <tr><td>Where it "lives"</td><td>Configured identically on cluster <em>and</em> NMS</td><td>Created locally on the cluster; the NMS authenticates as that user</td></tr>
+      </table>
+
+      <h3>4. Register a traphost</h3>
+      <p>The traphost is where SNMP traps actually get sent — this is separate from creating the user or community itself. DNS must resolve the traphost name if you use a hostname.</p>
+      <pre><span class="c"># SNMPv1/v2c-style trap delivery (uses configured community strings)
+cluster1::&gt; system snmp traphost add -peer-address 10.30.40.10
+
+# SNMPv3 trap delivery (authenticated + optionally encrypted)
+cluster1::&gt; system snmp traphost add -peer-address 10.30.40.10 -usm-username snmpv3user</span></pre>
+
+      <pre><span class="c">cluster1::&gt; system snmp traphost show</span>
+<span class="o">10.30.40.10 (10.30.40.10)
+USM User: snmpv3user</span></pre>
+
+      <div class="callout">
+        <span class="tag">How this connects to EMS</span>
+        Once a traphost exists, ONTAP auto-creates the <code class="inline">snmp-traphost</code> event notification destination pointing at it — you'll see it reflected in <code class="inline">event notification destination show</code> with a note like <em>(from "system snmp traphost")</em>. You don't create that destination manually; it inherits from this SNMP config.
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section id="smtp-setup">
+      <div class="section-head"><span class="section-num">04</span><h2>SMTP / email setup</h2></div>
+      <p class="section-sub">EMS email alerts need a mail relay configured before any email destination will actually deliver.</p>
+
+      <p>Unlike SNMP, there's no "email agent" to enable — you just need to tell ONTAP which SMTP relay/MTA to hand outbound mail to. This is a cluster-wide setting, separate from any individual destination.</p>
+
+      <pre><span class="c">cluster1::&gt; event config modify -mail-server smtp.company.com -mail-from ontap-alerts@company.com</span></pre>
+
+      <table>
+        <tr><th>Parameter</th><th>Meaning</th></tr>
+        <tr><td><code class="inline">-mail-server</code></td><td>FQDN or IP of your SMTP relay (must accept mail from the cluster's management network — usually an internal relay, not a public MTA requiring auth)</td></tr>
+        <tr><td><code class="inline">-mail-from</code></td><td>The sender address shown on outbound EMS alert emails</td></tr>
+      </table>
+
+      <div class="callout warn">
+        <span class="tag">Common trap</span>
+        ONTAP's built-in mailer does not support SMTP AUTH or TLS submission on older versions — it expects an open internal relay that trusts the cluster's management IP. If your organization only has an authenticated external SMTP provider (like a hosted 365/Gmail relay), you'll typically need an internal relay/smarthost in between that ONTAP can hand mail to unauthenticated, which then forwards it out.
+      </div>
+
+      <h3>Verify DNS resolves the mail server</h3>
+      <p>Just like the SNMP traphost, if you configure <code class="inline">-mail-server</code> by hostname, cluster DNS must be able to resolve it — check with <code class="inline">dns show</code> if mail never arrives.</p>
+    </section>
+
+    <!-- 5 -->
+    <section id="destinations">
+      <div class="section-head"><span class="section-num">05</span><h2>Event notification destinations</h2></div>
+      <p class="section-sub">A destination is just an address — email, syslog, SNMP, or REST — that a notification can point events at.</p>
+
+      <h3>Create an email destination</h3>
+      <pre><span class="c">cluster1::&gt; event notification destination create -name StorageAdminEmail -email storageadmin@company.com</span></pre>
+
+      <h3>Create a syslog destination</h3>
+      <pre><span class="c">cluster1::&gt; event notification destination create -name syslog_dest -syslog 10.23.12.1</span></pre>
+
+      <h3>Create a REST webhook destination (9.9+)</h3>
+      <pre><span class="c">cluster1::&gt; event notification destination create -name webhook_dest -rest-api-url https://alerts.company.com/ontap-events</span></pre>
+      <p>If the URL is HTTPS, ONTAP validates the destination's certificate — and can optionally check revocation status via OCSP (<code class="inline">security config ocsp show -application ems</code>).</p>
+
+      <h3>See what exists today</h3>
+      <pre><span class="c">cluster1::&gt; event notification destination show</span>
+<span class="o">Name              Type      Destination
+----------------  --------  ---------------------------
+StorageAdminEmail email     storageadmin@company.com
+syslog_dest       syslog    10.23.12.1
+snmp-traphost     snmp      10.30.40.10 (from "system snmp traphost")
+3 entries were displayed.</span></pre>
+
+      <div class="callout">
+        <span class="tag">Naming rule</span>
+        Destination names must be 2–64 characters, using A–Z, a–z, 0–9, underscore, and hyphen only — and must start and end with an alphanumeric character.
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section id="filters">
+      <div class="section-head"><span class="section-num">06</span><h2>Event filters</h2></div>
+      <p class="section-sub">Filters decide which events actually qualify for notification — without one, nothing gets sent, no matter how the destination is configured.</p>
+
+      <h3>Built-in filters (read-only, cannot be modified or deleted)</h3>
+      <table>
+        <tr><th>Filter</th><th>Matches</th></tr>
+        <tr><td><code class="inline">default-trap-events</code></td><td>All ALERT/EMERGENCY events, plus all Standard/Built-in SNMP trap type events</td></tr>
+        <tr><td><code class="inline">important-events</code></td><td>All ALERT/EMERGENCY events, plus <code class="inline">callhome.*</code> ERROR events</td></tr>
+        <tr><td><code class="inline">no-info-debug-events</code></td><td>Everything except INFO and DEBUG severity (EMERGENCY, ALERT, ERROR, NOTICE)</td></tr>
+      </table>
+
+      <h3>Build a custom filter</h3>
+      <p>Filters are evaluated as an ordered rule list — first match wins, and there's an implicit final rule that excludes everything not explicitly included.</p>
+
+      <pre><span class="c">cluster1::&gt; event filter create -filter-name CRITICAL_ALERTS
+cluster1::&gt; event filter rule add -filter-name CRITICAL_ALERTS -type include -message-name callhome.* -severity ALERT,ERROR
+cluster1::&gt; event filter rule add -filter-name CRITICAL_ALERTS -type include -message-name raid.aggr.*
+cluster1::&gt; event filter rule add -filter-name CRITICAL_ALERTS -type exclude -message-name callhome.bad.ram
+cluster1::&gt; event filter rule add -filter-name CRITICAL_ALERTS -type exclude -message-name *</span></pre>
+
+      <pre><span class="c">cluster1::&gt; event filter show -filter-name CRITICAL_ALERTS</span>
+<span class="o">Filter Name     Rule  Rule     Message Name       SNMP Trap Type  Severity      Position Type
+--------------  ----  -------  -----------------  --------------  ------------
+CRITICAL_ALERTS 1     include  callhome.*         *               ALERT, ERROR
+                2     include  raid.aggr.*        *               *
+                3     exclude  callhome.bad.ram   *               *
+                4     exclude  *                  *               *
+4 entries were displayed.</span></pre>
+
+      <div class="callout">
+        <span class="tag">Rule fields</span>
+        Each rule matches on <span class="pill">message name</span><span class="pill">severity</span><span class="pill">SNMP trap type</span> combined with a logical AND. Within a single field, multiple values are OR'd — e.g. <code class="inline">-severity ALERT,ERROR</code> matches either. Rules are checked top to bottom; the first match (include or exclude) decides the event's fate for that filter.
+      </div>
+
+      <div class="callout warn">
+        <span class="tag">Order matters</span>
+        <span class="pill inc">include</span> and <span class="pill exc">exclude</span> rules are evaluated in the order you add them — a broad include early in the list can shadow a more specific exclude added after it. Put narrow exceptions <em>before</em> the broad rule they're meant to carve out of, unless you're deliberately relying on last-match-wins ordering.
+      </div>
+
+      <p>You can define up to 50 event filters per cluster.</p>
+    </section>
+
+    <!-- 7 -->
+    <section id="notifications">
+      <div class="section-head"><span class="section-num">07</span><h2>Wiring it together: the notification link</h2></div>
+      <p class="section-sub">The final step — bind a filter to one or more destinations. Nothing is delivered until this exists.</p>
+
+      <pre><span class="c">cluster1::&gt; event notification create -filter-name CRITICAL_ALERTS -destinations StorageAdminEmail,syslog_dest,snmp-traphost</span></pre>
+
+      <pre><span class="c">cluster1::&gt; event notification show</span>
+<span class="o">ID   Filter Name           Destinations
+---- --------------------- -----------------------------
+1    default-trap-events   snmp-traphost
+2    CRITICAL_ALERTS        StorageAdminEmail,syslog_dest,snmp-traphost
+2 entries were displayed.</span></pre>
+
+      <p>You can point the same filter at multiple destinations in one notification, or create several notifications from different filters that share a destination — e.g. send everything ALERT+ to email, but only <code class="inline">callhome.*</code> events to SNMP.</p>
+
+      <div class="callout">
+        <span class="tag">Mental model recap</span>
+        <strong>Filter</strong> = the "what." <strong>Destination</strong> = the "where." <strong>Notification</strong> = the object that actually says "send this filter's matches to that destination." All three must exist for an alert to reach you — a perfectly good filter pointed at no destination, or a destination with no notification referencing it, both silently do nothing.
+      </div>
+    </section>
+
+    <!-- 8 -->
+    <section id="troubleshoot">
+      <div class="section-head"><span class="section-num">08</span><h2>Troubleshooting</h2></div>
+      <p class="section-sub">Where alerts most often go missing, in the order to check them.</p>
+
+      <table>
+        <tr><th>Symptom</th><th>Check</th></tr>
+        <tr><td>No emails at all</td><td><code class="inline">event config show</code> — is <code class="inline">-mail-server</code> actually set? Cluster DNS resolving it?</td></tr>
+        <tr><td>No SNMP traps received</td><td><code class="inline">system snmp traphost show</code> — traphost registered? <code class="inline">system snmp show</code> — SNMP/traps enabled cluster-wide?</td></tr>
+        <tr><td>Some events missing, others fine</td><td><code class="inline">event filter show -filter-name &lt;name&gt;</code> — check rule order; an early broad exclude may be shadowing later includes</td></tr>
+        <tr><td>Destination exists but nothing arrives</td><td><code class="inline">event notification show</code> — is that destination actually referenced by a notification?</td></tr>
+        <tr><td>SNMPv3 traps rejected by receiver</td><td>Confirm auth/privacy protocol and passwords on the USM user match exactly what the trap receiver expects (<code class="inline">security login show -application snmp</code>)</td></tr>
+        <tr><td>REST webhook destination fails silently</td><td>Certificate validation — check <code class="inline">security config ocsp show -application ems</code> and confirm the destination's TLS cert chain is trusted by the cluster</td></tr>
+      </table>
+
+      <h3>Generate a test event</h3>
+      <p>Useful for confirming the whole pipeline works end to end without waiting for a real failure:</p>
+      <pre><span class="c">cluster1::*&gt; set diag
+cluster1::*&gt; event generate -message-name callhome.test</span></pre>
+    </section>
+
+    <!-- 9 -->
+    <section id="cheatsheet">
+      <div class="section-head"><span class="section-num">09</span><h2>Command reference</h2></div>
+      <p class="section-sub">The full set, grouped by purpose.</p>
+
+      <h3>SNMP</h3>
+      <pre><span class="c">system snmp show
+system snmp contact -contact "&lt;text&gt;"
+system snmp location -location "&lt;text&gt;"
+system snmp community add -type ro -community-name &lt;string&gt;
+security login create -username &lt;user&gt; -application snmp -authmethod usm
+system snmp traphost add -peer-address &lt;host&gt; [-usm-username &lt;user&gt;]
+system snmp traphost show</span></pre>
+
+      <h3>SMTP / EMS mail config</h3>
+      <pre><span class="c">event config modify -mail-server &lt;fqdn_or_ip&gt; -mail-from &lt;address&gt;
+event config show</span></pre>
+
+      <h3>Destinations</h3>
+      <pre><span class="c">event notification destination create -name &lt;name&gt; -email &lt;address&gt;
+event notification destination create -name &lt;name&gt; -syslog &lt;host&gt;
+event notification destination create -name &lt;name&gt; -rest-api-url &lt;https://...&gt;
+event notification destination show
+event notification destination modify
+event notification destination delete</span></pre>
+
+      <h3>Filters</h3>
+      <pre><span class="c">event filter create -filter-name &lt;name&gt;
+event filter rule add -filter-name &lt;name&gt; -type include|exclude -message-name &lt;pattern&gt; [-severity &lt;...&gt;]
+event filter show -filter-name &lt;name&gt;
+event filter delete -filter-name &lt;name&gt;</span></pre>
+
+      <h3>Notifications (binding filter → destination)</h3>
+      <pre><span class="c">event notification create -filter-name &lt;name&gt; -destinations &lt;dest1,dest2,...&gt;
+event notification show
+event notification modify
+event notification delete</span></pre>
+
+      <h3>Testing</h3>
+      <pre><span class="c">set diag
+event generate -message-name callhome.test
+event log show</span></pre>
+    </section>
+
+    <footer>
+      cluster1::*&gt; end of document — see NetApp docs "Manage event notifications" and "Configure ONTAP SNMP traphosts" for vendor-maintained reference.
+    </footer>
+
+  </main>
+</div>
+
+</body>
+</html>

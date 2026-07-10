@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ONTAP System Manager: Web Services, Accessibility & SAML Deep Dive</title>
+<style>
+  :root{
+    --ink:#101826;
+    --ink-soft:#3b4658;
+    --paper:#f4f5f2;
+    --surface:#ffffff;
+    --line:#e2e4de;
+    --accent:#0e7c86;
+    --accent-soft:#e4f2f2;
+    --amber:#c2680f;
+    --amber-soft:#faf1e2;
+    --ok:#1f8a4c;
+    --bad:#c13b3b;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    font-family:var(--sans);
+    color:var(--ink);
+    background:var(--paper);
+    line-height:1.6;
+  }
+  a{color:var(--accent);}
+
+  /* ===== Top identity bar ===== */
+  .topbar{
+    background:var(--ink);
+    color:#dfe6ee;
+    padding:10px 28px;
+    font-family:var(--mono);
+    font-size:12.5px;
+    letter-spacing:.02em;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .topbar .status{color:var(--ok);}
+  .topbar .status::before{content:"●  ";}
+
+  /* ===== Layout ===== */
+  .layout{
+    display:grid;
+    grid-template-columns:270px 1fr;
+    max-width:1280px;
+    margin:0 auto;
+  }
+  @media (max-width:880px){
+    .layout{grid-template-columns:1fr;}
+    nav.toc{display:none;}
+  }
+
+  nav.toc{
+    position:sticky;
+    top:0;
+    height:100vh;
+    overflow-y:auto;
+    padding:32px 20px 60px 28px;
+    border-right:1px solid var(--line);
+  }
+  nav.toc .kicker{
+    font-family:var(--mono);
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.12em;
+    color:var(--ink-soft);
+    margin-bottom:14px;
+  }
+  nav.toc ol{list-style:none;margin:0;padding:0;counter-reset:sec;}
+  nav.toc li{counter-increment:sec;margin-bottom:2px;}
+  nav.toc a{
+    display:flex;
+    gap:10px;
+    text-decoration:none;
+    color:var(--ink-soft);
+    font-size:13.5px;
+    padding:7px 8px;
+    border-radius:6px;
+  }
+  nav.toc a::before{
+    content:counter(sec,decimal-leading-zero);
+    font-family:var(--mono);
+    color:var(--accent);
+    font-size:11px;
+    padding-top:1px;
+  }
+  nav.toc a:hover{background:var(--accent-soft);color:var(--ink);}
+
+  main{padding:0 0 100px 0;}
+
+  /* ===== Hero ===== */
+  .hero{
+    padding:64px 56px 40px 56px;
+    border-bottom:1px solid var(--line);
+    background:
+      linear-gradient(180deg, rgba(14,124,134,0.06), transparent 60%);
+  }
+  .hero .eyebrow{
+    font-family:var(--mono);
+    color:var(--accent);
+    font-size:12.5px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    margin-bottom:16px;
+  }
+  .hero h1{
+    font-size:clamp(28px,4vw,42px);
+    line-height:1.15;
+    margin:0 0 18px 0;
+    letter-spacing:-.01em;
+  }
+  .hero p.lead{
+    max-width:620px;
+    color:var(--ink-soft);
+    font-size:16.5px;
+    margin:0 0 26px 0;
+  }
+  .hero .badges{display:flex;flex-wrap:wrap;gap:8px;}
+  .badge{
+    font-family:var(--mono);
+    font-size:11.5px;
+    padding:5px 10px;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:20px;
+    color:var(--ink-soft);
+  }
+
+  section{padding:52px 56px;border-bottom:1px solid var(--line);}
+  section:target{background:var(--accent-soft);}
+  @media (max-width:640px){
+    section, .hero{padding-left:24px;padding-right:24px;}
+  }
+
+  .section-head{display:flex;align-items:baseline;gap:14px;margin-bottom:8px;}
+  .section-num{
+    font-family:var(--mono);
+    color:var(--accent);
+    font-size:14px;
+  }
+  h2{font-size:26px;margin:0;letter-spacing:-.01em;}
+  .section-sub{color:var(--ink-soft);margin:6px 0 28px 0;max-width:680px;}
+
+  h3{font-size:18px;margin:34px 0 12px 0;}
+  p{max-width:720px;}
+  ul,ol{max-width:700px;padding-left:22px;}
+  li{margin-bottom:6px;}
+
+  /* ===== Code blocks ===== */
+  pre{
+    background:var(--ink);
+    color:#e7ecf3;
+    font-family:var(--mono);
+    font-size:13px;
+    padding:16px 18px;
+    border-radius:8px;
+    overflow-x:auto;
+    max-width:760px;
+    line-height:1.55;
+  }
+  pre .c{color:#7fd7c4;} /* command */
+  pre .o{color:#9aa7bd;} /* output/comment */
+  code.inline{
+    font-family:var(--mono);
+    background:var(--surface);
+    border:1px solid var(--line);
+    padding:1px 6px;
+    border-radius:4px;
+    font-size:.92em;
+  }
+
+  /* ===== Callouts ===== */
+  .callout{
+    max-width:720px;
+    border-left:3px solid var(--accent);
+    background:var(--accent-soft);
+    padding:14px 18px;
+    border-radius:0 8px 8px 0;
+    margin:20px 0;
+    font-size:14.5px;
+  }
+  .callout.warn{border-color:var(--amber);background:var(--amber-soft);}
+  .callout.danger{border-color:var(--bad);background:#fbeaea;}
+  .callout .tag{
+    font-family:var(--mono);
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:.1em;
+    display:block;
+    margin-bottom:6px;
+    color:var(--ink-soft);
+  }
+
+  /* ===== Tables ===== */
+  table{
+    border-collapse:collapse;
+    width:100%;
+    max-width:820px;
+    margin:18px 0 8px 0;
+    font-size:14px;
+  }
+  th,td{
+    text-align:left;
+    padding:10px 12px;
+    border-bottom:1px solid var(--line);
+    vertical-align:top;
+  }
+  th{
+    font-family:var(--mono);
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color:var(--ink-soft);
+    border-bottom:2px solid var(--ink);
+  }
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;}
+  .dot.ok{background:var(--ok);}
+  .dot.bad{background:var(--bad);}
+
+  /* ===== Flow diagram ===== */
+  .flow{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:0;
+    margin:28px 0;
+    max-width:900px;
+  }
+  .flow .node{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:14px 16px;
+    min-width:140px;
+    font-size:13px;
+  }
+  .flow .node .n{
+    font-family:var(--mono);
+    font-size:10.5px;
+    color:var(--accent);
+    display:block;
+    margin-bottom:4px;
+  }
+  .flow .arrow{
+    font-family:var(--mono);
+    color:var(--ink-soft);
+    padding:0 10px;
+    font-size:13px;
+    white-space:nowrap;
+  }
+  @media (max-width:640px){
+    .flow{flex-direction:column;align-items:flex-start;}
+    .flow .arrow{padding:6px 0;}
+  }
+
+  /* ===== Steps ===== */
+  .steps{max-width:760px;counter-reset:step;list-style:none;padding:0;margin:22px 0;}
+  .steps li{
+    counter-increment:step;
+    position:relative;
+    padding:0 0 22px 42px;
+    border-left:2px solid var(--line);
+    margin-left:14px;
+  }
+  .steps li:last-child{border-color:transparent;padding-bottom:0;}
+  .steps li::before{
+    content:counter(step);
+    position:absolute;
+    left:-15px;
+    top:0;
+    width:28px;height:28px;
+    background:var(--ink);
+    color:#fff;
+    border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);
+    font-size:12px;
+  }
+  .steps h4{margin:0 0 6px 0;font-size:15.5px;}
+  .steps p{margin:0 0 8px 0;font-size:14.5px;color:var(--ink-soft);}
+
+  footer{
+    padding:40px 56px;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    font-family:var(--mono);
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span>cluster1::*&gt; <span style="color:#fff">docs show -topic system-manager-saml</span></span>
+  <span class="status">web services: reachable</span>
+</div>
+
+<div class="layout">
+
+  <nav class="toc">
+    <div class="kicker">On this page</div>
+    <ol>
+      <li><a href="#overview">Architecture overview</a></li>
+      <li><a href="#services">GUI service map</a></li>
+      <li><a href="#webserver">Web server layer</a></li>
+      <li><a href="#saml-concept">How SAML fits in</a></li>
+      <li><a href="#okta-setup">Okta setup walkthrough</a></li>
+      <li><a href="#lockout">Lockouts & recovery</a></li>
+      <li><a href="#lod">Lab on Demand notes</a></li>
+      <li><a href="#cheatsheet">Command cheat sheet</a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <div class="hero">
+      <div class="eyebrow">ONTAP · System Manager · Identity</div>
+      <h1>Getting under the hood of System Manager: web services, access failures, and SAML</h1>
+      <p class="lead">A working reference for how ONTAP exposes System Manager over HTTPS, which cluster services keep it running, what breaks when SAML is misconfigured, and how to wire up Okta as an identity provider — including the gotchas specific to sandboxed lab environments.</p>
+      <div class="badges">
+        <span class="badge">admin Vserver services</span>
+        <span class="badge">security saml-sp</span>
+        <span class="badge">Okta SAML 2.0</span>
+        <span class="badge">Lab on Demand</span>
+      </div>
+    </div>
+
+    <!-- 1 -->
+    <section id="overview">
+      <div class="section-head"><span class="section-num">01</span><h2>Architecture overview</h2></div>
+      <p class="section-sub">System Manager isn't one service — it's a GUI shell sitting on top of several independent cluster services, all scoped to the <strong>admin Vserver</strong>.</p>
+
+      <p>Every ONTAP cluster runs a set of lightweight web services under <code class="inline">vserver services web</code> / <code class="inline">system services web</code>. These are visible per-Vserver, and each has an <code class="inline">Enabled</code> flag you can toggle independently. System Manager is a consumer of several of these at once — it's a browser application that calls into the REST and legacy ONTAPI layers, wrapped in a portal/session framework, optionally gated by SAML.</p>
+
+      <div class="flow">
+        <div class="node"><span class="n">Browser</span>HTTPS request to cluster-mgmt LIF</div>
+        <div class="arrow">→</div>
+        <div class="node"><span class="n">Web server layer</span>portal · security · rest · ontapi</div>
+        <div class="arrow">→</div>
+        <div class="node"><span class="n">sysmgr</span>renders the System Manager UI</div>
+        <div class="arrow">→</div>
+        <div class="node"><span class="n">Optional: SAML</span>saml / saml-sp redirect to IdP</div>
+      </div>
+
+      <div class="callout">
+        <span class="tag">Key idea</span>
+        Disabling any one of the underlying services doesn't necessarily take the whole GUI down — but it degrades specific functionality. Losing <code class="inline">rest</code> breaks the modern UI panels; losing <code class="inline">security</code> breaks HTTPS/session handling entirely; losing <code class="inline">saml-sp</code> mid-configuration can lock you out if SAML is already enforced.
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section id="services">
+      <div class="section-head"><span class="section-num">02</span><h2>Service map for the System Manager GUI</h2></div>
+      <p class="section-sub">From <code class="inline">vserver services web show</code> on the admin Vserver — the services that jointly keep the GUI operational.</p>
+
+      <table>
+        <tr><th>Service</th><th>Role</th><th>If disabled…</th></tr>
+        <tr><td><span class="dot ok"></span><code class="inline">sysmgr</code></td><td>Serves the System Manager application itself</td><td>GUI is completely unreachable</td></tr>
+        <tr><td><span class="dot ok"></span><code class="inline">rest</code></td><td>Backs modern System Manager panels (9.x REST-based UI)</td><td>Most current-gen screens fail to load data</td></tr>
+        <tr><td><span class="dot ok"></span><code class="inline">ontapi</code></td><td>Legacy/ZAPI calls some workflows still depend on</td><td>Certain older operations silently fail</td></tr>
+        <tr><td><span class="dot ok"></span><code class="inline">portal</code></td><td>Web services portal / session framework hosting the GUI</td><td>Session handling and page framing break</td></tr>
+        <tr><td><span class="dot ok"></span><code class="inline">security</code></td><td>TLS/HTTPS and auth plumbing</td><td>No secure access to any web service at all</td></tr>
+        <tr><td><span class="dot ok"></span><code class="inline">saml</code></td><td>Enables SAML SP capability cluster-wide</td><td>SAML login option disappears; falls back to local/AD</td></tr>
+        <tr><td><span class="dot ok"></span><code class="inline">saml-sp</code></td><td>Handles the live SAML assertion exchange with the IdP</td><td>Configured SAML logins fail mid-redirect</td></tr>
+        <tr><td><span class="dot bad"></span><code class="inline">supdiag</code></td><td>Support diagnostics (off by default)</td><td>No effect on GUI — unrelated to System Manager</td></tr>
+      </table>
+
+      <div class="callout">
+        <span class="tag">Note</span>
+        These services only appear under the <strong>admin Vserver</strong> (e.g. <code class="inline">cluster1</code>), not under data SVMs — System Manager is a cluster-level management surface, so a data Vserver like <code class="inline">svm1</code> will never show <code class="inline">sysmgr</code> or <code class="inline">saml-sp</code> in its service list.
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section id="webserver">
+      <div class="section-head"><span class="section-num">03</span><h2>The web server layer, one level down</h2></div>
+      <p class="section-sub">Above the services sits the actual HTTPS listener — this is where firewall policy, LIF assignment, and certificates come into play.</p>
+
+      <h3>What's actually listening</h3>
+      <p>System Manager is served over HTTPS (443) on the cluster management LIF by default. The web server binds to whichever LIF has the <code class="inline">management</code> firewall policy applied and a valid role of <code class="inline">cluster-mgmt</code> or <code class="inline">node-mgmt</code>. Two things commonly get confused here:</p>
+      <ul>
+        <li><strong>Service enablement</strong> (<code class="inline">vserver services web modify</code>) — turns a given service on/off logically.</li>
+        <li><strong>Firewall/LIF policy</strong> (<code class="inline">system services firewall policy show</code>) — controls whether traffic on port 443 is even allowed to reach that LIF from a given network.</li>
+      </ul>
+      <p>A service can be <code class="inline">Enabled: true</code> and still be unreachable if the firewall policy on the LIF blocks HTTPS, or if DNS/routing can't get a client to the LIF at all.</p>
+
+      <h3>Certificates</h3>
+      <p>The web server layer also owns the TLS certificate presented during the handshake. An expired or mismatched cluster certificate is one of the most common "System Manager won't load" causes that has nothing to do with SAML or the services above — always rule this out first:</p>
+      <pre><span class="c">cluster1::*&gt; security certificate show -type server</span></pre>
+
+      <div class="callout warn">
+        <span class="tag">Common trap</span>
+        If you rotate or renew the cluster certificate <em>while</em> SAML is enabled, some IdPs will also need their stored SP certificate metadata refreshed — otherwise the SAML handshake starts failing even though the plain HTTPS listener works fine.
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section id="saml-concept">
+      <div class="section-head"><span class="section-num">04</span><h2>How SAML actually fits into this stack</h2></div>
+      <p class="section-sub">SAML doesn't replace the web server layer — it intercepts the authentication step that happens after the browser reaches it.</p>
+
+      <p>Without SAML, a request to System Manager hits <code class="inline">portal</code>/<code class="inline">security</code>, which prompts for local or Active Directory/LDAP credentials directly. With SAML enabled, that same request gets redirected out to an external Identity Provider (IdP) — Okta, Entra ID, ADFS, PingFederate, Shibboleth, and so on — and only after the IdP successfully authenticates the user does control return to ONTAP with a signed assertion.</p>
+
+      <div class="flow">
+        <div class="node"><span class="n">1 · Request</span>Browser → cluster-mgmt LIF /sysmgr</div>
+        <div class="arrow">→</div>
+        <div class="node"><span class="n">2 · Redirect</span>ONTAP SP sends browser to IdP</div>
+        <div class="arrow">→</div>
+        <div class="node"><span class="n">3 · Auth</span>User authenticates at IdP (Okta)</div>
+        <div class="arrow">→</div>
+        <div class="node"><span class="n">4 · Assertion</span>IdP posts signed SAML assertion back to ACS URL</div>
+        <div class="arrow">→</div>
+        <div class="node"><span class="n">5 · Session</span>ONTAP validates, grants System Manager session</div>
+      </div>
+
+      <p>Two ONTAP services carry this whole exchange: <code class="inline">saml</code> enables SP capability cluster-wide, and <code class="inline">saml-sp</code> is the live endpoint that receives and validates the assertion at the callback URL (the "ACS URL" in IdP terminology). SAML in ONTAP applies specifically to the <code class="inline">http</code> and <code class="inline">ontapi</code> applications — the ones System Manager and the Service Processor Infrastructure use.</p>
+
+      <div class="callout">
+        <span class="tag">Scope</span>
+        SAML authentication in ONTAP applies only to the admin Vserver. It governs access to System Manager and related web APIs — it has no bearing on SSH/CLI login, which continues to use local accounts or AD/LDAP domain authentication regardless of SAML state.
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section id="okta-setup">
+      <div class="section-head"><span class="section-num">05</span><h2>Step-by-step: Okta as the IdP</h2></div>
+      <p class="section-sub">End-to-end, from Okta org creation to a working SSO login on System Manager.</p>
+
+      <ol class="steps">
+        <li>
+          <h4>Confirm outbound reachability from the cluster</h4>
+          <p>SAML metadata is fetched by ONTAP itself, not just your browser — the cluster needs its own path to the IdP.</p>
+          <pre><span class="c">cluster1::*&gt; network ping -lif cluster_mgmt -destination okta.com -vserver cluster1</span>
+<span class="o">okta.com is alive</span></pre>
+        </li>
+        <li>
+          <h4>Sign up for an Okta org</h4>
+          <p>Use the <strong>Okta Integrator Free Plan</strong> (developer track) rather than the 30-day Workforce Identity trial if you want something that doesn't expire mid-lab. Business-domain email required — a corporate address works, personal providers (Gmail, Outlook, Yahoo) are usually blocked by the signup form.</p>
+        </li>
+        <li>
+          <h4>Get the cluster management LIF address</h4>
+          <p>You'll need this for both the Okta app config and the ONTAP-side command.</p>
+          <pre><span class="c">cluster1::*&gt; network interface show -lif cluster_mgmt</span></pre>
+        </li>
+        <li>
+          <h4>Create a SAML 2.0 app integration in Okta</h4>
+          <p>Applications → Create App Integration → SAML 2.0. Set:</p>
+          <ul>
+            <li><strong>Single sign-on URL (ACS):</strong> <code class="inline">https://&lt;cluster_mgmt_ip&gt;/security/saml/sp/callback</code></li>
+            <li><strong>Audience URI (SP Entity ID):</strong> matches the value you'll use for <code class="inline">-sp-host</code></li>
+            <li><strong>Name ID format:</strong> EmailAddress</li>
+          </ul>
+        </li>
+        <li>
+          <h4>Copy the metadata URL</h4>
+          <p>From the app's Sign On tab. Must <em>not</em> include a Token groups Unqualified name segment in the path — a malformed URL here is one of the most common Okta+ONTAP failure points.</p>
+          <pre><span class="c"># correct</span>
+<span class="o">https://your_domain.okta.com/app/abc1a23a1234567abcd/sso/saml/metadata</span></pre>
+        </li>
+        <li>
+          <h4>Register ONTAP as the SAML service provider</h4>
+          <pre><span class="c">cluster1::*&gt; security saml-sp create -idp-uri https://your_domain.okta.com/app/&lt;app_id&gt;/sso/saml/metadata -sp-host &lt;cluster_mgmt_ip&gt;</span>
+<span class="o">Warning: This restarts the web server. Active HTTP/S sessions will be disrupted.</span></pre>
+          <p>Verify it landed correctly:</p>
+          <pre><span class="c">cluster1::*&gt; security saml-sp show</span></pre>
+        </li>
+        <li>
+          <h4>Create a SAML-authenticated ONTAP user</h4>
+          <p>Must match a user assigned to the app in Okta's Assignments tab.</p>
+          <pre><span class="c">cluster1::*&gt; security login create -user-or-group-name you@domain.com -application http -authentication-method saml -role admin
+cluster1::*&gt; security login create -user-or-group-name you@domain.com -application ontapi -authentication-method saml -role admin</span></pre>
+        </li>
+        <li>
+          <h4>Test the login</h4>
+          <p>Browse to <code class="inline">https://&lt;cluster_mgmt_ip&gt;/sysmgr</code> — you should be bounced to Okta, authenticate there, and land back in System Manager already signed in.</p>
+        </li>
+      </ol>
+    </section>
+
+    <!-- 6 -->
+    <section id="lockout">
+      <div class="section-head"><span class="section-num">06</span><h2>Accessibility issues & lockout recovery</h2></div>
+      <p class="section-sub">What actually happens when SAML is misconfigured, and how to get back in.</p>
+
+      <div class="callout danger">
+        <span class="tag">Important</span>
+        Once SAML is enabled and enforced for the <code class="inline">http</code>/<code class="inline">ontapi</code> applications, it becomes the <em>only</em> way to log into System Manager. If the IdP metadata is wrong, expired, or unreachable, you cannot fall back to a local admin login from the normal GUI URL — the redirect loop or handshake failure blocks everyone, including local admins.</span>
+      </div>
+
+      <h3>The only supported way out</h3>
+      <p>SAML cannot be disabled from a standard SSH session to the cluster. Recovery requires out-of-band access to the <strong>Service Processor (SP)</strong> or Remote LAN Module (RLM) console of a node:</p>
+      <pre><span class="c">SP&gt; system console</span>
+<span class="c">cluster1::*&gt; security saml-sp delete</span></pre>
+      <p>This reverts authentication to local/AD accounts immediately, letting you back into System Manager to fix and re-test the IdP configuration.</p>
+
+      <h3>Common root causes</h3>
+      <table>
+        <tr><th>Symptom</th><th>Likely cause</th></tr>
+        <tr><td>Redirect loop between ONTAP and IdP</td><td>ACS URL / Entity ID mismatch between Okta app config and <code class="inline">-sp-host</code></td></tr>
+        <tr><td>"Metadata could not be retrieved"</td><td>Cluster has no outbound path to the IdP, or DNS can't resolve it</td></tr>
+        <tr><td>Assertion accepted, but access denied</td><td>No matching <code class="inline">security login create</code> entry with <code class="inline">-authentication-method saml</code> for that user</td></tr>
+        <tr><td>Worked, then broke after a cert renewal</td><td>SP certificate metadata went stale on the IdP side after ONTAP's cluster cert rotated</td></tr>
+        <tr><td>AD group-based SAML roles not applying</td><td>Domain groups with SAML require ONTAP 9.14.1+ and must be added with <code class="inline">-authentication-method domain</code></td></tr>
+      </table>
+
+      <h3>Before you enable SAML in any environment</h3>
+      <ul>
+        <li>Confirm you actually have SP/RLM console access — not just SSH — before flipping SAML on.</li>
+        <li>Keep <code class="inline">security saml-sp delete</code> written down somewhere outside the cluster.</li>
+        <li>Test with a non-critical admin account first, and keep at least one local account with a known-good password as a bridge.</li>
+      </ul>
+    </section>
+
+    <!-- 7 -->
+    <section id="lod">
+      <div class="section-head"><span class="section-num">07</span><h2>Lab on Demand specific notes</h2></div>
+      <p class="section-sub">What's different when you're testing this inside NetApp's sandboxed lab platform.</p>
+
+      <p>LOD clusters usually sit behind a split-tunnel VPN — your laptop gets full internet access, but the simulated ONTAP cluster inside the lab network historically does not. That matters here specifically because <code class="inline">security saml-sp create</code> requires the <em>cluster itself</em>, not just your browser, to fetch the IdP metadata over HTTPS.</p>
+
+      <h3>Check reachability before building anything</h3>
+      <pre><span class="c">cluster1::*&gt; network ping -lif cluster_mgmt -destination 8.8.8.8 -vserver cluster1
+cluster1::*&gt; network ping -lif cluster_mgmt -destination okta.com -vserver cluster1</span></pre>
+      <p>Both need to succeed — the first confirms routing, the second confirms DNS resolution. If either fails, check <code class="inline">dns show</code> on the cluster and configure name servers if missing.</p>
+
+      <div class="callout">
+        <span class="tag">If outbound access is blocked</span>
+        Some LOD labs include a pre-deployed Windows AD/ADFS server on the internal lab network — that lets you practice the exact same <code class="inline">security saml-sp create</code> mechanics against an internal IdP with no internet dependency at all.
+      </div>
+
+      <h3>SP console access in LOD</h3>
+      <p>Many LOD "vsim" clusters simulate nodes without exposing a genuine Service Processor console. Before you enable SAML in a lab, check whether your specific lab guide documents SP/RLM access — if it doesn't, treat this as a one-way door for the duration of the lab and be prepared to reset the lab environment entirely if you get locked out, rather than expecting to recover in-session.</p>
+    </section>
+
+    <!-- 8 -->
+    <section id="cheatsheet">
+      <div class="section-head"><span class="section-num">08</span><h2>Command reference</h2></div>
+      <p class="section-sub">The full set, grouped by purpose.</p>
+
+      <h3>Service & connectivity checks</h3>
+      <pre><span class="c">vserver services web show -vserver cluster1
+system services firewall policy show
+security certificate show -type server
+network ping -lif cluster_mgmt -destination &lt;host&gt; -vserver cluster1
+dns show</span></pre>
+
+      <h3>SAML configuration</h3>
+      <pre><span class="c">security saml-sp create -idp-uri &lt;metadata_url&gt; -sp-host &lt;cluster_mgmt_ip&gt;
+security saml-sp show
+security saml-sp modify
+security saml-sp delete</span></pre>
+
+      <h3>User & role setup</h3>
+      <pre><span class="c">security login create -user-or-group-name &lt;user&gt; -application http -authentication-method saml -role admin
+security login create -user-or-group-name &lt;user&gt; -application ontapi -authentication-method saml -role admin
+security login show</span></pre>
+
+      <h3>Domain-group SAML (ONTAP 9.14.1+)</h3>
+      <pre><span class="c">security login create -user-or-group-name &lt;domain_group&gt; -application http -authentication-method domain -role admin
+security login create -user-or-group-name &lt;domain_group&gt; -application ontapi -authentication-method domain -role admin</span></pre>
+    </section>
+
+    <footer>
+      cluster1::*&gt; end of document — see NetApp KB "System Manager SAML Authentication Resolution Guide" for vendor-maintained troubleshooting trees.
+    </footer>
+
+  </main>
+</div>
+
+</body>
+</html>
