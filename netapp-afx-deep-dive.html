@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetApp AFX — Architecture Deep Dive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0a0d13;
+    --bg-panel: #10141d;
+    --bg-card: #141924;
+    --line: #232a38;
+    --line-soft: #1a2029;
+    --text: #e8ebf2;
+    --text-dim: #8d96ab;
+    --text-faint: #5c6579;
+    --fiber: #49d3c2;      /* network / fabric accent */
+    --parity: #f2a65a;     /* raid / warning accent */
+    --node: #7c9eff;       /* compute node accent */
+    --shelf: #e8ebf2;
+    --radius: 10px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    line-height: 1.65;
+    font-size: 16px;
+  }
+  h1,h2,h3,h4{
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .mono{ font-family: 'IBM Plex Mono', monospace; }
+  code, .tag{
+    font-family: 'IBM Plex Mono', monospace;
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-size: 0.85em;
+    color: var(--fiber);
+  }
+  a{ color: var(--fiber); }
+
+  /* ---------- layout shell ---------- */
+  .wrap{ max-width: 980px; margin: 0 auto; padding: 0 28px; }
+
+  /* ---------- top nav ---------- */
+  .topnav{
+    position: sticky; top:0; z-index: 50;
+    background: rgba(10,13,19,0.88);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .topnav-inner{
+    max-width: 980px; margin:0 auto; padding: 14px 28px;
+    display:flex; align-items:center; justify-content: space-between;
+    gap: 20px;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; font-family:'Space Grotesk'; font-weight:700; font-size:15px; white-space:nowrap;}
+  .brand .dot{ width:8px; height:8px; border-radius:50%; background: var(--fiber); box-shadow: 0 0 10px var(--fiber);}
+  .navlinks{ display:flex; gap: 18px; overflow-x:auto; scrollbar-width:none; }
+  .navlinks::-webkit-scrollbar{ display:none; }
+  .navlinks a{
+    color: var(--text-dim); text-decoration:none; font-size: 13px;
+    white-space:nowrap; padding: 6px 0; border-bottom: 2px solid transparent;
+    transition: color .15s, border-color .15s;
+  }
+  .navlinks a:hover{ color: var(--text); border-color: var(--fiber); }
+
+  /* ---------- hero ---------- */
+  .hero{ padding: 76px 0 56px; border-bottom: 1px solid var(--line); }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:'IBM Plex Mono'; font-size:12px; color: var(--fiber);
+    letter-spacing: 0.08em; text-transform: uppercase;
+    background: rgba(73,211,194,0.08); border:1px solid rgba(73,211,194,0.25);
+    padding: 5px 12px; border-radius: 100px; margin-bottom: 22px;
+  }
+  .hero h1{
+    font-size: clamp(2.2rem, 5vw, 3.4rem);
+    line-height: 1.06;
+    max-width: 780px;
+    margin-bottom: 20px;
+  }
+  .hero h1 em{ font-style:normal; color: var(--fiber); }
+  .hero p.lede{
+    font-size: 1.15rem; color: var(--text-dim); max-width: 620px; margin-bottom: 28px;
+  }
+  .hero-meta{ display:flex; gap: 24px; flex-wrap:wrap; font-family:'IBM Plex Mono'; font-size: 12.5px; color: var(--text-faint); }
+  .hero-meta span b{ color: var(--text-dim); font-weight:500; }
+
+  /* ---------- section shell ---------- */
+  section{ padding: 64px 0; border-bottom: 1px solid var(--line-soft); }
+  section:last-of-type{ border-bottom:none; }
+  .sec-label{
+    font-family:'IBM Plex Mono'; font-size: 12px; color: var(--text-faint);
+    letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px;
+  }
+  h2.sec-title{ font-size: clamp(1.5rem, 3vw, 2rem); margin-bottom: 14px; }
+  .sec-intro{ color: var(--text-dim); max-width: 680px; margin-bottom: 34px; font-size: 1.02rem;}
+
+  h3.sub{ font-size: 1.1rem; margin: 30px 0 12px; color: var(--text); }
+  p{ color: var(--text-dim); max-width: 700px; margin-bottom: 14px; }
+  p strong{ color: var(--text); font-weight: 600; }
+  ul.plain{ color: var(--text-dim); max-width: 700px; margin: 0 0 16px 0; padding-left: 20px; }
+  ul.plain li{ margin-bottom: 8px; }
+  ul.plain li strong{ color: var(--text); }
+
+  /* ---------- cards / grids ---------- */
+  .grid{ display:grid; gap: 16px; margin: 22px 0; }
+  .grid.cols-2{ grid-template-columns: 1fr 1fr; }
+  .grid.cols-3{ grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 720px){ .grid.cols-2, .grid.cols-3{ grid-template-columns: 1fr; } }
+
+  .card{
+    background: var(--bg-card); border:1px solid var(--line);
+    border-radius: var(--radius); padding: 20px 22px;
+  }
+  .card h4{ font-size: 0.95rem; margin-bottom: 8px; color: var(--text); }
+  .card p{ font-size: 0.92rem; margin-bottom: 0; }
+  .card .kicker{ font-family:'IBM Plex Mono'; font-size:11px; color: var(--fiber); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px; display:block;}
+
+  /* callouts */
+  .callout{
+    border-left: 3px solid var(--fiber);
+    background: rgba(73,211,194,0.06);
+    padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 20px 0;
+    max-width: 700px;
+  }
+  .callout p{ margin:0; color: var(--text); font-size: 0.94rem; }
+  .callout.warn{ border-color: var(--parity); background: rgba(242,166,90,0.06); }
+
+  /* table */
+  table{ width:100%; border-collapse: collapse; margin: 18px 0 8px; font-size: 0.9rem; }
+  th, td{ text-align:left; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  th{ font-family:'IBM Plex Mono'; font-size: 11.5px; text-transform:uppercase; letter-spacing:0.05em; color: var(--text-faint); font-weight:500; }
+  td{ color: var(--text-dim); }
+  td.hi{ color: var(--text); font-family:'IBM Plex Mono'; font-size: 0.85rem;}
+  tr:last-child td{ border-bottom:none; }
+
+  /* ---------- diagram frames ---------- */
+  .diagram{
+    background: var(--bg-panel); border:1px solid var(--line);
+    border-radius: var(--radius); padding: 28px; margin: 26px 0;
+    overflow-x: auto;
+  }
+  .diagram svg{ display:block; margin: 0 auto; max-width:100%; height:auto; }
+  .diagram-caption{
+    font-family:'IBM Plex Mono'; font-size: 11.5px; color: var(--text-faint);
+    text-align:center; margin-top:14px; letter-spacing: 0.02em;
+  }
+  .legend{ display:flex; gap: 18px; justify-content:center; flex-wrap:wrap; margin-top: 16px; font-family:'IBM Plex Mono'; font-size:11px; color: var(--text-faint);}
+  .legend span{ display:inline-flex; align-items:center; gap:6px; }
+  .legend i{ width:10px; height:10px; border-radius:2px; display:inline-block; }
+
+  /* Q&A style blocks used for the port/breakout/HA discussion threads */
+  .qa{ margin: 26px 0; border:1px solid var(--line); border-radius: var(--radius); overflow:hidden; }
+  .qa .q{
+    background: var(--bg-card); padding: 14px 20px;
+    font-family:'IBM Plex Mono'; font-size: 0.88rem; color: var(--fiber);
+    border-bottom: 1px solid var(--line);
+  }
+  .qa .a{ padding: 18px 20px; }
+  .qa .a p:last-child{ margin-bottom:0; }
+
+  /* signature: breakout fan animation */
+  .fanwrap{ display:flex; justify-content:center; }
+  .fan-line{ stroke-dasharray: 6 4; animation: dash 2.4s linear infinite; }
+  @keyframes dash{ to{ stroke-dashoffset: -40; } }
+  @media (prefers-reduced-motion: reduce){ .fan-line{ animation:none; } }
+
+  /* footer */
+  footer{ padding: 48px 0 80px; }
+  footer p{ font-size: 0.85rem; color: var(--text-faint); max-width: 700px; }
+  .back-top{
+    display:inline-block; margin-top: 20px; font-family:'IBM Plex Mono'; font-size:12px;
+    color: var(--fiber); text-decoration:none; border:1px solid var(--line); padding:8px 14px; border-radius:100px;
+  }
+
+  ::selection{ background: rgba(73,211,194,0.3); }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="topnav-inner">
+    <div class="brand"><span class="dot"></span> AFX / DEEP DIVE</div>
+    <div class="navlinks">
+      <a href="#what">What is AFX</a>
+      <a href="#hardware">Hardware</a>
+      <a href="#fabric">The Fabric</a>
+      <a href="#ha">HA Pairs</a>
+      <a href="#scaling">Scaling &amp; Ports</a>
+      <a href="#saz">SAZ &amp; Ownership</a>
+      <a href="#raid">RAID</a>
+      <a href="#nvmeof">NVMe-oF</a>
+      <a href="#throughput">Throughput</a>
+      <a href="#reference">Quick Reference</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">● ontap · disaggregated architecture</div>
+    <h1>NetApp AFX, from<br><em>the switch port up.</em></h1>
+    <p class="lede">A ground-up walkthrough of how AFX turns a room full of NVMe shelves and controller nodes into one storage pool — the cabling, the protocols, and the software layer that makes it feel like a single, enormous disk.</p>
+    <div class="hero-meta">
+      <span><b>Personality:</b> Disaggregated ONTAP</span>
+      <span><b>Announced:</b> NetApp Insight, Oct 2025</span>
+      <span><b>Workloads:</b> NAS + S3, AI/ML focused</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ WHAT IS AFX ============ -->
+  <section id="what">
+    <div class="sec-label">01 — Orientation</div>
+    <h2 class="sec-title">What AFX actually changes</h2>
+    <p class="sec-intro">AFX is still ONTAP — same codebase, same System Manager, same SnapMirror/FlexClone/ARP feature set. What's different is the relationship between compute and storage underneath it.</p>
+
+    <div class="diagram">
+      <svg viewBox="0 0 860 260" xmlns="http://www.w3.org/2000/svg">
+        <!-- Unified ONTAP -->
+        <text x="150" y="26" text-anchor="middle" fill="#8d96ab" font-family="IBM Plex Mono" font-size="11" letter-spacing="1">UNIFIED ONTAP (FAS / AFF)</text>
+        <g font-family="IBM Plex Sans" font-size="12" fill="#e8ebf2">
+          <rect x="60" y="50" width="90" height="46" rx="6" fill="#141924" stroke="#7c9eff" stroke-width="1.4"/>
+          <text x="105" y="78" text-anchor="middle">Node A</text>
+          <rect x="60" y="150" width="90" height="46" rx="6" fill="#141924" stroke="#e8ebf2" stroke-width="1.4"/>
+          <text x="105" y="178" text-anchor="middle">Shelf A</text>
+          <line x1="105" y1="96" x2="105" y2="150" stroke="#7c9eff" stroke-width="2"/>
+
+          <rect x="180" y="50" width="90" height="46" rx="6" fill="#141924" stroke="#7c9eff" stroke-width="1.4"/>
+          <text x="225" y="78" text-anchor="middle">Node B</text>
+          <rect x="180" y="150" width="90" height="46" rx="6" fill="#141924" stroke="#e8ebf2" stroke-width="1.4"/>
+          <text x="225" y="178" text-anchor="middle">Shelf B</text>
+          <line x1="225" y1="96" x2="225" y2="150" stroke="#7c9eff" stroke-width="2"/>
+
+          <line x1="105" y1="73" x2="225" y2="73" stroke="#f2a65a" stroke-width="2" stroke-dasharray="4 3"/>
+          <text x="165" y="63" text-anchor="middle" font-family="IBM Plex Mono" font-size="9.5" fill="#f2a65a">HA cable</text>
+        </g>
+        <text x="150" y="228" text-anchor="middle" fill="#5c6579" font-family="IBM Plex Mono" font-size="10.5">node owns its own disks</text>
+
+        <!-- divider -->
+        <line x1="430" y1="30" x2="430" y2="230" stroke="#232a38" stroke-width="1"/>
+
+        <!-- Disaggregated AFX -->
+        <text x="700" y="26" text-anchor="middle" fill="#49d3c2" font-family="IBM Plex Mono" font-size="11" letter-spacing="1">DISAGGREGATED ONTAP (AFX)</text>
+        <g font-family="IBM Plex Sans" font-size="12" fill="#e8ebf2">
+          <rect x="640" y="50" width="120" height="36" rx="6" fill="#141924" stroke="#49d3c2" stroke-width="1.4"/>
+          <text x="700" y="72" text-anchor="middle" font-family="IBM Plex Mono" font-size="10.5">SWITCH FABRIC</text>
+
+          <rect x="560" y="120" width="70" height="36" rx="6" fill="#141924" stroke="#7c9eff" stroke-width="1.4"/>
+          <text x="595" y="142" text-anchor="middle" font-size="11">Node 1</text>
+          <rect x="640" y="120" width="70" height="36" rx="6" fill="#141924" stroke="#7c9eff" stroke-width="1.4"/>
+          <text x="675" y="142" text-anchor="middle" font-size="11">Node 2</text>
+          <rect x="720" y="120" width="70" height="36" rx="6" fill="#141924" stroke="#7c9eff" stroke-width="1.4"/>
+          <text x="755" y="142" text-anchor="middle" font-size="11">Node N</text>
+
+          <rect x="560" y="188" width="70" height="36" rx="6" fill="#141924" stroke="#e8ebf2" stroke-width="1.4"/>
+          <text x="595" y="210" text-anchor="middle" font-size="11">Shelf 1</text>
+          <rect x="640" y="188" width="70" height="36" rx="6" fill="#141924" stroke="#e8ebf2" stroke-width="1.4"/>
+          <text x="675" y="210" text-anchor="middle" font-size="11">Shelf 2</text>
+          <rect x="720" y="188" width="70" height="36" rx="6" fill="#141924" stroke="#e8ebf2" stroke-width="1.4"/>
+          <text x="755" y="210" text-anchor="middle" font-size="11">Shelf N</text>
+
+          <line x1="595" y1="86" x2="595" y2="120" stroke="#49d3c2" stroke-width="1.6"/>
+          <line x1="675" y1="86" x2="675" y2="120" stroke="#49d3c2" stroke-width="1.6"/>
+          <line x1="755" y1="86" x2="700" y2="86" stroke="#49d3c2" stroke-width="1.6"/>
+          <line x1="755" y1="86" x2="755" y2="120" stroke="#49d3c2" stroke-width="1.6"/>
+          <line x1="595" y1="156" x2="595" y2="188" stroke="#49d3c2" stroke-width="1.6"/>
+          <line x1="675" y1="156" x2="675" y2="188" stroke="#49d3c2" stroke-width="1.6"/>
+          <line x1="755" y1="156" x2="755" y2="188" stroke="#49d3c2" stroke-width="1.6"/>
+        </g>
+        <text x="700" y="245" text-anchor="middle" fill="#5c6579" font-family="IBM Plex Mono" font-size="10.5">every node sees every disk</text>
+      </svg>
+      <div class="diagram-caption">Left: node-owned disks, direct HA cabling. Right: everything meets at the switch — no ownership, no direct cabling.</div>
+    </div>
+
+    <div class="grid cols-2">
+      <div class="card">
+        <span class="kicker">Unified ONTAP</span>
+        <h4>Compute and capacity scale together</h4>
+        <p>Each controller has a fixed relationship with its own disks or partitions, manages its own aggregate, and fails over to its HA partner via a direct NVRAM cable. Want more throughput? You typically add nodes <em>and</em> capacity together.</p>
+      </div>
+      <div class="card">
+        <span class="kicker">Disaggregated ONTAP (AFX)</span>
+        <h4>Compute and capacity scale independently</h4>
+        <p>Every controller node sees every disk through a shared Ethernet fabric. There's no node-to-shelf ownership. Need more performance — add nodes. Need more capacity — add shelves. Nothing else has to change.</p>
+      </div>
+    </div>
+
+    <p>AFX is <strong>NAS and S3 object only</strong> — block storage isn't supported and isn't planned. Supported protocols are SMB 2/3, S3, and NFSv3 through NFSv4.2, which covers essentially every AI data-pipeline pattern: NFS for feeding GPU training jobs, S3 for the data lake / model artifacts, and pNFS for clients that can pull from multiple nodes in parallel.</p>
+  </section>
+
+  <!-- ============ HARDWARE ============ -->
+  <section id="hardware">
+    <div class="sec-label">02 — Building Blocks</div>
+    <h2 class="sec-title">The physical components</h2>
+    <p class="sec-intro">A typical AFX deployment is three kinds of boxes plus a pair of switches.</p>
+
+    <div class="grid cols-3">
+      <div class="card">
+        <span class="kicker">Controller</span>
+        <h4>AFX 1K node</h4>
+        <p>2U, based on the AFF A1K platform. <strong>No on-board disk.</strong> Purely a compute node — modular, and performance increases roughly linearly as you add more.</p>
+      </div>
+      <div class="card">
+        <span class="kicker">Storage</span>
+        <h4>NX224 NVMe shelf</h4>
+        <p>2U shelf, 24 NVMe SSDs. Drive sizes: 7.6TB and 15.3TB (TLC), 30.7TB and 61.4TB (QLC, the latter added in ONTAP 9.18.1).</p>
+      </div>
+      <div class="card">
+        <span class="kicker">Optional</span>
+        <h4>DX50 compute node</h4>
+        <p>Runs <strong>NetApp AI Data Engine (AIDE)</strong> natively inside the AFX cluster — metadata indexing, vectorization, and privacy/governance for AI pipelines.</p>
+      </div>
+    </div>
+
+    <h3 class="sub">Purchasing constraints worth knowing</h3>
+    <ul class="plain">
+      <li><strong>Shelves are sold fully populated</strong> — there's no partial-shelf configuration.</li>
+      <li><strong>Drive sizes can't be mixed</strong> within a single Storage Availability Zone.</li>
+      <li><strong>Once a shelf is added, it can't be removed.</strong></li>
+      <li>15.3TB drives can start on a single shelf; every other drive size requires a minimum of two shelves.</li>
+      <li>Smallest practical footprint: a 4-node cluster with one 15.3TB shelf needs ~12U (8U controllers + 2U shelf + 2U switches).</li>
+    </ul>
+  </section>
+
+  <!-- ============ THE FABRIC ============ -->
+  <section id="fabric">
+    <div class="sec-label">03 — Networking</div>
+    <h2 class="sec-title">The switch fabric</h2>
+    <p class="sec-intro">This is the part that makes disaggregation physically possible: nodes and shelves both plug into the same pair of switches — nothing is chained, nothing is directly wired to anything else.</p>
+
+    <div class="diagram">
+      <svg viewBox="0 0 780 210" xmlns="http://www.w3.org/2000/svg">
+        <rect x="230" y="20" width="140" height="34" rx="6" fill="#141924" stroke="#49d3c2" stroke-width="1.6"/>
+        <text x="300" y="42" text-anchor="middle" fill="#e8ebf2" font-family="IBM Plex Mono" font-size="11">SWITCH A</text>
+        <rect x="410" y="20" width="140" height="34" rx="6" fill="#141924" stroke="#49d3c2" stroke-width="1.6"/>
+        <text x="480" y="42" text-anchor="middle" fill="#e8ebf2" font-family="IBM Plex Mono" font-size="11">SWITCH B</text>
+        <line x1="370" y1="37" x2="410" y2="37" stroke="#49d3c2" stroke-width="1.4" stroke-dasharray="3 3"/>
+
+        <!-- nodes -->
+        <g font-family="IBM Plex Sans" font-size="11" fill="#e8ebf2">
+          <rect x="90" y="100" width="80" height="34" rx="6" fill="#141924" stroke="#7c9eff" stroke-width="1.4"/>
+          <text x="130" y="121" text-anchor="middle">Node 1</text>
+          <rect x="190" y="100" width="80" height="34" rx="6" fill="#141924" stroke="#7c9eff" stroke-width="1.4"/>
+          <text x="230" y="121" text-anchor="middle">Node 2</text>
+        </g>
+        <!-- shelves -->
+        <g font-family="IBM Plex Sans" font-size="11" fill="#e8ebf2">
+          <rect x="520" y="100" width="80" height="34" rx="6" fill="#141924" stroke="#f2a65a" stroke-width="1.4"/>
+          <text x="560" y="121" text-anchor="middle">Shelf 1</text>
+          <rect x="620" y="100" width="80" height="34" rx="6" fill="#141924" stroke="#f2a65a" stroke-width="1.4"/>
+          <text x="660" y="121" text-anchor="middle">Shelf 2</text>
+        </g>
+
+        <!-- connections: nodes to both switches -->
+        <line x1="130" y1="100" x2="270" y2="54" stroke="#7c9eff" stroke-width="1.3"/>
+        <line x1="130" y1="100" x2="440" y2="54" stroke="#7c9eff" stroke-width="1.3" opacity="0.5"/>
+        <line x1="230" y1="100" x2="330" y2="54" stroke="#7c9eff" stroke-width="1.3"/>
+        <line x1="230" y1="100" x2="470" y2="54" stroke="#7c9eff" stroke-width="1.3" opacity="0.5"/>
+
+        <!-- connections: shelves to both switches -->
+        <line x1="560" y1="100" x2="330" y2="54" stroke="#f2a65a" stroke-width="1.3" opacity="0.5"/>
+        <line x1="560" y1="100" x2="470" y2="54" stroke="#f2a65a" stroke-width="1.3"/>
+        <line x1="660" y1="100" x2="370" y2="54" stroke="#f2a65a" stroke-width="1.3" opacity="0.5"/>
+        <line x1="660" y1="100" x2="540" y2="54" stroke="#f2a65a" stroke-width="1.3"/>
+
+        <text x="130" y="165" text-anchor="middle" fill="#5c6579" font-family="IBM Plex Mono" font-size="10">direct to switches</text>
+        <text x="590" y="165" text-anchor="middle" fill="#5c6579" font-family="IBM Plex Mono" font-size="10">direct to switches</text>
+        <text x="390" y="188" text-anchor="middle" fill="#5c6579" font-family="IBM Plex Mono" font-size="10.5">no shelf-to-shelf daisy chaining · no node-to-node cabling</text>
+      </svg>
+      <div class="diagram-caption">Every node and every shelf connects independently to both switch A and switch B for redundancy.</div>
+    </div>
+
+    <div class="qa">
+      <div class="q">Q — new shelves needed, do they attach to switches or shelf-to-shelf?</div>
+      <div class="a">
+        <p>Directly to the switches, every time. When you hot-add an NX224 shelf, you rack it, power it, set a <strong>unique shelf ID</strong>, and cable both I/O modules straight to switch A and switch B. There's no chaining one shelf into another — ONTAP recognizes the new shelf automatically once it's cabled, and firmware updates itself if needed.</p>
+        <p>This is deliberate: if shelves were chained, a shelf further down the line could bottleneck or become a single point of failure for everything behind it. Direct, independent, symmetric connections are what let every node reach every disk with the same low latency.</p>
+      </div>
+    </div>
+
+    <h3 class="sub">Port speed — 100GbE at the box, 400GbE at the switch</h3>
+    <p>All controller and shelf interfaces (cluster, storage, and HA ports) run at <strong>100GbE</strong>. The backend switches — Cisco Nexus 9332D / 9364D class — run at <strong>400GbE</strong>. The gap between the two is closed with breakout cabling.</p>
+
+    <div class="diagram">
+      <div class="fanwrap">
+      <svg viewBox="0 0 480 220" xmlns="http://www.w3.org/2000/svg">
+        <rect x="20" y="90" width="90" height="40" rx="6" fill="#141924" stroke="#49d3c2" stroke-width="1.6"/>
+        <text x="65" y="106" text-anchor="middle" fill="#e8ebf2" font-family="IBM Plex Mono" font-size="10">SWITCH</text>
+        <text x="65" y="120" text-anchor="middle" fill="#49d3c2" font-family="IBM Plex Mono" font-size="10.5">400G port</text>
+
+        <line class="fan-line" x1="110" y1="105" x2="110" y2="105" stroke="none"/>
+        <path class="fan-line" d="M110,102 C170,90 220,50 300,40"  stroke="#f2a65a" stroke-width="1.6" fill="none"/>
+        <path class="fan-line" d="M110,106 C170,100 220,80 300,78" stroke="#f2a65a" stroke-width="1.6" fill="none"/>
+        <path class="fan-line" d="M110,110 C170,116 220,130 300,132" stroke="#f2a65a" stroke-width="1.6" fill="none"/>
+        <path class="fan-line" d="M110,114 C170,126 220,160 300,170" stroke="#f2a65a" stroke-width="1.6" fill="none"/>
+
+        <g font-family="IBM Plex Mono" font-size="10" fill="#e8ebf2">
+          <rect x="300" y="26" width="130" height="28" rx="5" fill="#141924" stroke="#7c9eff"/>
+          <text x="365" y="44" text-anchor="middle">Node port · 100G</text>
+          <rect x="300" y="64" width="130" height="28" rx="5" fill="#141924" stroke="#7c9eff"/>
+          <text x="365" y="82" text-anchor="middle">Node port · 100G</text>
+          <rect x="300" y="118" width="130" height="28" rx="5" fill="#141924" stroke="#e8ebf2"/>
+          <text x="365" y="136" text-anchor="middle">Shelf port · 100G</text>
+          <rect x="300" y="156" width="130" height="28" rx="5" fill="#141924" stroke="#e8ebf2"/>
+          <text x="365" y="174" text-anchor="middle">Shelf port · 100G</text>
+        </g>
+        <text x="150" y="200" text-anchor="middle" fill="#5c6579" font-family="IBM Plex Mono" font-size="10.5">one 4×100G breakout cable</text>
+      </svg>
+      </div>
+      <div class="diagram-caption">A 400G QSFP-DD port carries four independent 100G lanes internally — a breakout cable simply separates them into four physical connectors, each going to a different device.</div>
+    </div>
+
+    <div class="qa">
+      <div class="q">Q — how can one switch port take cables from 4 NetApp ports?</div>
+      <div class="a">
+        <p>The 400G connector isn't one stream — it's <strong>4 independent 100G lanes</strong> bundled into a single QSFP-DD cage, a standard, switch-configurable mode. A breakout cable is one connector on the switch end, fanning into <strong>4 separate cables</strong> on the far end, each plugging into a different node or shelf port.</p>
+        <p>Think of it like a power strip on a wall outlet: one socket feeds the strip, but 4 independent devices plug into the strip's separate outlets. On the switch's config, that one port becomes 4 addressable sub-interfaces, e.g. <code>Ethernet1/1/1</code> through <code>Ethernet1/1/4</code>.</p>
+      </div>
+    </div>
+
+    <h3 class="sub">Per-node connection budget</h3>
+    <table>
+      <tr><th>Purpose</th><th>100GbE ports</th><th>Notes</th></tr>
+      <tr><td>HA</td><td class="hi">2</td><td>No direct node-to-node cable — travels over the switch fabric instead</td></tr>
+      <tr><td>Cluster network</td><td class="hi">2</td><td>Cluster DB replication, inter-node ops (e.g. SnapMirror)</td></tr>
+      <tr><td>Storage</td><td class="hi">4</td><td>Node-to-shelf data path (NVMe-oF / RoCE)</td></tr>
+      <tr><td><strong>Total per node</strong></td><td class="hi"><strong>8</strong></td><td>Split across switch A and switch B (4+4) for redundancy</td></tr>
+    </table>
+    <p>Each NX224 shelf, by comparison, consumes just <strong>4 ports total</strong> (2 per switch). Nodes are always added in pairs — single-node additions aren't currently supported.</p>
+  </section>
+
+  <!-- ============ HA PAIRS ============ -->
+  <section id="ha">
+    <div class="sec-label">04 — Availability</div>
+    <h2 class="sec-title">HA pairs, without the HA cable</h2>
+    <p class="sec-intro">One of the more surprising changes AFX makes: HA partner nodes no longer need to be physically wired together.</p>
+
+    <div class="callout">
+      <p><strong>AFX removes the need to directly connect HA partner nodes</strong> — HA pairs instead communicate over the internal cluster network, i.e. through the same backend switches carrying everything else, isolated on its own VLAN.</p>
+    </div>
+
+    <p>Because HA no longer depends on a physical adjacency, you get a genuine operational benefit: HA pairs can be deployed in <strong>separate racks or rows</strong> for better fault tolerance against a rack-level power or cooling failure — something impossible when HA partners had to sit in the same chassis with a direct NVRAM cable.</p>
+
+    <p>Failover behavior also changes shape. When a node fails, its volumes fail over to the HA partner just long enough to commit any in-flight writes to disk — then ONTAP rebalances those volumes <strong>evenly across all surviving nodes</strong> in the cluster, not just onto the one HA partner. Because the data itself already sits in the shared pool, none of this requires a data copy.</p>
+  </section>
+
+  <!-- ============ SCALING ============ -->
+  <section id="scaling">
+    <div class="sec-label">05 — Scale</div>
+    <h2 class="sec-title">Cluster size and the port-count ceiling</h2>
+    <p class="sec-intro">If every node and shelf needs a direct switch connection, switch port density becomes the real limiting factor on how large a cluster can grow.</p>
+
+    <table>
+      <tr><th>Switch model</th><th>Native 400G ports</th><th>Max 100G breakout</th></tr>
+      <tr><td>Cisco Nexus 9332D-GX2B</td><td class="hi">32</td><td class="hi">up to 128</td></tr>
+      <tr><td>Cisco Nexus 9364D-GX2A</td><td class="hi">64</td><td class="hi">up to 256</td></tr>
+    </table>
+
+    <p>The 9364D-GX2A and newer 9808 chassis switch exist specifically to push node and shelf counts higher — the 9364D-GX2A explicitly enables building ONTAP clusters with more than two nodes, and the 9808 extends that further for <strong>AFX 2K</strong> systems.</p>
+
+    <div class="grid cols-2">
+      <div class="card">
+        <span class="kicker">Cluster minimums</span>
+        <h4>4 nodes minimum</h4>
+        <p>Each AFX cluster must have at least four nodes. The maximum varies by ONTAP release — always check the <strong>NetApp Hardware Universe</strong> for the current ceiling.</p>
+      </div>
+      <div class="card">
+        <span class="kicker">Published scale target</span>
+        <h4>Up to 128 controller nodes</h4>
+        <p>NetApp has discussed AFX scaling to 128 nodes to hit a target of ~4 TB/s aggregate read throughput and over 1 EB of capacity — well beyond the 24-node ceiling of classic unified-ONTAP clusters.</p>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <p>Note: the familiar "2 minimum, 24 maximum nodes" figure is the <strong>classic unified ONTAP</strong> cluster limit — it does not apply to AFX. NetApp has said the AFX architecture can scale "more than an order of magnitude" above its early published spec numbers.</p>
+    </div>
+  </section>
+
+  <!-- ============ SAZ ============ -->
+  <section id="saz">
+    <div class="sec-label">06 — Storage Pooling</div>
+    <h2 class="sec-title">The Storage Availability Zone (SAZ)</h2>
+    <p class="sec-intro">This is the single concept that makes disaggregation work at the software level.</p>
+
+    <div class="diagram">
+      <svg viewBox="0 0 720 240" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="360" cy="180" rx="300" ry="46" fill="rgba(242,166,90,0.08)" stroke="#f2a65a" stroke-width="1.4" stroke-dasharray="5 4"/>
+        <text x="360" y="230" text-anchor="middle" fill="#f2a65a" font-family="IBM Plex Mono" font-size="11">STORAGE AVAILABILITY ZONE (SAZ) — one pool, cluster-wide</text>
+
+        <g font-family="IBM Plex Sans" font-size="10.5" fill="#e8ebf2">
+          <rect x="80" y="30" width="80" height="34" rx="6" fill="#141924" stroke="#7c9eff" stroke-width="1.4"/><text x="120" y="51" text-anchor="middle">Node 1</text>
+          <rect x="200" y="30" width="80" height="34" rx="6" fill="#141924" stroke="#7c9eff" stroke-width="1.4"/><text x="240" y="51" text-anchor="middle">Node 2</text>
+          <rect x="320" y="30" width="80" height="34" rx="6" fill="#141924" stroke="#7c9eff" stroke-width="1.4"/><text x="360" y="51" text-anchor="middle">Node 3</text>
+          <rect x="440" y="30" width="80" height="34" rx="6" fill="#141924" stroke="#7c9eff" stroke-width="1.4"/><text x="480" y="51" text-anchor="middle">Node 4</text>
+          <rect x="560" y="30" width="80" height="34" rx="6" fill="#141924" stroke="#7c9eff" stroke-width="1.4"/><text x="600" y="51" text-anchor="middle">Node N</text>
+        </g>
+
+        <line x1="120" y1="64" x2="220" y2="150" stroke="#49d3c2" stroke-width="1" opacity="0.55"/>
+        <line x1="240" y1="64" x2="300" y2="150" stroke="#49d3c2" stroke-width="1" opacity="0.55"/>
+        <line x1="360" y1="64" x2="360" y2="150" stroke="#49d3c2" stroke-width="1" opacity="0.55"/>
+        <line x1="480" y1="64" x2="420" y2="150" stroke="#49d3c2" stroke-width="1" opacity="0.55"/>
+        <line x1="600" y1="64" x2="500" y2="150" stroke="#49d3c2" stroke-width="1" opacity="0.55"/>
+        <line x1="120" y1="64" x2="480" y2="150" stroke="#49d3c2" stroke-width="1" opacity="0.2"/>
+        <line x1="600" y1="64" x2="220" y2="150" stroke="#49d3c2" stroke-width="1" opacity="0.2"/>
+
+        <g fill="#f2a65a" opacity="0.9">
+          <circle cx="220" cy="180" r="5"/><circle cx="260" cy="185" r="5"/><circle cx="300" cy="178" r="5"/>
+          <circle cx="340" cy="188" r="5"/><circle cx="380" cy="180" r="5"/><circle cx="420" cy="186" r="5"/>
+          <circle cx="460" cy="178" r="5"/><circle cx="500" cy="184" r="5"/>
+        </g>
+      </svg>
+      <div class="diagram-caption">Every controller node has read/write access to every disk. No node "owns" any disk.</div>
+    </div>
+
+    <h3 class="sub">How ONTAP recognizes new storage — automatically</h3>
+    <p>There's no manual "assign this disk to that node" step. When storage shelves are added to a cluster, ONTAP automatically incorporates the disks — a storage abstraction layer configures RAID groups and low-level disk management with <strong>zero admin intervention</strong>.</p>
+
+    <h3 class="sub">Who owns what — the ownership model flips</h3>
+    <ul class="plain">
+      <li><strong>No node owns a disk.</strong> Every node can read and write every disk in the SAZ — there's no aggregate ownership at all.</li>
+      <li><strong>A node does own a volume.</strong> That ownership determines which node's NVRAM commits writes for that volume — but the underlying data can physically live on any disk in the pool.</li>
+      <li><strong>Moving a volume is nearly free.</strong> Since the data is already reachable from every node, a volume move is a <strong>Zero Copy Volume Move</strong> — just a metadata/pointer update, not a data copy. This also applies during HA failover and automatic rebalancing.</li>
+    </ul>
+
+    <h3 class="sub">The data path — node to disk</h3>
+    <p>Shelves use <strong>NVMe over Fabrics (NVMe-oF)</strong>, transported over <strong>RDMA over Converged Ethernet (RoCE)</strong>. This is what lets a node treat a "remote" disk almost like a locally attached one — RDMA's ultra-low latency is what makes pooling disks across a switch fabric practical instead of a performance compromise.</p>
+
+    <div class="diagram">
+      <svg viewBox="0 0 600 90" xmlns="http://www.w3.org/2000/svg">
+        <g font-family="IBM Plex Mono" font-size="11" fill="#e8ebf2">
+          <rect x="10" y="28" width="110" height="34" rx="6" fill="#141924" stroke="#7c9eff"/><text x="65" y="49" text-anchor="middle">Node</text>
+          <rect x="245" y="28" width="110" height="34" rx="6" fill="#141924" stroke="#49d3c2"/><text x="300" y="49" text-anchor="middle">Switch</text>
+          <rect x="480" y="28" width="110" height="34" rx="6" fill="#141924" stroke="#f2a65a"/><text x="535" y="49" text-anchor="middle">Shelf disks</text>
+        </g>
+        <line x1="120" y1="45" x2="245" y2="45" stroke="#49d3c2" stroke-width="1.6"/>
+        <line x1="355" y1="45" x2="480" y2="45" stroke="#49d3c2" stroke-width="1.6"/>
+        <text x="182" y="20" text-anchor="middle" fill="#5c6579" font-family="IBM Plex Mono" font-size="9.5">RoCE / 100GbE</text>
+        <text x="417" y="20" text-anchor="middle" fill="#5c6579" font-family="IBM Plex Mono" font-size="9.5">RoCE / 100GbE</text>
+      </svg>
+      <div class="diagram-caption">NVMe-oF is the command protocol; RoCE-over-Ethernet is the transport it rides on. No Fibre Channel involved.</div>
+    </div>
+  </section>
+
+  <!-- ============ RAID ============ -->
+  <section id="raid">
+    <div class="sec-label">07 — Data Protection</div>
+    <h2 class="sec-title">RAID inside the SAZ</h2>
+    <p class="sec-intro">Pooling disks doesn't remove RAID — it just makes RAID groups bigger and fully automatic.</p>
+
+    <div class="grid cols-2">
+      <div class="card">
+        <span class="kicker">Default</span>
+        <h4>RAID-TEC</h4>
+        <p>Triple-parity erasure coding — survives <strong>three simultaneous drive failures</strong>. Larger drives take longer to rebuild, so more parity headroom matters more as capacity grows.</p>
+      </div>
+      <div class="card">
+        <span class="kicker">Group size</span>
+        <h4>Up to 96 drives per group</h4>
+        <p>92 data + 3 parity + 1 spare — a 3× jump over the 32-drive max on unified ONTAP. Only ~4% overhead, which is excellent usable-to-raw efficiency.</p>
+      </div>
+    </div>
+
+    <p><strong>Small-scale exception:</strong> the smallest configs (single shelf of 15.3TB drives) start on RAID-DP. Once a second shelf is added, ONTAP automatically converts the RAID groups to RAID-TEC at the 96-drive size — no admin action required.</p>
+
+    <p><strong>Multiple groups, one zone:</strong> a small SAZ might fit in a single RAID group. As the SAZ grows past ~96 drives, ONTAP creates additional RAID groups (still capped at 96 each) and spreads capacity across them — all still inside the one SAZ. You never manually create, size, or assign disks to a RAID group.</p>
+
+    <div class="callout">
+      <p><strong>Rebuilds are disaggregated too.</strong> Because every node can reach every disk, RAID rebuilds run distributed across multiple cluster nodes simultaneously — shrinking the post-failure risk window compared to a single controller doing the rebuild alone.</p>
+    </div>
+  </section>
+
+  <!-- ============ NVMe-oF ============ -->
+  <section id="nvmeof">
+    <div class="sec-label">08 — Protocol vs. Transport</div>
+    <h2 class="sec-title">NVMe-oF ≠ Fibre Channel</h2>
+    <p class="sec-intro">A common point of confusion — NVMe-oF names a command protocol, not a specific kind of cable or switch port.</p>
+
+    <p>NVMe-oF just means <em>"the NVMe command set, sent over a network instead of local PCIe."</em> It's transport-agnostic — the same way "email" can travel over WiFi, Ethernet, or cellular without changing what email is.</p>
+
+    <table>
+      <tr><th>Transport</th><th>Name</th><th>Physical medium</th><th>Used by AFX?</th></tr>
+      <tr><td>Fibre Channel</td><td class="hi">NVMe/FC</td><td>Dedicated FC switches, HBAs, FC cabling</td><td>No</td></tr>
+      <tr><td>RDMA over Converged Ethernet</td><td class="hi">NVMe/RoCE</td><td>Standard Ethernet, RDMA NICs</td><td><strong style="color:var(--fiber)">Yes</strong></td></tr>
+      <tr><td>TCP</td><td class="hi">NVMe/TCP</td><td>Standard Ethernet, regular NICs</td><td>No</td></tr>
+    </table>
+
+    <p>AFX shelves connect via standard <strong>100GbE Ethernet</strong> ports, on the same Cisco Nexus switches used for everything else in the cluster — not Fibre Channel switches, HBAs, or cabling. RoCE delivers FC-like low latency, but over cheaper, more common, higher-bandwidth Ethernet gear — which is also why AFX doesn't need InfiniBand: NFS-over-RDMA and NVMe/RoCE already deliver RDMA-class performance on standard Ethernet.</p>
+  </section>
+
+  <!-- ============ THROUGHPUT ============ -->
+  <section id="throughput">
+    <div class="sec-label">09 — Performance</div>
+    <h2 class="sec-title">Where the big throughput numbers actually come from</h2>
+    <p class="sec-intro">A single LIF is still bound to one node's ports — it doesn't get faster just because AFX is disaggregated. The scale comes from parallelism across many nodes at once.</p>
+
+    <div class="callout">
+      <p>NetApp's standard practice for AFX: <strong>one LIF (IP address) per node per protocol.</strong> A 64-node cluster means 64 independent NFS/SMB/S3 endpoints, each capped at that node's own port bandwidth.</p>
+    </div>
+
+    <h3 class="sub">How clients actually reach that aggregate bandwidth</h3>
+    <ul class="plain">
+      <li><strong>pNFS (NFSv4.1+):</strong> each node presents its own NFS endpoint; pNFS-aware clients discover all nodes and spread I/O across them in parallel (recent Linux distros use <code>trunkdiscovery</code> to automate this).</li>
+      <li><strong>SMB Multichannel:</strong> the Windows equivalent — multiple paths are discovered and used automatically, on by default.</li>
+      <li><strong>nconnect / multiple mounts:</strong> lets even non-pNFS clients open several parallel connections across different node IPs.</li>
+    </ul>
+
+    <div class="diagram">
+      <svg viewBox="0 0 700 170" xmlns="http://www.w3.org/2000/svg">
+        <g font-family="IBM Plex Mono" font-size="10.5" fill="#e8ebf2">
+          <rect x="270" y="10" width="160" height="30" rx="6" fill="#141924" stroke="#e8ebf2"/>
+          <text x="350" y="30" text-anchor="middle">pNFS-aware client</text>
+        </g>
+        <line x1="330" y1="40" x2="150" y2="90" stroke="#49d3c2" stroke-width="1.4"/>
+        <line x1="350" y1="40" x2="350" y2="90" stroke="#49d3c2" stroke-width="1.4"/>
+        <line x1="370" y1="40" x2="550" y2="90" stroke="#49d3c2" stroke-width="1.4"/>
+        <g font-family="IBM Plex Mono" font-size="10.5" fill="#e8ebf2">
+          <rect x="90" y="90" width="120" height="30" rx="6" fill="#141924" stroke="#7c9eff"/><text x="150" y="110" text-anchor="middle">Node 1 LIF</text>
+          <rect x="290" y="90" width="120" height="30" rx="6" fill="#141924" stroke="#7c9eff"/><text x="350" y="110" text-anchor="middle">Node 2 LIF</text>
+          <rect x="490" y="90" width="120" height="30" rx="6" fill="#141924" stroke="#7c9eff"/><text x="550" y="110" text-anchor="middle">Node 3 LIF</text>
+        </g>
+        <text x="350" y="150" text-anchor="middle" fill="#5c6579" font-family="IBM Plex Mono" font-size="10.5">one client, three parallel 100G paths — not one bigger pipe</text>
+      </svg>
+      <div class="diagram-caption">Aggregate throughput scales by adding fire hoses, not by making one hose fatter.</div>
+    </div>
+
+    <p><strong>Analogy:</strong> think of it as adding more fire hoses (one per node) all drawing from the same shared reservoir (the SAZ) — total flow scales with the number of hoses, not the size of any single one. A single client on a single connection never sees the full cluster figure; the cluster-wide number is what you get when many parallel connections are active at once.</p>
+  </section>
+
+  <!-- ============ QUICK REFERENCE ============ -->
+  <section id="reference">
+    <div class="sec-label">10 — Cheat Sheet</div>
+    <h2 class="sec-title">Quick reference</h2>
+
+    <table>
+      <tr><th>Spec</th><th>Value</th></tr>
+      <tr><td>Controller node</td><td class="hi">AFX 1K, 2U, no on-board disk, based on AFF A1K</td></tr>
+      <tr><td>Storage shelf</td><td class="hi">NX224, 2U, 24× NVMe SSD</td></tr>
+      <tr><td>Drive sizes</td><td class="hi">7.6TB / 15.3TB (TLC), 30.7TB / 61.4TB (QLC)</td></tr>
+      <tr><td>Node port speed</td><td class="hi">100GbE</td></tr>
+      <tr><td>Switch port speed</td><td class="hi">400GbE (4×100G breakout)</td></tr>
+      <tr><td>Ports per node</td><td class="hi">8× 100G (2 HA + 2 cluster + 4 storage)</td></tr>
+      <tr><td>Ports per shelf</td><td class="hi">4× 100G</td></tr>
+      <tr><td>Backend switches</td><td class="hi">Cisco Nexus 9332D-GX2B / 9364D-GX2A / 9808</td></tr>
+      <tr><td>Storage transport</td><td class="hi">NVMe-oF over RoCE (not FC, not InfiniBand)</td></tr>
+      <tr><td>RAID type (default)</td><td class="hi">RAID-TEC — survives 3 simultaneous drive failures</td></tr>
+      <tr><td>RAID group size</td><td class="hi">Up to 96 drives (92 data + 3 parity + 1 spare)</td></tr>
+      <tr><td>Minimum cluster size</td><td class="hi">4 nodes, added in pairs</td></tr>
+      <tr><td>Published scale target</td><td class="hi">Up to 128 nodes · ~4 TB/s reads · 1+ EB capacity</td></tr>
+      <tr><td>Protocols supported</td><td class="hi">NFSv3–v4.2 (+pNFS), SMB 2/3, S3</td></tr>
+      <tr><td>Not supported</td><td class="hi">Block/SAN, InfiniBand</td></tr>
+    </table>
+  </section>
+
+</main>
+
+<footer class="wrap">
+  <p>This tutorial consolidates a working-session walkthrough of AFX's architecture — from switch cabling and breakout math up to how the Storage Availability Zone and RAID-TEC actually behave. Specs such as node/shelf limits evolve by ONTAP release; always confirm current numbers against the NetApp Hardware Universe before sizing a real deployment.</p>
+  <a class="back-top" href="#what">↑ Back to top</a>
+</footer>
+
+</body>
+</html>
