@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>pNFS on NetApp ONTAP — A Deep Dive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0A0E1A;
+    --bg-raised: #101828;
+    --panel: #121B2E;
+    --panel-border: #1F2C44;
+    --line: #223049;
+    --text: #E7ECF5;
+    --text-dim: #93A3BE;
+    --text-faint: #5C6D8A;
+    --teal: #2DD4BF;
+    --teal-soft: rgba(45,212,191,0.12);
+    --amber: #FBBF24;
+    --amber-soft: rgba(251,191,36,0.12);
+    --violet: #A78BFA;
+    --red: #F87171;
+    --mono: 'JetBrains Mono', monospace;
+    --display: 'Space Grotesk', sans-serif;
+    --body: 'Inter', sans-serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:
+      radial-gradient(ellipse 1200px 600px at 15% -10%, rgba(45,212,191,0.08), transparent 60%),
+      radial-gradient(ellipse 900px 500px at 100% 10%, rgba(167,139,250,0.06), transparent 55%),
+      var(--bg);
+    color: var(--text);
+    font-family: var(--body);
+    line-height: 1.65;
+    font-size: 16px;
+  }
+  ::selection{ background: var(--teal-soft); color: var(--teal); }
+
+  a{ color: var(--teal); text-decoration: none; }
+  a:hover{ text-decoration: underline; }
+  a:focus-visible, button:focus-visible, summary:focus-visible{ outline: 2px solid var(--teal); outline-offset: 3px; }
+
+  code, .mono{ font-family: var(--mono); }
+
+  h1,h2,h3,h4{ font-family: var(--display); font-weight:600; letter-spacing:-0.01em; color:#fff; }
+
+  .wrap{ max-width: 1160px; margin: 0 auto; padding: 0 32px; }
+
+  /* ---------- Layout shell ---------- */
+  .shell{ display:grid; grid-template-columns: 240px 1fr; gap: 56px; max-width: 1360px; margin:0 auto; padding: 0 32px 120px; }
+  nav.toc{
+    position: sticky; top: 24px; align-self: start;
+    height: calc(100vh - 48px); overflow-y:auto;
+    padding-right: 8px;
+  }
+  nav.toc::-webkit-scrollbar{ width:6px; }
+  nav.toc::-webkit-scrollbar-thumb{ background: var(--panel-border); border-radius:3px; }
+  nav.toc .toc-label{
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; text-transform:uppercase;
+    color: var(--text-faint); margin-bottom: 14px; display:block;
+  }
+  nav.toc a{
+    display:block; color: var(--text-dim); font-size: 13.5px; padding: 6px 0 6px 14px;
+    border-left: 2px solid var(--line); text-decoration:none; transition: all .15s ease;
+  }
+  nav.toc a:hover{ color: var(--text); border-left-color: var(--text-dim); }
+  nav.toc a.l2{ padding-left: 26px; font-size: 12.5px; }
+
+  main{ min-width:0; }
+  section{ padding-top: 64px; scroll-margin-top: 24px; }
+  section:first-of-type{ padding-top: 0; }
+
+  .eyebrow{
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--teal); margin-bottom: 12px; display:flex; align-items:center; gap:10px;
+  }
+  .eyebrow::before{ content:''; width:18px; height:1px; background: var(--teal); display:inline-block; }
+
+  h2{ font-size: 30px; margin-bottom: 16px; }
+  h3{ font-size: 19px; margin: 28px 0 10px; color: var(--text); }
+  p{ color: var(--text-dim); margin-bottom: 14px; max-width: 74ch; }
+  strong{ color: var(--text); font-weight:600; }
+  ul, ol{ color: var(--text-dim); margin: 0 0 16px 20px; }
+  li{ margin-bottom: 7px; }
+  li::marker{ color: var(--teal); }
+
+  /* ---------- Hero ---------- */
+  header.hero{ padding: 96px 32px 72px; position:relative; overflow:hidden; }
+  .hero-inner{ max-width: 1160px; margin:0 auto; display:grid; grid-template-columns: 1.05fr 0.95fr; gap: 48px; align-items:center; }
+  .kicker{
+    font-family: var(--mono); font-size:12.5px; letter-spacing:0.16em; text-transform:uppercase;
+    color: var(--amber); margin-bottom:20px; display:flex; align-items:center; gap:10px;
+  }
+  .kicker .dot{ width:7px; height:7px; border-radius:50%; background: var(--amber); box-shadow:0 0 10px var(--amber); }
+  h1{ font-size: 52px; line-height:1.05; margin-bottom: 20px; }
+  h1 span{ color: var(--teal); }
+  .hero-sub{ font-size: 17px; color: var(--text-dim); max-width: 52ch; margin-bottom: 28px; }
+  .hero-meta{ display:flex; gap:28px; flex-wrap:wrap; }
+  .hero-meta div{ font-family: var(--mono); font-size: 12px; color: var(--text-faint); }
+  .hero-meta strong{ display:block; font-size: 13px; color: var(--text); font-family: var(--body); font-weight:600; margin-bottom:3px; }
+
+  .hero-diagram{ background: var(--panel); border:1px solid var(--panel-border); border-radius:14px; padding:20px; }
+  .hero-diagram .cap{ font-family: var(--mono); font-size:11px; color: var(--text-faint); margin-top:12px; text-align:center; }
+
+  /* ---------- Cards / panels ---------- */
+  .card{ background: var(--panel); border:1px solid var(--panel-border); border-radius:12px; padding:24px 26px; }
+  .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .grid-3{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  @media (max-width: 900px){ .grid-2, .grid-3{ grid-template-columns:1fr; } }
+
+  /* ---------- Timeline ---------- */
+  .timeline{ display:flex; gap:0; margin: 28px 0 36px; border-top:1px solid var(--line); position:relative; padding-top: 28px; overflow-x:auto; }
+  .t-item{ flex:1; min-width:150px; position:relative; padding-right:18px; }
+  .t-item::before{
+    content:''; position:absolute; top:-33px; left:0; width:9px; height:9px; border-radius:50%;
+    background: var(--bg); border:2px solid var(--teal);
+  }
+  .t-item .yr{ font-family: var(--mono); font-size:12px; color: var(--teal); margin-bottom:6px; }
+  .t-item h4{ font-size:14.5px; color:#fff; margin-bottom:4px; }
+  .t-item p{ font-size:13px; margin-bottom:0; }
+
+  /* ---------- Comparison table ---------- */
+  .table-scroll{ overflow-x:auto; border-radius:12px; border:1px solid var(--panel-border); }
+  table{ width:100%; border-collapse:collapse; min-width: 760px; background: var(--panel); }
+  thead th{
+    text-align:left; font-family: var(--display); font-weight:600; font-size:14px; color:#fff;
+    padding: 16px 18px; border-bottom:1px solid var(--panel-border); background: var(--bg-raised);
+  }
+  thead th:first-child{ color: var(--text-faint); font-family:var(--mono); font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:.08em; }
+  thead th.v3{ color: var(--text-dim); }
+  thead th.v4{ color: var(--violet); }
+  thead th.pnfs{ color: var(--teal); }
+  tbody td{ padding: 13px 18px; border-bottom:1px solid var(--line); font-size:13.5px; color: var(--text-dim); vertical-align:top; }
+  tbody td:first-child{ color: var(--text); font-weight:500; font-family:var(--mono); font-size:12.5px; white-space:nowrap; }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover td{ background: rgba(255,255,255,0.015); }
+  td.hi{ color: var(--teal); }
+
+  /* ---------- Steps ---------- */
+  .steps{ counter-reset: step; margin: 20px 0; }
+  .step{ display:grid; grid-template-columns: 44px 1fr; gap:18px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+  .step:last-child{ border-bottom:none; }
+  .step .num{
+    counter-increment: step; width:36px; height:36px; border-radius:9px; background: var(--teal-soft);
+    border: 1px solid rgba(45,212,191,0.35); display:flex; align-items:center; justify-content:center;
+    font-family: var(--mono); font-size:14px; color: var(--teal); font-weight:600;
+  }
+  .step .num::before{ content: counter(step); }
+  .step h4{ font-size:15px; margin-bottom:4px; color:#fff; }
+  .step p{ margin-bottom:0; font-size:14px; }
+
+  /* ---------- Code blocks ---------- */
+  pre{
+    background: #080B14; border:1px solid var(--panel-border); border-radius:10px;
+    padding:18px 20px; overflow-x:auto; margin: 14px 0 18px; position:relative;
+  }
+  pre code{ font-family: var(--mono); font-size:13px; color:#C9E8E4; line-height:1.7; white-space:pre; }
+  .cmt{ color: var(--text-faint); }
+  .kw{ color: var(--amber); }
+  .str{ color: var(--teal); }
+  pre .tag{
+    position:absolute; top:10px; right:14px; font-family:var(--mono); font-size:10px;
+    text-transform:uppercase; letter-spacing:.08em; color: var(--text-faint); border:1px solid var(--line);
+    padding:2px 8px; border-radius:20px;
+  }
+
+  /* ---------- Callouts ---------- */
+  .callout{ border-left:3px solid var(--amber); background: var(--amber-soft); border-radius:0 10px 10px 0; padding:16px 20px; margin: 20px 0; }
+  .callout p{ color:#F3E3B8; margin-bottom:0; font-size:14px; }
+  .callout .lbl{ font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:var(--amber); margin-bottom:6px; display:block; }
+  .callout.info{ border-left-color: var(--teal); background: var(--teal-soft); }
+  .callout.info p{ color: #C9EFE9; }
+  .callout.info .lbl{ color: var(--teal); }
+
+  /* ---------- Diagrams general ---------- */
+  .diagram-block{ background: var(--panel); border:1px solid var(--panel-border); border-radius:14px; padding: 26px; margin: 22px 0; }
+  .diagram-block .cap{ font-family:var(--mono); font-size:12px; color: var(--text-faint); text-align:center; margin-top:14px; }
+  svg text{ font-family: var(--body); }
+  .flow-dash{ stroke-dasharray: 5 5; animation: dash 1.6s linear infinite; }
+  @keyframes dash{ to{ stroke-dashoffset: -20; } }
+  @media (prefers-reduced-motion: reduce){ .flow-dash{ animation:none; } }
+
+  /* ---------- Pills / badges ---------- */
+  .pill{ display:inline-block; font-family:var(--mono); font-size:11px; padding:3px 10px; border-radius:20px; border:1px solid var(--line); color: var(--text-dim); margin: 2px 6px 2px 0; }
+  .pill.op{ border-color: rgba(45,212,191,0.35); color: var(--teal); }
+
+  footer{ border-top:1px solid var(--panel-border); margin-top: 90px; padding: 40px 32px 60px; }
+  footer .wrap{ display:flex; justify-content:space-between; flex-wrap:wrap; gap: 20px; }
+  footer p{ font-size:13px; color: var(--text-faint); margin-bottom:6px; }
+  footer a{ color: var(--text-dim); font-size:13px; }
+  .src-list{ list-style:none; margin:0; }
+  .src-list li{ margin-bottom:6px; }
+  .src-list li::marker{ content:''; }
+
+  @media (max-width: 980px){
+    .shell{ grid-template-columns: 1fr; }
+    nav.toc{ display:none; }
+    .hero-inner{ grid-template-columns: 1fr; }
+    h1{ font-size: 38px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="kicker"><span class="dot"></span>NetApp ONTAP · NFS Protocol Deep Dive</div>
+      <h1>Parallel NFS <span>(pNFS)</span> on NetApp ONTAP</h1>
+      <p class="hero-sub">How ONTAP splits the metadata path from the data path in NFSv4.1, why that matters for throughput and latency, and how it stacks up against NFSv3 and plain NFSv4 — with the architecture, workflow, and CLI you need to actually run it.</p>
+      <div class="hero-meta">
+        <div><strong>Protocol basis</strong>RFC 5661 (NFSv4.1)</div>
+        <div><strong>Platform</strong>ONTAP 9, clustered</div>
+        <div><strong>Volume types</strong>FlexVol &amp; FlexGroup</div>
+        <div><strong>Reading time</strong>~18 min</div>
+      </div>
+    </div>
+    <div class="hero-diagram">
+      <svg viewBox="0 0 460 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="pNFS topology: client connects to a metadata server for control, and directly to data servers for reads and writes">
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="#2DD4BF"/>
+          </marker>
+        </defs>
+        <!-- client -->
+        <rect x="20" y="140" width="90" height="56" rx="8" fill="#0F1729" stroke="#A78BFA" stroke-width="1.5"/>
+        <text x="65" y="163" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">NFSv4.1</text>
+        <text x="65" y="179" text-anchor="middle" fill="#93A3BE" font-size="11">pNFS Client</text>
+
+        <!-- MDS -->
+        <rect x="190" y="20" width="110" height="60" rx="8" fill="#0F1729" stroke="#FBBF24" stroke-width="1.5"/>
+        <text x="245" y="45" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Metadata</text>
+        <text x="245" y="61" text-anchor="middle" fill="#93A3BE" font-size="11">Server (MDS)</text>
+
+        <!-- data servers -->
+        <rect x="340" y="90" width="100" height="50" rx="8" fill="#0F1729" stroke="#2DD4BF" stroke-width="1.5"/>
+        <text x="390" y="112" text-anchor="middle" fill="#fff" font-size="11.5" font-weight="600">Node A</text>
+        <text x="390" y="127" text-anchor="middle" fill="#93A3BE" font-size="10.5">Data Server</text>
+
+        <rect x="340" y="160" width="100" height="50" rx="8" fill="#0F1729" stroke="#2DD4BF" stroke-width="1.5"/>
+        <text x="390" y="182" text-anchor="middle" fill="#fff" font-size="11.5" font-weight="600">Node B</text>
+        <text x="390" y="197" text-anchor="middle" fill="#93A3BE" font-size="10.5">Data Server</text>
+
+        <rect x="340" y="230" width="100" height="50" rx="8" fill="#0F1729" stroke="#2DD4BF" stroke-width="1.5"/>
+        <text x="390" y="252" text-anchor="middle" fill="#fff" font-size="11.5" font-weight="600">Node C</text>
+        <text x="390" y="267" text-anchor="middle" fill="#93A3BE" font-size="10.5">Data Server</text>
+
+        <!-- control path client->MDS -->
+        <path d="M85,140 C 120,90 150,60 188,52" fill="none" stroke="#FBBF24" stroke-width="1.5" marker-end="url(#arrow)"/>
+        <text x="118" y="90" fill="#FBBF24" font-size="10" font-family="JetBrains Mono, monospace">LAYOUTGET</text>
+
+        <!-- data paths client -> nodes, dashed animated -->
+        <path d="M110,155 C 220,130 260,115 338,113" fill="none" stroke="#2DD4BF" stroke-width="1.5" class="flow-dash" marker-end="url(#arrow)"/>
+        <path d="M110,168 C 220,175 260,180 338,183" fill="none" stroke="#2DD4BF" stroke-width="1.5" class="flow-dash" marker-end="url(#arrow)"/>
+        <path d="M110,182 C 210,230 260,245 338,251" fill="none" stroke="#2DD4BF" stroke-width="1.5" class="flow-dash" marker-end="url(#arrow)"/>
+
+        <text x="230" y="300" text-anchor="middle" fill="#5C6D8A" font-size="10.5">Control path (amber) negotiates layout once — data (teal) then flows directly, in parallel</text>
+      </svg>
+      <div class="cap">Fig. 0 — pNFS separates the control path from parallel data paths</div>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+<nav class="toc" aria-label="Table of contents">
+  <span class="toc-label">On this page</span>
+  <a href="#evolution">NFS Evolution</a>
+  <a href="#comparison">v3 vs v4 vs pNFS</a>
+  <a href="#comparison" class="l2">Comparison table</a>
+  <a href="#architecture">pNFS Architecture</a>
+  <a href="#architecture" class="l2">Metadata server</a>
+  <a href="#architecture" class="l2">Data path</a>
+  <a href="#workflow">Device Workflow</a>
+  <a href="#flexgroup">pNFS + FlexGroup</a>
+  <a href="#prereqs">Prerequisites</a>
+  <a href="#configure">Configuring pNFS</a>
+  <a href="#verify">Verify &amp; Monitor</a>
+  <a href="#practices">Best Practices</a>
+  <a href="#disable">Disabling pNFS</a>
+  <a href="#sources">Sources</a>
+</nav>
+
+<main>
+
+  <section id="evolution">
+    <div class="eyebrow">Background</div>
+    <h2>From NFSv3 to pNFS, in one lineage</h2>
+    <p>pNFS isn't a competing protocol — it's a feature bolted onto NFSv4.1. To understand why NetApp built it the way it did, it helps to see what each generation was actually solving.</p>
+
+    <div class="timeline">
+      <div class="t-item">
+        <div class="yr">~1995</div>
+        <h4>NFSv3</h4>
+        <p>Stateless, UDP or TCP, external locking (NLM). Still the throughput workhorse for many workloads today.</p>
+      </div>
+      <div class="t-item">
+        <div class="yr">1998–2005</div>
+        <h4>NFSv4.0</h4>
+        <p>Stateful, single port, integrated locking and delegations, mandatory strong security.</p>
+      </div>
+      <div class="t-item">
+        <div class="yr">2006</div>
+        <h4>NFSv4.1 / pNFS</h4>
+        <p>Sessions, trunking, and pNFS — layouts that let clients talk to data servers directly, defined in RFC 5661.</p>
+      </div>
+      <div class="t-item">
+        <div class="yr">ONTAP 8.1+</div>
+        <h4>NetApp support</h4>
+        <p>Clustered Data ONTAP adds pNFS with a files-based layout across FlexVol and, later, FlexGroup volumes.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="comparison">
+    <div class="eyebrow">Core Concepts</div>
+    <h2>NFSv3 vs. NFSv4 vs. pNFS</h2>
+    <p>These three sit on a spectrum: NFSv3 is simple and stateless, NFSv4 adds state and security in exchange for a single connection to one server, and pNFS keeps NFSv4's model but lets that single connection stop being a bottleneck for data traffic.</p>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Property</th>
+            <th class="v3">NFSv3</th>
+            <th class="v4">NFSv4 / 4.0</th>
+            <th class="pnfs">pNFS (NFSv4.1+)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>State model</td>
+            <td>Stateless — no session state on the server</td>
+            <td>Stateful — opens, locks, and delegations are tracked</td>
+            <td>Stateful, plus <em>layout</em> state describing where data lives</td>
+          </tr>
+          <tr>
+            <td>Transport / ports</td>
+            <td>UDP or TCP; separate ports for mount, NLM, NSM, portmapper</td>
+            <td>TCP only, single well-known port 2049</td>
+            <td>Same as NFSv4 for metadata; additional data-server connections opened as needed</td>
+          </tr>
+          <tr>
+            <td>Locking</td>
+            <td>Side-band protocol (NLM) — not part of NFS itself</td>
+            <td>Integrated into the protocol; leases replace NLM</td>
+            <td>Same integrated locking as NFSv4.1</td>
+          </tr>
+          <tr>
+            <td>Security</td>
+            <td>Typically AUTH_SYS (UID/GID trust); Kerberos optional and clunky</td>
+            <td>Kerberos v5 (RPCSEC_GSS) mandatory to implement; ACLs supported</td>
+            <td>Inherits NFSv4 security model on the metadata path</td>
+          </tr>
+          <tr>
+            <td>Data path</td>
+            <td>Single path from client to the server that owns the file</td>
+            <td>Single path — all reads/writes traverse the same server connection</td>
+            <td class="hi">Parallel — client writes/reads directly against the node holding the data</td>
+          </tr>
+          <tr>
+            <td>Metadata path</td>
+            <td>Mixed with data on the same connection</td>
+            <td>Mixed with data on the same connection</td>
+            <td class="hi">Isolated on a dedicated MDS connection (LAYOUTGET, GETATTR, LOOKUP, etc.)</td>
+          </tr>
+          <tr>
+            <td>Cluster awareness</td>
+            <td>None — client has no concept of remote nodes</td>
+            <td>None — remote files are proxied internally by the node the client is attached to</td>
+            <td class="hi">Full — client is told which node actually owns the data and goes there directly</td>
+          </tr>
+          <tr>
+            <td>Ideal for</td>
+            <td>Simple, high-throughput workloads where statelessness and broad compatibility matter</td>
+            <td>Environments needing strong security, ACLs, and protocol-level locking</td>
+            <td class="hi">Clustered, multi-node deployments — especially FlexGroup — with parallel or high-fan-out I/O</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout info">
+      <span class="lbl">Key distinction</span>
+      <p>NFSv4 fixes <em>protocol</em> weaknesses in NFSv3 (locking, security, statefulness). pNFS fixes a <em>topology</em> weakness that NFSv4 inherited: every operation, metadata or data, still funnels through one connection to one node — even in a multi-node cluster where the actual file might live somewhere else entirely.</p>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <div class="eyebrow">Under the Hood</div>
+    <h2>pNFS architecture in ONTAP</h2>
+    <p>pNFS has three moving parts: a client that understands layouts, a metadata server that hands them out, and data servers that serve bytes once the client knows where to look.</p>
+
+    <div class="grid-3">
+      <div class="card">
+        <h4 style="color:#A78BFA">Metadata Server (MDS)</h4>
+        <p style="font-size:13.5px">Established the moment a client mounts with NFSv4.1+ and pNFS is enabled. Handles GETATTR, SETATTR, LOOKUP, ACCESS, REMOVE, RENAME, and the pNFS-specific control calls. This connection persists for the life of the mount.</p>
+      </div>
+      <div class="card">
+        <h4 style="color:#2DD4BF">Data Servers</h4>
+        <p style="font-size:13.5px">The cluster nodes that physically hold the volume. They answer read/write requests directly — the client is redirected to a local network interface instead of hairpinning through the cluster's backend network.</p>
+      </div>
+      <div class="card">
+        <h4 style="color:#FBBF24">Control Path</h4>
+        <p style="font-size:13.5px">The internal channel ONTAP uses to keep device IDs and volume-to-interface mappings in sync across the cluster, replicated periodically over the backend cluster network.</p>
+      </div>
+    </div>
+
+    <h3>How the client knows it's eligible</h3>
+    <p>Support is negotiated in the very first <code>EXCHANGE_ID</code> call of the mount. If both the <code>EXCHGID4_FLAG_USE_PNFS_DS</code> and <code>EXCHGID4_FLAG_USE_PNFS_MDS</code> flags come back set, the interface the client landed on is eligible to act as both a metadata and a data path for that session.</p>
+
+    <h3>pNFS-specific operations</h3>
+    <p>Beyond ordinary NFSv4.1 calls, a handful of operations exist purely to hand out and manage layouts, defined in RFC 5661 §12.3:</p>
+    <div>
+      <span class="pill op">LAYOUTGET</span>
+      <span class="pill op">LAYOUTCOMMIT</span>
+      <span class="pill op">LAYOUTRETURN</span>
+      <span class="pill op">GETDEVICEINFO</span>
+      <span class="pill op">GETDEVICELIST</span>
+      <span class="pill op">CB_LAYOUTRECALL</span>
+      <span class="pill op">CB_RECALL_ANY</span>
+      <span class="pill op">CB_NOTIFY_DEVICEID</span>
+    </div>
+    <div class="table-scroll" style="margin-top:16px">
+      <table>
+        <thead><tr><th>Operation</th><th colspan="3">What it does</th></tr></thead>
+        <tbody>
+          <tr><td>LAYOUTGET</td><td colspan="3">Client asks the MDS for the data-server map for a given file.</td></tr>
+          <tr><td>LAYOUTCOMMIT</td><td colspan="3">Server commits a layout and updates its metadata maps after a write.</td></tr>
+          <tr><td>LAYOUTRETURN</td><td colspan="3">Client returns a layout, or requests a refreshed one if the data changed.</td></tr>
+          <tr><td>GETDEVICEINFO</td><td colspan="3">Client asks for current connection info for a specific data server.</td></tr>
+          <tr><td>GETDEVICELIST</td><td colspan="3">Client requests the full list of data servers participating in the cluster.</td></tr>
+          <tr><td>CB_LAYOUTRECALL</td><td colspan="3">Server recalls a layout from a client if a conflict is detected.</td></tr>
+          <tr><td>CB_RECALL_ANY</td><td colspan="3">Server asks a client to return any layouts it's holding.</td></tr>
+          <tr><td>CB_NOTIFY_DEVICEID</td><td colspan="3">Server notifies a client that a device ID has changed.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <span class="lbl">Worth noting</span>
+      <p>Only metadata-triggering calls establish device mappings. Running <code>ls</code> in a mount, for instance, is a GETATTR — it will not populate a pNFS device mapping. Mappings appear only once an actual read or write happens.</p>
+    </div>
+  </section>
+
+  <section id="workflow">
+    <div class="eyebrow">Sequence</div>
+    <h2>How a pNFS device gets populated</h2>
+    <p>The first time a client touches a file, ONTAP walks through a fixed handshake before any parallel data path exists:</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="num"></div>
+        <div><h4>Client opens the file</h4><p>A read or write is requested; the client performs an OPEN and retrieves the file handle over the metadata connection.</p></div>
+      </div>
+      <div class="step">
+        <div class="num"></div>
+        <div><h4>LAYOUTGET is sent</h4><p>The client sends the file handle to the MDS in a LAYOUTGET call.</p></div>
+      </div>
+      <div class="step">
+        <div class="num"></div>
+        <div><h4>MDS returns the layout</h4><p>The reply includes the state ID, stripe size, file segment, and the device ID that owns this data.</p></div>
+      </div>
+      <div class="step">
+        <div class="num"></div>
+        <div><h4>Client resolves the device</h4><p>The device ID is sent back in a GETDEVICEINFO call to find out which IP address to actually use.</p></div>
+      </div>
+      <div class="step">
+        <div class="num"></div>
+        <div><h4>Storage replies with local paths</h4><p>ONTAP returns the list of IP addresses that provide local access to that device.</p></div>
+      </div>
+      <div class="step">
+        <div class="num"></div>
+        <div><h4>Data flows directly</h4><p>The client continues the conversation over the local interface — bypassing the cluster's internal backend network entirely.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="flexgroup">
+    <div class="eyebrow">Scale-out</div>
+    <h2>pNFS with FlexGroup volumes</h2>
+    <p>FlexGroup volumes stripe a single namespace across constituent FlexVols on multiple nodes. That's exactly the scenario pNFS was built for: without it, every file access from one client funnels over one mount path to one node, even when the file physically lives elsewhere.</p>
+
+    <div class="grid-2">
+      <div class="diagram-block" style="margin:0">
+        <svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Without pNFS, all four files are fetched over one path via one node, with three requests crossing the backend cluster network">
+          <rect x="10" y="90" width="70" height="40" rx="6" fill="#0F1729" stroke="#A78BFA"/>
+          <text x="45" y="114" text-anchor="middle" fill="#fff" font-size="11">Client</text>
+          <rect x="150" y="90" width="70" height="40" rx="6" fill="#0F1729" stroke="#F87171"/>
+          <text x="185" y="110" text-anchor="middle" fill="#fff" font-size="10.5">Node 1</text>
+          <text x="185" y="123" text-anchor="middle" fill="#93A3BE" font-size="9">mount pt</text>
+          <g stroke="#F87171" stroke-width="1.3" fill="none">
+            <path d="M240,105 C260,60 270,50 300,45"/>
+            <path d="M240,115 C260,115 270,115 300,113"/>
+            <path d="M240,125 C260,160 270,175 300,181"/>
+          </g>
+          <circle cx="300" cy="45" r="4" fill="#F87171"/>
+          <circle cx="300" cy="113" r="4" fill="#F87171"/>
+          <circle cx="300" cy="181" r="4" fill="#F87171"/>
+          <text x="300" y="30" text-anchor="middle" fill="#5C6D8A" font-size="9">Node 2</text>
+          <text x="300" y="200" text-anchor="middle" fill="#5C6D8A" font-size="9">Node 3</text>
+          <path d="M80,108 L150,108" stroke="#93A3BE" stroke-width="1.3" marker-end="url(#arrow)"/>
+          <text x="160" y="150" text-anchor="middle" fill="#F87171" font-size="9.5">backend cluster network (remote hops)</text>
+        </svg>
+        <div class="cap">Fig. 1 — Without pNFS: single path, remote hops for 3 of 4 files</div>
+      </div>
+      <div class="diagram-block" style="margin:0">
+        <svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="With pNFS, the client negotiates direct local paths to each node holding a file, in parallel">
+          <rect x="10" y="90" width="70" height="40" rx="6" fill="#0F1729" stroke="#A78BFA"/>
+          <text x="45" y="114" text-anchor="middle" fill="#fff" font-size="11">Client</text>
+          <rect x="230" y="20" width="70" height="36" rx="6" fill="#0F1729" stroke="#2DD4BF"/>
+          <text x="265" y="42" text-anchor="middle" fill="#fff" font-size="10">Node 1</text>
+          <rect x="230" y="92" width="70" height="36" rx="6" fill="#0F1729" stroke="#2DD4BF"/>
+          <text x="265" y="114" text-anchor="middle" fill="#fff" font-size="10">Node 2</text>
+          <rect x="230" y="164" width="70" height="36" rx="6" fill="#0F1729" stroke="#2DD4BF"/>
+          <text x="265" y="186" text-anchor="middle" fill="#fff" font-size="10">Node 3</text>
+          <g stroke="#2DD4BF" stroke-width="1.4" fill="none" class="flow-dash">
+            <path d="M80,100 C150,60 180,50 228,40"/>
+            <path d="M80,110 C150,110 180,110 228,110"/>
+            <path d="M80,120 C150,160 180,172 228,180"/>
+          </g>
+          <text x="165" y="150" text-anchor="middle" fill="#2DD4BF" font-size="9.5">direct, parallel local paths</text>
+        </svg>
+        <div class="cap">Fig. 2 — With pNFS: local, parallel paths to every node</div>
+      </div>
+    </div>
+
+    <p>NetApp's own testing on a single RHEL 9.5 client reading four 10GB files in parallel — spread across two cluster nodes — shows the effect directly:</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Configuration</th><th>Local files</th><th>Remote / cross-node files</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>NFSv4.1, no pNFS</td>
+            <td>~227–228 MB/s, ~46s</td>
+            <td>~192 MB/s, ~54.5s</td>
+          </tr>
+          <tr>
+            <td class="hi">NFSv4.1 with pNFS</td>
+            <td class="hi">~246–248 MB/s, ~42.5s</td>
+            <td class="hi">~244 MB/s, ~43s</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:13.5px">The headline isn't just that pNFS is faster — it's that the gap between "local" and "remote" files nearly disappears, because every file effectively becomes local from the client's point of view.</p>
+  </section>
+
+  <section id="prereqs">
+    <div class="eyebrow">Before you start</div>
+    <h2>Prerequisites</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h4 style="color:#2DD4BF">Client-side</h4>
+        <ul>
+          <li>An RFC-compliant NFS client with pNFS support — most Linux distributions from 2014 onward (RHEL 6.4+, Fedora 17+)</li>
+          <li>Mounted with NFSv4.1 or later — pNFS does not exist below 4.1</li>
+          <li>Confirm pNFS support with your client OS vendor before relying on it in production</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h4 style="color:#FBBF24">Server-side (ONTAP)</h4>
+        <ul>
+          <li>NFSv4.1 enabled on the SVM (<code>off</code> by default)</li>
+          <li>pNFS explicitly enabled on the SVM (<code>disabled</code> by default)</li>
+          <li>At least one data LIF per node, routable to clients — more may be needed for load balancing</li>
+          <li>Export policies and rules that allow NFSv4 on the target volumes</li>
+        </ul>
+      </div>
+    </div>
+    <p style="margin-top:6px">Works with both FlexVol and FlexGroup volumes. With FlexGroup, ONTAP scales to up to 200 billion files and 60PB of capacity. Be cautious combining pNFS with <code>nconnect</code> — each client mount multiplies TCP connections per data LIF, and connection counts can climb quickly.</p>
+  </section>
+
+  <section id="configure">
+    <div class="eyebrow">Hands-on</div>
+    <h2>Configuring pNFS on ONTAP</h2>
+    <p>Enabling pNFS is a two-flag operation on top of a working NFSv4 SVM — but both are required, and both are off by default.</p>
+
+    <h3>1. Enable NFSv4.1 on the SVM</h3>
+    <pre><span class="tag">ONTAP CLI</span><code><span class="cmt">::&gt;</span> vserver nfs modify -vserver SVM -v4.1 enabled</code></pre>
+
+    <h3>2. Enable pNFS on top of it</h3>
+    <pre><span class="tag">ONTAP CLI</span><code><span class="cmt">::&gt;</span> vserver nfs modify -vserver SVM -v4.1-pnfs enabled</code></pre>
+
+    <h3>3. Confirm export policies allow NFSv4</h3>
+    <p style="font-size:14px">Make sure the export policy rules covering your target volumes include NFSv4 in their allowed protocols, or clients that mount with <code>vers=4.1</code> will be rejected before pNFS ever comes into play.</p>
+
+    <h3>4. Mount from the client</h3>
+    <pre><span class="tag">Linux client</span><code><span class="cmt"># request NFSv4.1, which is required for pNFS</span>
+mount -o vers=4.1 svm-data-lif:/vol1 /mnt/pnfs_vol</code></pre>
+
+    <div class="callout info">
+      <span class="lbl">New SVM shortcut</span>
+      <p>If you're creating the NFS server for the first time, <code>vserver nfs create</code> lets you set <code>-v4.1 enabled</code> up front — but pNFS itself still needs the separate <code>-v4.1-pnfs enabled</code> flag either way.</p>
+    </div>
+  </section>
+
+  <section id="verify">
+    <div class="eyebrow">Operations</div>
+    <h2>Verifying and monitoring pNFS</h2>
+    <p>ONTAP exposes device and mapping state directly in advanced privilege. Note that volumes show up by numeric ID, not name.</p>
+
+    <pre><span class="tag">advanced privilege</span><code><span class="cmt">::*&gt;</span> pnfs devices show -vserver DEMO
+
+Vserver Name     Mapping ID      Volume MSID     Mapping Status  Generation
+---------------  --------------- --------------- --------------- -------------
+DEMO             16              2157024470      available       1
+
+<span class="cmt">::*&gt;</span> pnfs devices mappings show -vserver DEMO
+
+Vserver Name    Mapping ID      Dsid            LIF IP
+--------------  --------------- --------------- --------------------
+DEMO            16              2488            10.193.67.211</code></pre>
+
+    <p style="font-size:13.5px">To resolve those numeric IDs back to a volume name: <code>volume show -dsid [dsid_numeric]</code> or <code>volume show -msid [msid_numeric]</code>, also in advanced privilege.</p>
+
+    <h3>Live statistics</h3>
+    <pre><span class="tag">advanced privilege</span><code><span class="cmt">::*&gt;</span> statistics start -object nfsv4_1 -vserver SVM -sample-id pnfs_check
+<span class="cmt">::*&gt;</span> statistics show -object nfsv4_1 -vserver SVM -sample-id pnfs_check</code></pre>
+    <p style="font-size:13.5px">Watch counters like <code>getdeviceinfo_error</code> to catch clients that are failing to resolve a data server after a LAYOUTGET.</p>
+  </section>
+
+  <section id="practices">
+    <div class="eyebrow">Operational guidance</div>
+    <h2>Best practices</h2>
+    <ul>
+      <li><strong>Spread mounts across nodes.</strong> Once a mount point is established it stays on that data interface until remounted or the LIF moves — so point different clients at different nodes to balance metadata-server load across the SVM.</li>
+      <li><strong>Treat LIF migrations as disruptive.</strong> NFSv4.1 is stateful, so moving a data interface can interrupt clients actively using the mount. Schedule interface migrations and storage failovers/givebacks in a maintenance window.</li>
+      <li><strong>Watch metadata-heavy workloads.</strong> Metadata operations are small individually but can be very high in volume for workloads that create large numbers of files — plan MDS placement with that in mind.</li>
+      <li><strong>Get NFSv4 ID domains right.</strong> Client and server must agree on the ID domain, or users/groups can show up anonymized (effectively squashed) in the export.</li>
+      <li><strong>Be deliberate with nconnect.</strong> It multiplies TCP connections per data LIF on top of what pNFS already opens — size accordingly.</li>
+    </ul>
+  </section>
+
+  <section id="disable">
+    <div class="eyebrow">Rollback</div>
+    <h2>What happens if you disable pNFS</h2>
+    <p>Disabling pNFS doesn't tear anything down immediately — it just stops the server from handing out <em>new</em> layouts. Existing layouts already negotiated by clients continue to be used, though some clients may behave unpredictably if they expect pNFS capabilities that are no longer being offered.</p>
+    <pre><span class="tag">ONTAP CLI</span><code><span class="cmt">::&gt;</span> vserver nfs modify -vserver SVM -v4.1-pnfs disabled</code></pre>
+    <div class="callout">
+      <span class="lbl">Test first</span>
+      <p>Both enabling and disabling pNFS add a step of complexity to how clients negotiate the mount. Validate the change on a test SVM before rolling it into production — the same way you would test any change to interface topology.</p>
+    </div>
+  </section>
+
+</main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <p style="color:var(--text-dim); font-weight:600; margin-bottom:10px;">Sources</p>
+      <ul class="src-list" id="sources">
+        <li><a href="https://docs.netapp.com/us-en/ontap/pnfs/pnfs-architecture-concept.html" target="_blank" rel="noopener">docs.netapp.com — Learn about pNFS architecture in ONTAP</a></li>
+        <li><a href="https://docs.netapp.com/us-en/ontap/pnfs/pnfs-plan-concept.html" target="_blank" rel="noopener">docs.netapp.com — Plan for pNFS deployment</a></li>
+        <li><a href="https://docs.netapp.com/us-en/ontap/pnfs/pnfs-deployment-strategy-concept.html" target="_blank" rel="noopener">docs.netapp.com — pNFS deployment strategy in ONTAP</a></li>
+        <li><a href="https://docs.netapp.com/us-en/ontap/pnfs/pnfs-commands.html" target="_blank" rel="noopener">docs.netapp.com — pNFS commands, statistics and event logs</a></li>
+        <li><a href="https://docs.netapp.com/us-en/ontap/pnfs/pnfs-tuning-performance-concept.html" target="_blank" rel="noopener">docs.netapp.com — pNFS tuning and performance best practices</a></li>
+        <li><a href="https://kb.netapp.com/on-prem/ontap/da/NAS/NAS-KBs/What_is_the_impact_of_disabling_or_enabling_pNFS" target="_blank" rel="noopener">NetApp Knowledge Base — Impact of disabling/enabling pNFS</a></li>
+        <li><a href="https://www.rfc-editor.org/rfc/rfc5661.html" target="_blank" rel="noopener">RFC 5661 — NFSv4.1 Protocol Specification</a></li>
+      </ul>
+    </div>
+    <div>
+      <p>pNFS on NetApp ONTAP — technical tutorial</p>
+      <p>Verify version-specific behavior against the current ONTAP docs for your release before making changes in production.</p>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
